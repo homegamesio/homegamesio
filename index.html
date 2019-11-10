@@ -7,44 +7,62 @@
 
     <body>
         <div id="header">
-            <img style="height: 150px;" src="https://d3lgoy70hwd3pc.cloudfront.net/logo.png"></img>
+            <img id="logo" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img>
         </div>
-        <div id="about">
-            <p><strong>Homegames is an open source LAN-based game system built with Javascript.</strong></p>
-            <p>It is maintained by a small team as a side project. Homegames is intended to be a fun way to build games and play them with your friends without requiring a ton of prior programming experience.</p>
-        </div>
-        
-        <div id="getting-started">
-            <p>Get started</p>
-        </div>
-
-        <div id="podcast">
-            <p>We have a podcast</p>
-        </div>
-
-        <div id="social">
-            <p>We have a Twitter</p>
+        <div id="content">
+            <div id="about">
+                <p><strong>Homegames is an open source LAN-based game system built with Javascript.</strong></p>
+                <p>It is maintained by a small team as a side project. Homegames is intended to be a fun way to build games and play them with your friends without requiring a ton of prior programming experience.</p>
+            </div>
+            
+            <div id="getting-started">
+                <p>Get started</p>
+            </div>
+    
+            <div id="podcast">
+                <p>We have a podcast</p>
+            </div>
+    
+            <div id="social">
+                <p>We have a Twitter</p>
+            </div>
         </div>
     </body>
     <style>
+        body {
+            margin: 0;
+            background: #F16F6F;
+            text-align: center;
+            font-family: roboto, sans-serif;
+        }
+
         #header {
-            background: orange;
+            background: #FFF78F;
+            text-align: center;
+        }
+
+        #logo {
+            position: relative;
+            height: 500px;
+            margin-bottom: -114px;
+            padding-top: 50px;
+        }
+
+        #content {
+            position: relative;
+            top: 114px;
         }
 
         #about {
-            background: blue;
         }
 
         #getting-started {
-            background: green;
         }
 
         #podcast {
-            background: yellow;
         }
 
         #social {
-            background: red;
         }
 
     </style>
