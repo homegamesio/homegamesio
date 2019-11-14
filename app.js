@@ -1,4 +1,5 @@
 const https = require('https');
+const http = require('http');
 const fs = require('fs');
 const config = require('./config');
 
@@ -13,6 +14,13 @@ const server = https.createServer(options, (req, res) => {
     res.end(index);
 });
 
-const PORT = 443;
+const HTTPS_PORT = 443;
 
-server.listen(PORT);
+server.listen(HTTPS_PORT);
+
+const HTTP_PORT = 80;
+
+http.createServer((req, res) => {
+    res.writeHead(301, {'Location': 'https://' + req.headers['host'] + req.url });
+    res.end();
+}).listen(HTTP_PORT);
