@@ -4,6 +4,13 @@
         <meta charset="UTF-8">
         <title>Homegames</title>
     </head>
+    
+    <style>
+        a {
+            font-weight: bolder;
+            color: black;
+        }
+    </style>
 
     <body style="margin: 0; background: #F16F6F; font-family: verdana, sans-serif;">
         <div id="header" style="background: #FFF78F; text-align: center;">
@@ -12,13 +19,15 @@
         <div id="content" style="position: relative; top: 114px; margin-left: 5%; margin-right: 5%; padding-bottom: 50px;">
             <div id="about" style="text-align: center;">
                 <h2>Homegames is an open source LAN-based game system built with JavaScript.</h2>
+            </div>
+            <div>
                 <p>Homegames is intended to be a fun way to build games and play them with your friends without requiring a ton of prior programming experience. It is currently in active development by a small team as a side project.</p>
-                <p>We will occasionally update <a href="http://picodeg.io">Picodegio</a> with a demo of Homegames that can be accessed over the public Internet. Sometimes it breaks.</p>
+                <p>We occasionally update <a href="http://picodeg.io">Picodegio</a> with a running instance of Homegames that can be accessed over the public Internet. Sometimes it breaks.</p>
             </div>
             
             <div id="getting-started">
                 <h2>Getting Started</h2>
-                <p>To get started, check out the project on <a href="https://github.com/prosif/homegames">GitHub</a>. At the moment, the project is still under active development and isn't really ready for people to use yet. If you're curious about how it works or just want to start experimenting with potentially broken code, feel free to check out the repo and start hacking away.</p>
+                <p>To get started, check out our wiki on <a href="https://github.com/homegamesio/homegames/wiki/Getting-Started">GitHub</a>. At the moment, the project is still under active development and things change pretty frequently. If you're curious about how it works or just want to start experimenting, feel free to check out the repo and start hacking away.</p>
                 <h3>Downloads</h3>
                 <p>We've created executable versions of Homegames for MacOS, Windows & Linux using <a href="https://www.npmjs.com/package/pkg">pkg.</a> Ideally, these are versioned snapshots taken automatically every time a change is made to the master branch, but we're not there yet. These executables were created from <a href="https://github.com/prosif/homegames/commit/dff1a9c92470331b0d284e5360ce8b442ebe2066">this commit.</a></p>
                 <p>To run Homegames, it should be as easy as running both the game server & app server, then navigating to <a href="http://homegames.link">homegames.link</a> in any browser on the same network as the server. You will likely have to tell Windows or MacOS to allow running software from unidentified developers in order to actually run the servers. If something is broken, please let us know by using the contact info at the bottom of the page.</p>
