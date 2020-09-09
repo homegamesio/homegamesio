@@ -8,8 +8,8 @@ const HTTPS_PORT = 443;
 const HTTP_PORT = 80;
 
 const options = {
-  key: fs.readFileSync(config.SSL_KEY_PATH),
-  cert: fs.readFileSync(config.SSL_CERT_PATH)
+    key: fs.readFileSync(config.SSL_KEY_PATH),
+    cert: fs.readFileSync(config.SSL_CERT_PATH)
 };
 
 const PATH_MAP = {
@@ -20,6 +20,14 @@ const PATH_MAP = {
     "/favicon.ico": {
         path: "favicon.ico",
         contentType: "image/x-icon"
+    },
+    "/assets/apple-badge.png": {
+        path: "assets/apple-badge.png",
+        contentType: "image/png"
+    },
+    "/assets/spotify-badge.png": {
+        path: "assets/spotify-badge.png",
+        contentType: "image/png"
     }
 };
 
