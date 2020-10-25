@@ -8,12 +8,23 @@
     <style>
         a {
             font-weight: bolder;
-            color: black;
+            color: purple;
+        }
+        
+        #menu .button:hover {
+            cursor: pointer;
         }
     </style>
 
     <body style="margin: 0; background: #F16F6F; font-family: verdana, sans-serif;">
-        <div id="header" style="background: #FFF78F; text-align: center;">
+        <div id="menu" style="height: 50px">
+            <div class="button" onclick="onSignup()" id="signup" style="margin-left: 1%; margin-right: 1%; height: 100%; position: relative; float: right; display: inline-block; text-align: center; background: white; width: 20%">Sign up</div>
+            <div class="button" id="login" onclick="onLogin()" style="margin-left: 1%; margin-right: 1%; height: 100%; position: relative; float: right; display: inline-block; text-align: center; background: white; width: 20%">Log in</div>
+
+            <div hidden style="clear: both; height: 100%; float: right;" id="user-details">
+            </div>
+        </div>
+        <div id="header" style="clear: both; background: #FFF78F; text-align: center;">
             <img id="logo" style="position: relative; height: 500px; margin-bottom: -114px; padding-top: 50px;" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img>
         </div>
         <div id="content" style="position: relative; top: 114px; margin-left: 5%; margin-right: 5%; padding-bottom: 50px;">
@@ -85,4 +96,5 @@
             </div>
         </div>
     </body>
+    <script src="/client.js" type="text/javascript"></script>
 </html>

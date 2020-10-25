@@ -19,5 +19,8 @@
   "bugs": {
     "url": "https://github.com/prosif/homegamesio/issues"
   },
-  "homepage": "https://github.com/prosif/homegamesio#readme"
+  "homepage": "https://github.com/prosif/homegamesio#readme",
+  "dependencies": {
+    "amazon-cognito-identity-js": "^4.5.0"
+  }
 }
