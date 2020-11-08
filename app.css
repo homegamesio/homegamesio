@@ -73,6 +73,10 @@ body {
     width: 25%;
 }
 
+#tabs ul li:hover {
+    cursor: pointer;
+}
+
 #content-container {
     margin: 1%;
 }
