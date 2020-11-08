@@ -128,3 +128,31 @@ const onSignup = () => {
 
 
 };
+
+const tabContent = {
+    'About': 'hello world!!!',
+    'Getting Started': 'ayy lmao',
+    'Downloads': 'ayyy lmaoo',
+    'Social': 'ayyyy lmaooo'
+};
+
+const defaultTab = 'About';
+
+const contentContainer = document.getElementById('content-container');
+const tabEls = Object.values(document.getElementById('tab-list').children);
+
+const setTabContent = (tabName) => {
+    if (tabContent[tabName]) {
+        contentContainer.innerHTML = tabContent[tabName];
+    }
+}
+
+for (const tabIndex in tabEls) {
+    const tabEl = tabEls[tabIndex];
+    tabEl.addEventListener('click', (e) => setTabContent(e.target.textContent));
+}
+
+setTabContent(defaultTab);
+
+
+

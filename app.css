@@ -1,0 +1,78 @@
+body {
+    margin: 0;
+    color: #1A1A1A;
+    font-family: helvetica;
+}
+
+#sign-up {
+    width: 31%;
+    display: inline-block;
+    text-align: center;
+}
+
+#header {
+    background: #F16F6F;
+    clear: both;
+    width: 100%;
+}
+
+#header div {
+  vertical-align: middle;
+  height: inherit;
+  position: relative;
+}
+
+#log-in {
+    text-align: center;
+    width: 46%;
+    display: inline-block;
+}
+
+#social {
+    width: 15%;
+    display: inline-block;
+    text-align: left;
+}
+
+#social div {
+    margin: .5%;
+}
+
+#logo {
+    width: 8%;
+    text-align: center;
+    display: inline-block;
+}
+
+#logo img {
+    width: 100%;
+    vertical-align: middle;
+}
+
+#tabs {
+    clear: both;
+}
+
+#tabs ul {
+    padding: 0;
+    margin: 0;
+    background: #FFF47F;
+    padding-top: 15px;
+    padding-bottom: 15px;
+}
+
+#tabs ul li {
+    display: inline-block;
+    list-style: none;
+    text-align: center;
+    vertical-align: middle;
+    height: 100%;
+    font-size: 30px;
+
+    /* 100 / 5 options = 20% each */
+    width: 25%;
+}
+
+#content-container {
+    margin: 1%;
+}
