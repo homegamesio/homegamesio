@@ -12,6 +12,7 @@ const makePost = (endpoint, payload, cb) => new Promise((resolve, reject) => {
 
     xhr.onreadystatechange = () => { 
         if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+            console.log(xhr.response);
             resolve(JSON.parse(xhr.response));
         }
     }
@@ -20,117 +21,64 @@ const makePost = (endpoint, payload, cb) => new Promise((resolve, reject) => {
 });
 
 const onLogin = () => {
-    const userDetails = document.getElementById('user-details');
-    if (userDetails.hasAttribute('hidden')) {
-        userDetails.removeAttribute('hidden');
+    showModal('login');
+};
+
+const modal = document.getElementById('modal');
+
+const modalContent = {
+    'sign-up': {
+        content: '<div id="close-button" class="close"></div><div class="form"><label for="username">Username</label><input type="text" id="username"></input><label for="email">Email Address</label><input type="text" id="email"></input><label for="password">Password</label><input type="password" id="password"></input><div id="submit">Submit</div></div>',
+        onSubmit: () => {
+            console.log('submitted');
+            const emailDiv = document.getElementById('email');
+            const passwordDiv = document.getElementById('password');
+            const usernameDiv = document.getElementById('username');
+            makePost('/signup', {
+                email: emailDiv.value,
+                username: usernameDiv.value,
+                password: passwordDiv.value
+            }).then((loginData) => {
+                console.log('signed up!');
+            });
+        }
+    },
+    'login': {
+        content: '<div id="close-button" class="close"></div><div class="form"><label for="username">Username</label><input type="text" id="username"></input><label for="password">Password</label><input type="password" id="password"></input><div id="submit">Submit</div></div>',
+        onSubmit: () => {
+            const passwordDiv = document.getElementById('password');
+            const usernameDiv = document.getElementById('username');
+
+            makePost('/login', {
+                username: usernameDiv.value,
+                password: passwordDiv.value
+            }).then((loginData) => {
+                console.log('logged in!');
+            });
+        }
     }
+};
 
-    clearChildren(userDetails);
+const hideModal = () => {
+    modal.setAttribute('hidden', '');
+};
 
-    const detailDiv = document.createElement('div');
-
-    const usernameLabel = document.createElement('label');
-    usernameLabel.htmlFor = 'username';
-    usernameLabel.innerHTML = 'Username';
-
-    const usernameForm = document.createElement('input');
-    usernameForm.id = 'username';
-    usernameForm.type = 'text';
-
-    const passwordLabel = document.createElement('label');
-    passwordLabel.htmlFor = 'password';
-    passwordLabel.innerHTML = 'Password';
-
-    const passwordForm = document.createElement('input');
-    passwordForm.id = 'password';
-    passwordForm.type = 'password';
-
-    detailDiv.appendChild(usernameLabel);
-    detailDiv.appendChild(usernameForm);
-
-    detailDiv.appendChild(passwordLabel);
-    detailDiv.appendChild(passwordForm);
-    userDetails.appendChild(detailDiv);
-
-    const submitButton = document.createElement('div');
-    submitButton.innerHTML = 'Submit';
-    userDetails.appendChild(submitButton);
-
-    submitButton.onclick = () => {
-        makePost('/login', {
-            username: usernameForm.value,
-            password: passwordForm.value
-        }).then((loginData) => {
-            console.log('logged in!');
-        });
-    };
-
+const showModal = (modalType) => {
+    modal.innerHTML = modalContent[modalType].content;
+    modal.removeAttribute('hidden');
+    document.getElementById('close-button').addEventListener('click', hideModal);
+    document.getElementById('submit').addEventListener('click', modalContent[modalType].onSubmit);
 };
 
 const onSignup = () => {
-    const userDetails = document.getElementById('user-details');
-    if (userDetails.hasAttribute('hidden')) {
-        userDetails.removeAttribute('hidden');
-    }
-
-    clearChildren(userDetails);
-
-    const detailDiv = document.createElement('div');
-
-    const usernameLabel = document.createElement('label');
-    usernameLabel.htmlFor = 'username';
-    usernameLabel.innerHTML = 'Username';
-
-    const usernameForm = document.createElement('input');
-    usernameForm.id = 'username';
-    usernameForm.type = 'text';
-
-    const emailLabel = document.createElement('label');
-    emailLabel.htmlFor = 'email';
-    emailLabel.innerHTML = 'Email';
-
-    const emailForm = document.createElement('input');
-    emailForm.id = 'email';
-    emailForm.type = 'text';
-
-    const passwordLabel = document.createElement('label');
-    passwordLabel.htmlFor = 'password';
-    passwordLabel.innerHTML = 'Password';
-
-    const passwordForm = document.createElement('input');
-    passwordForm.id = 'password';
-    passwordForm.type = 'password';
-
-
-    detailDiv.appendChild(usernameLabel);
-    detailDiv.appendChild(usernameForm);
-
-    detailDiv.appendChild(emailLabel);
-    detailDiv.appendChild(emailForm);
-
-    detailDiv.appendChild(passwordLabel);
-    detailDiv.appendChild(passwordForm);
-    userDetails.appendChild(detailDiv);
-
-    const submitButton = document.createElement('div');
-    submitButton.innerHTML = 'Submit';
-    userDetails.appendChild(submitButton);
-
-    submitButton.onclick = () => {
-        makePost('/signup', {
-            email: emailForm.value,
-            username: usernameForm.value,
-            password: passwordForm.value
-        }).then((loginData) => {
-            console.log('signed up!');
-        });
-    };
-
-
+    showModal('sign-up');
 };
 
+const about = '<div>aalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotlotalotalotalotalotalot</div><div>test</div>';
+
+
 const tabContent = {
-    'About': 'hello world!!!',
+    'About': about,
     'Getting Started': 'ayy lmao',
     'Downloads': 'ayyy lmaoo',
     'Social': 'ayyyy lmaooo'
