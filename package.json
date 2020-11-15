@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/prosif/homegamesio#readme",
   "dependencies": {
-    "amazon-cognito-identity-js": "^4.5.0"
+    "amazon-cognito-identity-js": "^4.5.0",
+    "aws-sdk": "^2.792.0"
   }
 }

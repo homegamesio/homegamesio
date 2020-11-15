@@ -3,6 +3,15 @@ const http = require('http');
 const fs = require('fs');
 const config = require('./config');
 const path = require('path');
+const AWS = require('aws-sdk');
+
+const acm = new AWS.ACM(config.aws);
+
+acm.listCertificates({}, (err, data) => {
+    console.log("ER");
+    console.log(err);
+    console.log(data);
+});
 
 const Cognito = require('amazon-cognito-identity-js');
 
@@ -26,6 +35,10 @@ const PATH_MAP = {
     "/client.js": {
         path: "client.js",
         contentType: "text/javascript"
+    },
+    "/app.css": {
+        path: "app.css",
+        contentType: "text/css"
     }
 };
 
@@ -144,6 +157,12 @@ const server = http.createServer(options, (req, res) => {
                     res.writeHead(400, {'Content-Type': 'text/plain'});
                     res.end('Signup requires username, email & password');
                 }
+            });
+        } else if (req.url === '/get-certs') {
+            console.log("SDFSDF");
+            getReqBody(req, (_body) => {
+                console.log("BOUDSYFDSF");
+                console.log(_body);
             });
         } else if (req.url === '/login') {
             getReqBody(req, (_body) => {
