@@ -101,14 +101,12 @@ const getCerts = () => {
     }
 
     const username = loginData.username;
-    const accessToken = loginData.tokens.accessToken;
-
-    console.log('doing it');
+    const tokens = loginData.tokens;
 
     makePost('/get-certs', {
         ayy: 'lmao',
         username,
-        accessToken
+        tokens
     }).then((res) => {
         console.log("got response");
         console.log(res);
@@ -120,7 +118,7 @@ const getCerts = () => {
 
 const modalContent = {
     'settings': {
-        content: '<div id="close-button" class="close"></div><div onclick="getCerts()">sup mate</div><div id="submit">Confirm</div>',
+        content: '<div id="close-button" class="close"></div><div onclick="getCerts()">Get certs</div><div id="submit">Confirm</div>',
         onSubmit: () => {
             console.log('idk yet');
         }

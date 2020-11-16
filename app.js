@@ -5,12 +5,93 @@ const config = require('./config');
 const path = require('path');
 const AWS = require('aws-sdk');
 
-const acm = new AWS.ACM(config.aws);
+const acm = new AWS.ACM({region: 'us-west-2'});//config.aws);
 
-acm.listCertificates({}, (err, data) => {
-    console.log("ER");
-    console.log(err);
-    console.log(data);
+const createRecords = (arn) => new Promise((resolve, reject) => {
+    const params = {
+        CertificateArn: arn
+    };
+    
+    acm.describeCertificate(params, (err, data) => {
+        const dnsChallenge = data.Certificate.DomainValidationOptions.find((c) => {
+            return c.ResourceRecord.Type === 'CNAME'
+        });
+
+        const dnsChallengeRecord = dnsChallenge.ResourceRecord;
+        const dnsParams = {
+            ChangeBatch: {
+                Changes: [
+                    {
+                        Action: 'CREATE',
+                        ResourceRecordSet: {
+                            Name: dnsChallengeRecord.Name,
+                            ResourceRecords: [
+                                {
+                                    Value: dnsChallengeRecord.Value
+                                }
+                            ],
+                            TTL: 300,
+                            Type: dnsChallengeRecord.Type
+                        }
+                    }
+                ]
+            },
+            HostedZoneId: config.aws.route53.hostedZoneId
+        };
+
+        const route53 = new AWS.Route53();
+        route53.changeResourceRecordSets(dnsParams, (err, data) => {
+
+            const params = {
+                Id: data.ChangeInfo.Id
+            };
+
+            console.log("waiting for that to be complete");
+
+            route53.waitFor('resourceRecordSetsChanged', params, (err, data) => {
+                if (data.ChangeInfo.Status === 'INSYNC') {
+                    console.log('done! deleting record');
+                    const deleteDnsParams = {
+                        ChangeBatch: {
+                            Changes: [
+                                {
+                                    Action: 'DELETE',
+                                    ResourceRecordSet: {
+                                        Name: dnsChallengeRecord.Name,
+                                        ResourceRecords: [
+                                            {
+                                                Value: dnsChallengeRecord.Value
+                                            }
+                                        ],
+                                        TTL: 300,
+                                        Type: dnsChallengeRecord.Type
+                                    }
+                                }
+                            ]
+                        },
+                        HostedZoneId: config.aws.route53.hostedZoneId
+                    };
+                    
+                    route53.changeResourceRecordSets(deleteDnsParams, (err, data) => {
+
+                        const deleteParams = {
+                            Id: data.ChangeInfo.Id
+                        };
+
+                        console.log("waiting for THAT to be complete");
+    
+                        route53.waitFor('resourceRecordSetsChanged', params, (err, data) => {
+                            if (data.ChangeInfo.Status === 'INSYNC') {
+                                console.log('done! deleted record!!!');
+                                resolve();
+                            }
+                        });
+ 
+                    });
+                }
+            });
+        });
+    });
 });
 
 const Cognito = require('amazon-cognito-identity-js');
@@ -69,6 +150,7 @@ const registerUser = (username, email, password) => new Promise((resolve, reject
 });
 
 const logIn = (username, password) => new Promise((resolve, reject) => {
+    
     const authDetails = new Cognito.AuthenticationDetails({
         Username: username,
         Password: password
@@ -139,6 +221,61 @@ const refresh = (username, token) => new Promise((resolve, reject) => {
     });
 });
 
+const verifyIdentity = (username, tokens) => new Promise((resolve, reject) => {
+    const lambda = new AWS.Lambda(config.aws);
+
+    const params = {
+        FunctionName: 'decode-jwt',
+        Payload: JSON.stringify({
+            token: tokens.accessToken
+        })
+    };
+
+    lambda.invoke(params, (err, _data) => {
+        if (_data.Payload === 'false') {
+            reject('invalid access token');
+        }
+
+        const data = JSON.parse(_data.Payload);
+
+        if (data.username === username) {
+            resolve();
+        }
+    });
+});
+
+const getCertArn = (accessToken) => new Promise((resolve, reject) => {
+
+    const params = {
+        AccessToken: accessToken
+    };
+
+    const provider = new AWS.CognitoIdentityServiceProvider({region: 'us-west-2'});
+
+    provider.getUser(params, (err, data) => {
+        const certArn = data.UserAttributes.find(thing => thing.Name === 'custom:certArn');
+        if (certArn) {
+            resolve(certArn.Value);
+        } else {
+            resolve(null);
+        }
+    });
+
+});
+
+const generateCert = (username) => new Promise((resolve, reject) => {
+    console.log("need to generate new one for " + username);
+    const params = {
+        DomainName: '*.' + username + '.homegames.link',
+        IdempotencyToken: 'abcd123',
+        ValidationMethod: 'DNS'
+    };
+
+    acm.requestCertificate(params, (err, data) => {
+        resolve(data);
+    });
+});
+
 const server = http.createServer(options, (req, res) => {
     if (req.method === 'POST') {
         if (req.url === '/signup') {
@@ -159,10 +296,59 @@ const server = http.createServer(options, (req, res) => {
                 }
             });
         } else if (req.url === '/get-certs') {
-            console.log("SDFSDF");
             getReqBody(req, (_body) => {
-                console.log("BOUDSYFDSF");
-                console.log(_body);
+                const body = JSON.parse(_body);
+
+                if (body.username && body.tokens) {
+                    verifyIdentity(body.username, body.tokens).then(() => {
+                        getCertArn(body.tokens.accessToken).then(certArn => {
+                            if (!certArn) {
+                                console.log('need to generate cert for this person: ' + body.username);
+                                generateCert(body.username).then(thingo => {
+                                    setTimeout(() => {
+                                        createRecords(thingo.CertificateArn).then(() => {
+                                            console.log("JUST CONFIRMED CERTS FOR " + body.username);
+    
+                                            const provider = new AWS.CognitoIdentityServiceProvider({region: 'us-west-2'});
+                                            const params = {
+                                                UserAttributes: [
+                                                    {
+                                                        Name: 'custom:certArn',
+                                                        Value: thingo.CertificateArn
+                                                    }
+                                                ],
+                                                UserPoolId: config.COGNITO_USER_POOL_ID,
+                                                Username: body.username
+                                            };
+    
+                                            provider.adminUpdateUserAttributes(params, (err, data) => {
+                                                console.log("updated user attributes");
+                                            });
+                                        });
+                                    }, 5000);
+                                });
+                            } else {
+                                const params = {
+                                    CertificateArn: certArn
+                                };
+                                acm.getCertificate(params, (err, data) => {
+                                    if (err) {
+                                        console.log('didnt find one for this person. going to generate a new one for ' + body.username);
+                                        generateCert(body.username).then((thingo) => {
+                                            console.log("Generated cert at arn");
+                                            console.log(thingo);
+                                        });
+                                    } else {
+                                        console.log(data);
+                                    }
+                                });
+                            }
+                        });
+                    });
+                } else {
+                    res.writeHead(400, {'Content-Type': 'text/plain'});
+                    res.end('Cert retrieval requires username and tokens');
+                }
             });
         } else if (req.url === '/login') {
             getReqBody(req, (_body) => {
