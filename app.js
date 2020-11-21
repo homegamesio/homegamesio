@@ -4,16 +4,22 @@ const fs = require('fs');
 const config = require('./config');
 const path = require('path');
 const AWS = require('aws-sdk');
-
-const acm = new AWS.ACM({region: 'us-west-2'});//config.aws);
+const archiver = require('archiver');
+const Readable = require('stream').Readable
 
 const createRecords = (arn) => new Promise((resolve, reject) => {
     const params = {
         CertificateArn: arn
     };
     
+    const acm = new AWS.ACM({region: config.aws.region});
+    
     acm.describeCertificate(params, (err, data) => {
+        console.log(err);
+        console.log(data);
         const dnsChallenge = data.Certificate.DomainValidationOptions.find((c) => {
+            console.log("C");
+            console.log(c);
             return c.ResourceRecord.Type === 'CNAME'
         });
 
@@ -130,22 +136,53 @@ const poolData = {
 
 const userPool = new Cognito.CognitoUserPool(poolData);
 
-const registerUser = (username, email, password) => new Promise((resolve, reject) => {
-    const attributeList = [
-        new Cognito.CognitoUserAttribute(
-            {Name: 'email', Value: email},
-            {Name: 'name', Value: username}
-        ),
-    ];
+const findUser = (email) => new Promise((resolve, reject) => {
+    const params = {
+        UserPoolId: config.COGNITO_USER_POOL_ID,
+        Filter: `email = "${email}"`
+    };
 
-    userPool.signUp(username, password, attributeList, null, (err, result) => {
+    console.log(params);
+
+    const provider = new AWS.CognitoIdentityServiceProvider({region: config.aws.region});
+
+    provider.listUsers(params, (err, data) => {
+        console.log("GOT DATA");
+
+        console.log(err);
         if (err) {
-            reject(err.message);
-        } else {
-            resolve({
-                username: result.user.username
-            });
+            reject(err);
+        } 
+
+        resolve(data);
+    });
+});
+
+const registerUser = (username, email, password) => new Promise((resolve, reject) => {
+
+    findUser(email).then(userData => {
+        console.log("USER DATA");
+        console.log(userData);
+        if (userData.Users && userData.Users.length > 0) {
+            reject("User with that email already exists");
         }
+
+        const attributeList = [
+            new Cognito.CognitoUserAttribute(
+                {Name: 'email', Value: email},
+                {Name: 'name', Value: username}
+            ),
+        ];
+
+        userPool.signUp(username, password, attributeList, null, (err, result) => {
+            if (err) {
+                reject(err.message);
+            } else {
+                resolve({
+                    username: result.user.username
+                });
+            }
+        });
     });
 });
 
@@ -223,6 +260,7 @@ const refresh = (username, token) => new Promise((resolve, reject) => {
 
 const verifyIdentity = (username, tokens) => new Promise((resolve, reject) => {
     const lambda = new AWS.Lambda(config.aws);
+    console.log('doing this');
 
     const params = {
         FunctionName: 'decode-jwt',
@@ -234,12 +272,16 @@ const verifyIdentity = (username, tokens) => new Promise((resolve, reject) => {
     lambda.invoke(params, (err, _data) => {
         if (_data.Payload === 'false') {
             reject('invalid access token');
+        } else if (err) {
+            reject(err);
         }
 
         const data = JSON.parse(_data.Payload);
 
         if (data.username === username) {
             resolve();
+        } else {
+            reject('JWT username does not match provided username');
         }
     });
 });
@@ -250,14 +292,16 @@ const getCertArn = (accessToken) => new Promise((resolve, reject) => {
         AccessToken: accessToken
     };
 
-    const provider = new AWS.CognitoIdentityServiceProvider({region: 'us-west-2'});
+    const provider = new AWS.CognitoIdentityServiceProvider({region: config.aws.region});
 
     provider.getUser(params, (err, data) => {
         const certArn = data.UserAttributes.find(thing => thing.Name === 'custom:certArn');
         if (certArn) {
             resolve(certArn.Value);
+        } else if (err) {
+            reject(err); 
         } else {
-            resolve(null);
+            reject('No cert ARN for user');
         }
     });
 
@@ -267,18 +311,46 @@ const generateCert = (username) => new Promise((resolve, reject) => {
     console.log("need to generate new one for " + username);
     const params = {
         DomainName: '*.' + username + '.homegames.link',
-        IdempotencyToken: 'abcd123',
+//        IdempotencyToken: 'abcd123',
         ValidationMethod: 'DNS'
     };
 
     acm.requestCertificate(params, (err, data) => {
+        console.log(data);
         resolve(data);
     });
 });
 
 const server = http.createServer(options, (req, res) => {
     if (req.method === 'POST') {
-        if (req.url === '/signup') {
+        if (req.url === '/verify') {
+            getReqBody(req, (_body) => {
+                const body = JSON.parse(_body);
+                if (body.username && body.code) {
+                    const provider = new AWS.CognitoIdentityServiceProvider({region: config.aws.region});
+                    const params = {
+                        ClientId: config.COGNITO_CLIENT_ID,
+                        ConfirmationCode: body.code,
+                        Username: body.username
+                    };
+                    provider.confirmSignUp(params, (err, data) => {
+                        console.log("got response");
+                        console.log(data);
+                        console.log(err);
+                        res.writeHead(200, {'Content-Type': 'application/json'});
+
+                        const success = !err;
+
+                        res.end(JSON.stringify({
+                            success
+                        }));
+                    });
+                } else {
+                    res.writeHead(400, {'Content-Type': 'text/plain'});
+                    res.end('Signup requires username & code');
+                }
+            });
+        } else if (req.url === '/signup') {
             getReqBody(req, (_body) => {
                 const body = JSON.parse(_body);
                 if (body.username && body.email && body.password) {
@@ -293,61 +365,6 @@ const server = http.createServer(options, (req, res) => {
                 } else { 
                     res.writeHead(400, {'Content-Type': 'text/plain'});
                     res.end('Signup requires username, email & password');
-                }
-            });
-        } else if (req.url === '/get-certs') {
-            getReqBody(req, (_body) => {
-                const body = JSON.parse(_body);
-
-                if (body.username && body.tokens) {
-                    verifyIdentity(body.username, body.tokens).then(() => {
-                        getCertArn(body.tokens.accessToken).then(certArn => {
-                            if (!certArn) {
-                                console.log('need to generate cert for this person: ' + body.username);
-                                generateCert(body.username).then(thingo => {
-                                    setTimeout(() => {
-                                        createRecords(thingo.CertificateArn).then(() => {
-                                            console.log("JUST CONFIRMED CERTS FOR " + body.username);
-    
-                                            const provider = new AWS.CognitoIdentityServiceProvider({region: 'us-west-2'});
-                                            const params = {
-                                                UserAttributes: [
-                                                    {
-                                                        Name: 'custom:certArn',
-                                                        Value: thingo.CertificateArn
-                                                    }
-                                                ],
-                                                UserPoolId: config.COGNITO_USER_POOL_ID,
-                                                Username: body.username
-                                            };
-    
-                                            provider.adminUpdateUserAttributes(params, (err, data) => {
-                                                console.log("updated user attributes");
-                                            });
-                                        });
-                                    }, 5000);
-                                });
-                            } else {
-                                const params = {
-                                    CertificateArn: certArn
-                                };
-                                acm.getCertificate(params, (err, data) => {
-                                    if (err) {
-                                        console.log('didnt find one for this person. going to generate a new one for ' + body.username);
-                                        generateCert(body.username).then((thingo) => {
-                                            console.log("Generated cert at arn");
-                                            console.log(thingo);
-                                        });
-                                    } else {
-                                        console.log(data);
-                                    }
-                                });
-                            }
-                        });
-                    });
-                } else {
-                    res.writeHead(400, {'Content-Type': 'text/plain'});
-                    res.end('Cert retrieval requires username and tokens');
                 }
             });
         } else if (req.url === '/login') {
@@ -380,25 +397,128 @@ const server = http.createServer(options, (req, res) => {
                 }
             });
         }
-    } else if (req.method === 'GET') {// && req.url === '/' || req.url === '') {
-        let requestPath = req.url;
+    } else if (req.method === 'GET') {
+        if (req.url === '/get-certs') {
+            const authToken = req.headers.authorization;
+            const username = req.headers.username;
 
-        const queryParamIndex = requestPath.indexOf("?");
+                if (username && authToken) {
+                    verifyIdentity(username, {accessToken: authToken}).then(() => {
+                        getCertArn(authToken).then(certArn => {
+                            if (!certArn) {
+                                console.log('need to generate cert for this person: ' + username);
+                                generateCert(username).then(thingo => {
+                                    console.log('generated cert at arn');
+                                    console.log(thingo);
+                                    setTimeout(() => {
+                                        createRecords(thingo.CertificateArn).then(() => {
+                                            console.log("JUST CONFIRMED CERTS FOR " + username);
+    
+                                            const provider = new AWS.CognitoIdentityServiceProvider({region: config.aws.region});
+                                            const params = {
+                                                UserAttributes: [
+                                                    {
+                                                        Name: 'custom:certArn',
+                                                        Value: thingo.CertificateArn
+                                                    }
+                                                ],
+                                                UserPoolId: config.COGNITO_USER_POOL_ID,
+                                                Username: username
+                                            };
+    
+                                            provider.adminUpdateUserAttributes(params, (err, data) => {
+                                                console.log("updated user attributes");
+                                                console.log(err);
+                                                console.log(data);
+                                            });
+                                        });
+                                    }, 5000);
+                                });
+                            } else {
+                                const params = {
+                                    CertificateArn: certArn
+                                };
+                                acm.getCertificate(params, (err, data) => {
+                                    if (err) {
+                                        console.log("error getting cert");
+                                        console.log(err);
+                                    } else {
+                                        const privKey = data.Certificate;
+                                        const chain = data.CertificateChain; 
+                                        
+                                        const zlib = require('zlib');
+                                        const gzip = zlib.createGzip();
 
-        if (queryParamIndex > 0) {
-            requestPath = requestPath.substring(0, queryParamIndex);
-        }
+                                        const outStream = fs.createWriteStream('certs.gz');
+                                        
 
-        const pathMapping = PATH_MAP[requestPath];
+                                       // const zipPath = __dirname + '/tmp/' + username + '.zip';
+                                       // const output = fs.createWriteStream(zipPath);
+                                       // const archive = archiver('zip', {});
+                                       // 
+                                       // output.on('close', () => {
+                                       //     res.writeHead(200, {
+                                       //         'Content-Type': 'application/x-download',
+                                       //         'Content-Length': fs.statSync(zipPath).size,
+                                       //         'Content-Disposition': 'attachment; filename="wat.zip"'
+                                       //     });
+                                       //     console.log('wat');
+                                       //     console.log(fs.statSync(zipPath).size);
+//                                     //       res.setHeader('Content-Length', fs.statSync(zipPath).size);
+ //                                    //       res.setHeader('Content-Type', 'application/zip');
+//                                     //       res.setHeader('Content-Disposition', 'attachment; filename=' + body.username + '.zip');
+                                       //     const readStream = fs.createReadStream(zipPath);
+                                       //     readStream.pipe(res);
+                                       // });
+                                       // 
+                                       // archive.pipe(output);
+                                       // 
+                                       const s = new Readable();
+                                       s.push(privKey);
+                                       s.push(null);
 
-        if (pathMapping) {
-            res.statusCode = 200;
-            res.setHeader("Content-Type", pathMapping.contentType);
-            const payload = fs.readFileSync(path.join(__dirname, pathMapping.path));
-            res.end(payload);
+                                       const s2 = new Readable();
+                                       s2.push(chain);
+                                       s2.push(null);
+                                        
+                                       // archive.append(s, {name: 'privkey.pem'});
+                                       // archive.append(s2, {name: 'fullchain.pem'});
+
+                                       // archive.finalize();
+                                    }
+                                });
+                            }
+                        }).catch(err => {
+                            console.log("Failed to get cert ARN");
+                            console.log(err);
+                        });
+                    }).catch(err => {
+                        console.log("Failed to verify identity");
+                    });
+                } else {
+                    res.writeHead(400, {'Content-Type': 'text/plain'});
+                    res.end('Cert retrieval requires username and tokens');
+                }
         } else {
-            res.statusCode = 404;
-            res.end();
+            let requestPath = req.url;
+
+            const queryParamIndex = requestPath.indexOf("?");
+
+            if (queryParamIndex > 0) {
+                requestPath = requestPath.substring(0, queryParamIndex);
+            }
+
+            const pathMapping = PATH_MAP[requestPath];
+
+            if (pathMapping) {
+                res.statusCode = 200;
+                res.setHeader("Content-Type", pathMapping.contentType);
+                const payload = fs.readFileSync(path.join(__dirname, pathMapping.path));
+                res.end(payload);
+            } else {
+                res.statusCode = 404;
+                res.end();
+            }
         }
     }
 });

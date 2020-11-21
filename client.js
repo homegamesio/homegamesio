@@ -4,19 +4,46 @@ const clearChildren = (el) => {
     }
 };
 
-const makePost = (endpoint, payload)  => new Promise((resolve, reject) => {
+const makeGet = (endpoint, headers) => new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', endpoint, true);
+
+    xhr.setRequestHeader("Authorization", loginData.tokens.accessToken);
+    xhr.setRequestHeader("Username", loginData.username);
+    xhr.onreadystatechange = () => { 
+        if (xhr.readyState === XMLHttpRequest.DONE) {
+            if (xhr.status === 200) {
+                console.log("RES");
+                console.log(xhr.response);
+                resolve(xhr.response);
+            } else {
+                console.log("uh oh");
+                console.log(xhr);
+                reject(xhr.response)
+            }
+        }
+    }
+
+
+    xhr.send();
+});
+
+const makePost = (endpoint, payload, notJson)  => new Promise((resolve, reject) => {
     var xhr = new XMLHttpRequest();
     xhr.open("POST", endpoint, true);
 
     xhr.setRequestHeader("Content-Type", "application/json");
 
-    console.log(endpoint);
-    console.log(payload);
-
     xhr.onreadystatechange = () => { 
         if (xhr.readyState === XMLHttpRequest.DONE) {
             if (xhr.status === 200) {
-                resolve(JSON.parse(xhr.response));
+                if (notJson) {
+                    resolve(xhr.response);
+                } else {
+                    console.log("huih");
+                    console.log(xhr.response);
+                    resolve(JSON.parse(xhr.response));
+                }
             } else {
                 console.log("uh oh");
                 console.log(xhr);
@@ -92,33 +119,37 @@ const renderHeader = () => {
     headerContainer.appendChild(headerEl);
 };
 
-const getCerts = () => {
-    console.log("gettings certs");
-    console.log(loginData);
+const verifyState = {};
 
-    if (!loginData) {
-        return;
-    }
+let code;
 
-    const username = loginData.username;
-    const tokens = loginData.tokens;
+const waitForVerification = (username) => new Promise((resolve, reject) => {
+    console.log("need to verify " + username);
 
-    makePost('/get-certs', {
-        ayy: 'lmao',
-        username,
-        tokens
-    }).then((res) => {
-        console.log("got response");
-        console.log(res);
-    }).catch((err) => {
-        console.log('errrrr');
-        console.log(err);
-    });
-};
+    setTimeout(() => {
+        console.log('faking verify with thing');
+        console.log(code);
+        makePost('/verify', {
+            username,
+            code
+        }).then((response) => {//{Cognito.verify(email, thing).then((response) =>{
+            console.log("RESPONSE");
+            console.log(response);
+            resolve(response);
+        });
+    }, 20 * 1000);
+
+    setInterval(() => {
+        if (verifyState.verified) {
+            resolve();
+        }
+    }, 5000);
+});
+
 
 const modalContent = {
     'settings': {
-        content: '<div id="close-button" class="close"></div><div onclick="getCerts()">Get certs</div><div id="submit">Confirm</div>',
+        content: '<div id="close-button" class="close"></div><div onclick="changePassword()">Change password</div><div>Change email</div><div id="submit">Confirm</div>',
         onSubmit: () => {
             console.log('idk yet');
         }
@@ -135,15 +166,18 @@ const modalContent = {
                 username: usernameDiv.value,
                 password: passwordDiv.value
             }).then((userData) => {
-                makePost('/login', {
-                    username: userData.username,
-                    password: passwordDiv.value
-                }).then((tokenObj) => {
-                    loginData = {
-                        tokens: tokenObj,
-                        username: usernameDiv.value
-                    };
-                    renderHeader();
+                console.log("NOW I NEED TO VERIFY");
+                waitForVerification(usernameDiv.value).then(() => {
+                    makePost('/login', {
+                        username: userData.username,
+                        password: passwordDiv.value
+                    }).then((tokenObj) => {
+                        loginData = {
+                            tokens: tokenObj,
+                            username: usernameDiv.value
+                        };
+                        renderHeader();
+                    });
                 });
             });
         }
@@ -180,7 +214,7 @@ const showModal = (modalType) => {
     document.getElementById('close-button').addEventListener('click', hideModal);
     document.getElementById('submit').addEventListener('click', () => {
         modalContent[modalType].onSubmit()
-        hideModal();
+//        hideModal();
     });
 };
 
