@@ -8,13 +8,13 @@ const makeGet = (endpoint, headers) => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('GET', endpoint, true);
 
-    xhr.setRequestHeader("Authorization", loginData.tokens.accessToken);
-    xhr.setRequestHeader("Username", loginData.username);
+    for (const key in headers) {
+        xhr.setRequestHeader(key, headers[key]);
+    }
+
     xhr.onreadystatechange = () => { 
         if (xhr.readyState === XMLHttpRequest.DONE) {
             if (xhr.status === 200) {
-                console.log("RES");
-                console.log(xhr.response);
                 resolve(xhr.response);
             } else {
                 console.log("uh oh");
@@ -40,8 +40,6 @@ const makePost = (endpoint, payload, notJson)  => new Promise((resolve, reject) 
                 if (notJson) {
                     resolve(xhr.response);
                 } else {
-                    console.log("huih");
-                    console.log(xhr.response);
                     resolve(JSON.parse(xhr.response));
                 }
             } else {
@@ -80,6 +78,7 @@ const renderHeader = () => {
 
     if (loginData) {
         const usernameEl = document.createElement('div');
+        usernameEl.className = 'clickable';
         usernameEl.innerHTML = loginData.username;
         // hack. need to use classes
         usernameEl.id = 'sign-up';
@@ -87,17 +86,20 @@ const renderHeader = () => {
 
         const settingsEl = document.createElement('div');
         settingsEl.innerHTML = 'Settings';
+        settingsEl.className = 'clickable';
         settingsEl.id = 'log-in';
         settingsEl.onclick = showSettings;
         rightEl = settingsEl;
     } else {
         const signupEl = document.createElement('div');
+        signupEl.className = 'clickable';
         signupEl.onclick = onSignup;
         signupEl.id = 'sign-up';
         signupEl.innerHTML = 'Sign Up';
         leftEl = signupEl;
 
         const loginEl = document.createElement('div');
+        loginEl.className = 'clickable';
         loginEl.onclick = onLogin;
         loginEl.id = 'log-in';
         loginEl.innerHTML = 'Log in';
@@ -123,41 +125,40 @@ const verifyState = {};
 
 let code;
 
-const waitForVerification = (username) => new Promise((resolve, reject) => {
-    console.log("need to verify " + username);
+const confirmSignup = (username) => new Promise((resolve, reject) => {
+    const confirmWrapper = document.getElementById('confirm-signup-wrapper');
+    confirmWrapper.removeAttribute('hidden');
 
-    setTimeout(() => {
-        console.log('faking verify with thing');
-        console.log(code);
+    const confirmForm = document.getElementById('confirm-signup');
+    const confirmButton = document.getElementById('confirm-button');
+
+    confirmButton.onclick = () => {
+        const code = confirmForm.value;
+
         makePost('/verify', {
             username,
             code
-        }).then((response) => {//{Cognito.verify(email, thing).then((response) =>{
-            console.log("RESPONSE");
-            console.log(response);
+        }).then((response) => {
             resolve(response);
         });
-    }, 20 * 1000);
 
-    setInterval(() => {
-        if (verifyState.verified) {
-            resolve();
-        }
-    }, 5000);
+    };
 });
 
+const changePassword = () => {
+    console.log('todo');
+};
 
 const modalContent = {
     'settings': {
-        content: '<div id="close-button" class="close"></div><div onclick="changePassword()">Change password</div><div>Change email</div><div id="submit">Confirm</div>',
+        content: '<div id="close-button" class="close"></div><div onclick="changePassword()">Change password (coming soon)</div><div>Change email (coming soon)</div><div id="submit">Confirm</div>',
         onSubmit: () => {
             console.log('idk yet');
         }
     },
     'sign-up': {
-        content: '<div id="close-button" class="close"></div><div class="form"><label for="username">Username</label><input type="text" id="username"></input><label for="email">Email Address</label><input type="text" id="email"></input><label for="password">Password</label><input type="password" id="password"></input><div id="submit">Submit</div></div>',
+        content: '<div id="close-button" class="close"></div><div class="form"><label for="username">Username</label><input type="text" id="username"></input><label for="email">Email Address</label><input type="text" id="email"></input><label for="password">Password</label><input type="password" id="password"></input><div id="submit" class="clickable">Submit</div><div id="confirm-signup-wrapper" hidden><div><label for="confirm-signup">Confirmation code (sent to your email</label><input type="text" id="confirm-signup"></input></div><div id="confirm-button" class="clickable">Click this to confirm</div></div><div>',
         onSubmit: () => {
-            console.log('submitted');
             const emailDiv = document.getElementById('email');
             const passwordDiv = document.getElementById('password');
             const usernameDiv = document.getElementById('username');
@@ -166,8 +167,7 @@ const modalContent = {
                 username: usernameDiv.value,
                 password: passwordDiv.value
             }).then((userData) => {
-                console.log("NOW I NEED TO VERIFY");
-                waitForVerification(usernameDiv.value).then(() => {
+                confirmSignup(usernameDiv.value).then(() => {
                     makePost('/login', {
                         username: userData.username,
                         password: passwordDiv.value
@@ -177,13 +177,14 @@ const modalContent = {
                             username: usernameDiv.value
                         };
                         renderHeader();
+                        hideModal();
                     });
                 });
             });
         }
     },
     'login': {
-        content: '<div id="close-button" class="close"></div><div class="form"><label for="username">Username</label><input type="text" id="username"></input><label for="password">Password</label><input type="password" id="password"></input><div id="submit">Submit</div></div>',
+        content: '<div id="close-button" class="close"></div><div class="form"><label for="username">Username</label><input type="text" id="username"></input><label for="password">Password</label><input type="password" id="password"></input><div id="submit" class="clickable">Submit</div></div>',
         onSubmit: () => {
             const passwordDiv = document.getElementById('password');
             const usernameDiv = document.getElementById('username');
@@ -192,12 +193,12 @@ const modalContent = {
                 username: usernameDiv.value,
                 password: passwordDiv.value
             }).then((tokenObj) => {
+
                 loginData = {
                     tokens: tokenObj,
                     username: usernameDiv.value
                 };
-                console.log('login data 1');
-                console.log(loginData);
+
                 renderHeader();
             });
         }
@@ -227,9 +228,8 @@ const about = '<div>aalotalotalotalotalotalotalotalotalotalotalotalotalotalotalo
 
 const tabContent = {
     'About': about,
-    'Getting Started': 'ayy lmao',
     'Downloads': 'ayyy lmaoo',
-    'Social': 'ayyyy lmaooo'
+    'Podcast': 'ayyyy lmaooo'
 };
 
 const defaultTab = 'About';

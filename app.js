@@ -15,11 +15,7 @@ const createRecords = (arn) => new Promise((resolve, reject) => {
     const acm = new AWS.ACM({region: config.aws.region});
     
     acm.describeCertificate(params, (err, data) => {
-        console.log(err);
-        console.log(data);
         const dnsChallenge = data.Certificate.DomainValidationOptions.find((c) => {
-            console.log("C");
-            console.log(c);
             return c.ResourceRecord.Type === 'CNAME'
         });
 
@@ -142,14 +138,9 @@ const findUser = (email) => new Promise((resolve, reject) => {
         Filter: `email = "${email}"`
     };
 
-    console.log(params);
-
     const provider = new AWS.CognitoIdentityServiceProvider({region: config.aws.region});
 
     provider.listUsers(params, (err, data) => {
-        console.log("GOT DATA");
-
-        console.log(err);
         if (err) {
             reject(err);
         } 
@@ -161,29 +152,28 @@ const findUser = (email) => new Promise((resolve, reject) => {
 const registerUser = (username, email, password) => new Promise((resolve, reject) => {
 
     findUser(email).then(userData => {
-        console.log("USER DATA");
-        console.log(userData);
         if (userData.Users && userData.Users.length > 0) {
             reject("User with that email already exists");
+        } else {
+            const attributeList = [
+                new Cognito.CognitoUserAttribute(
+                    {Name: 'email', Value: email},
+                    {Name: 'name', Value: username}
+                ),
+            ];
+
+            userPool.signUp(username, password, attributeList, null, (err, result) => {
+                if (err) {
+                    reject(err.message);
+                } else {
+                    resolve({
+                        username: result.user.username
+                    });
+                }
+            });
         }
-
-        const attributeList = [
-            new Cognito.CognitoUserAttribute(
-                {Name: 'email', Value: email},
-                {Name: 'name', Value: username}
-            ),
-        ];
-
-        userPool.signUp(username, password, attributeList, null, (err, result) => {
-            if (err) {
-                reject(err.message);
-            } else {
-                resolve({
-                    username: result.user.username
-                });
-            }
-        });
     });
+
 });
 
 const logIn = (username, password) => new Promise((resolve, reject) => {
@@ -373,6 +363,7 @@ const server = http.createServer(options, (req, res) => {
                 if (body.username && body.password) {
                     logIn(body.username, body.password).then((data) => {;
                         res.writeHead(200, {'Content-Type': 'application/json'});
+                        console.log(data);
                         res.end(JSON.stringify(data));
                     }).catch(err => {
                         console.log(err);
@@ -445,6 +436,12 @@ const server = http.createServer(options, (req, res) => {
                                     } else {
                                         const privKey = data.Certificate;
                                         const chain = data.CertificateChain; 
+                                        
+                                        console.log('dsfdsfdsf');
+                                        console.log(privKey);
+                                        console.log(chain);
+
+                                        return;
                                         
                                         const zlib = require('zlib');
                                         const gzip = zlib.createGzip();
