@@ -306,7 +306,6 @@ const generateCert = (username) => new Promise((resolve, reject) => {
     };
 
     acm.requestCertificate(params, (err, data) => {
-        console.log(data);
         resolve(data);
     });
 });
@@ -324,9 +323,6 @@ const server = http.createServer(options, (req, res) => {
                         Username: body.username
                     };
                     provider.confirmSignUp(params, (err, data) => {
-                        console.log("got response");
-                        console.log(data);
-                        console.log(err);
                         res.writeHead(200, {'Content-Type': 'application/json'});
 
                         const success = !err;
@@ -363,7 +359,6 @@ const server = http.createServer(options, (req, res) => {
                 if (body.username && body.password) {
                     logIn(body.username, body.password).then((data) => {;
                         res.writeHead(200, {'Content-Type': 'application/json'});
-                        console.log(data);
                         res.end(JSON.stringify(data));
                     }).catch(err => {
                         console.log(err);
