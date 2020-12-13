@@ -23,6 +23,7 @@
   "dependencies": {
     "amazon-cognito-identity-js": "^4.5.0",
     "archiver": "^5.0.2",
-    "aws-sdk": "^2.792.0"
+    "aws-sdk": "^2.792.0",
+    "homegames-common": "^0.0.2"
   }
 }

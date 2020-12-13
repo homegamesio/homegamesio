@@ -6,6 +6,7 @@ const path = require('path');
 const AWS = require('aws-sdk');
 const archiver = require('archiver');
 const Readable = require('stream').Readable
+const { confirmUser, login, signup } = require('homegames-common');
 
 const createRecords = (arn) => new Promise((resolve, reject) => {
     const params = {
@@ -149,62 +150,6 @@ const findUser = (email) => new Promise((resolve, reject) => {
     });
 });
 
-const registerUser = (username, email, password) => new Promise((resolve, reject) => {
-
-    findUser(email).then(userData => {
-        if (userData.Users && userData.Users.length > 0) {
-            reject("User with that email already exists");
-        } else {
-            const attributeList = [
-                new Cognito.CognitoUserAttribute(
-                    {Name: 'email', Value: email},
-                    {Name: 'name', Value: username}
-                ),
-            ];
-
-            userPool.signUp(username, password, attributeList, null, (err, result) => {
-                if (err) {
-                    reject(err.message);
-                } else {
-                    resolve({
-                        username: result.user.username
-                    });
-                }
-            });
-        }
-    });
-
-});
-
-const logIn = (username, password) => new Promise((resolve, reject) => {
-    
-    const authDetails = new Cognito.AuthenticationDetails({
-        Username: username,
-        Password: password
-    });
-
-    const userData = {
-        Username: username,
-        Pool: userPool
-    };
-
-    const user = new Cognito.CognitoUser(userData);
-    
-    user.authenticateUser(authDetails, {
-        onSuccess: (result) => {
-            resolve({
-                accessToken: result.getAccessToken().getJwtToken(),
-                idToken: result.getIdToken().getJwtToken(),
-                refreshToken: result.getRefreshToken().getToken()
-            });
-        },
-        onFailure: (err) => {
-            console.log(err);
-            reject({});
-        }
-    });
-});
-
 const options = {
 //  key: fs.readFileSync(config.SSL_KEY_PATH),
 //  cert: fs.readFileSync(config.SSL_CERT_PATH)
@@ -250,7 +195,6 @@ const refresh = (username, token) => new Promise((resolve, reject) => {
 
 const verifyIdentity = (username, tokens) => new Promise((resolve, reject) => {
     const lambda = new AWS.Lambda(config.aws);
-    console.log('doing this');
 
     const params = {
         FunctionName: 'decode-jwt',
@@ -316,19 +260,11 @@ const server = http.createServer(options, (req, res) => {
             getReqBody(req, (_body) => {
                 const body = JSON.parse(_body);
                 if (body.username && body.code) {
-                    const provider = new AWS.CognitoIdentityServiceProvider({region: config.aws.region});
-                    const params = {
-                        ClientId: config.COGNITO_CLIENT_ID,
-                        ConfirmationCode: body.code,
-                        Username: body.username
-                    };
-                    provider.confirmSignUp(params, (err, data) => {
+                    confirmUser(body.username, body.code).then(() => {
                         res.writeHead(200, {'Content-Type': 'application/json'});
 
-                        const success = !err;
-
                         res.end(JSON.stringify({
-                            success
+                            success: true
                         }));
                     });
                 } else {
@@ -340,7 +276,7 @@ const server = http.createServer(options, (req, res) => {
             getReqBody(req, (_body) => {
                 const body = JSON.parse(_body);
                 if (body.username && body.email && body.password) {
-                    registerUser(body.username, body.email, body.password)
+                    signup(body.username, body.email, body.password)
                         .then(data => {
                             res.writeHead(200, {'Content-Type': 'application/json'});
                             res.end(JSON.stringify(data));
@@ -357,7 +293,7 @@ const server = http.createServer(options, (req, res) => {
             getReqBody(req, (_body) => {
                 const body = JSON.parse(_body);
                 if (body.username && body.password) {
-                    logIn(body.username, body.password).then((data) => {;
+                    login(body.username, body.password).then((data) => {
                         res.writeHead(200, {'Content-Type': 'application/json'});
                         res.end(JSON.stringify(data));
                     }).catch(err => {
