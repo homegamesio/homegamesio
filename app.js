@@ -104,6 +104,10 @@ const PATH_MAP = {
         path: "index.html",
         contentType: "text/html"
     },
+    "/confirm-signup": {
+        path: "confirm-signup.html",
+        contentType: "text/html"
+    },
     "/favicon.ico": {
         path: "favicon.ico",
         contentType: "image/x-icon"
@@ -260,12 +264,10 @@ const server = http.createServer(options, (req, res) => {
             getReqBody(req, (_body) => {
                 const body = JSON.parse(_body);
                 if (body.username && body.code) {
-                    confirmUser(body.username, body.code).then(() => {
+                    confirmUser(body.username, body.code).then((data) => {
                         res.writeHead(200, {'Content-Type': 'application/json'});
 
-                        res.end(JSON.stringify({
-                            success: true
-                        }));
+                        res.end(JSON.stringify(data));
                     });
                 } else {
                     res.writeHead(400, {'Content-Type': 'text/plain'});
@@ -320,133 +322,24 @@ const server = http.createServer(options, (req, res) => {
             });
         }
     } else if (req.method === 'GET') {
-        if (req.url === '/get-certs') {
-            const authToken = req.headers.authorization;
-            const username = req.headers.username;
+        let requestPath = req.url;
 
-                if (username && authToken) {
-                    verifyIdentity(username, {accessToken: authToken}).then(() => {
-                        getCertArn(authToken).then(certArn => {
-                            if (!certArn) {
-                                console.log('need to generate cert for this person: ' + username);
-                                generateCert(username).then(thingo => {
-                                    console.log('generated cert at arn');
-                                    console.log(thingo);
-                                    setTimeout(() => {
-                                        createRecords(thingo.CertificateArn).then(() => {
-                                            console.log("JUST CONFIRMED CERTS FOR " + username);
-    
-                                            const provider = new AWS.CognitoIdentityServiceProvider({region: config.aws.region});
-                                            const params = {
-                                                UserAttributes: [
-                                                    {
-                                                        Name: 'custom:certArn',
-                                                        Value: thingo.CertificateArn
-                                                    }
-                                                ],
-                                                UserPoolId: config.COGNITO_USER_POOL_ID,
-                                                Username: username
-                                            };
-    
-                                            provider.adminUpdateUserAttributes(params, (err, data) => {
-                                                console.log("updated user attributes");
-                                                console.log(err);
-                                                console.log(data);
-                                            });
-                                        });
-                                    }, 5000);
-                                });
-                            } else {
-                                const params = {
-                                    CertificateArn: certArn
-                                };
-                                acm.getCertificate(params, (err, data) => {
-                                    if (err) {
-                                        console.log("error getting cert");
-                                        console.log(err);
-                                    } else {
-                                        const privKey = data.Certificate;
-                                        const chain = data.CertificateChain; 
-                                        
-                                        console.log('dsfdsfdsf');
-                                        console.log(privKey);
-                                        console.log(chain);
+        const queryParamIndex = requestPath.indexOf("?");
 
-                                        return;
-                                        
-                                        const zlib = require('zlib');
-                                        const gzip = zlib.createGzip();
+        if (queryParamIndex > 0) {
+            requestPath = requestPath.substring(0, queryParamIndex);
+        }
 
-                                        const outStream = fs.createWriteStream('certs.gz');
-                                        
+        const pathMapping = PATH_MAP[requestPath];
 
-                                       // const zipPath = __dirname + '/tmp/' + username + '.zip';
-                                       // const output = fs.createWriteStream(zipPath);
-                                       // const archive = archiver('zip', {});
-                                       // 
-                                       // output.on('close', () => {
-                                       //     res.writeHead(200, {
-                                       //         'Content-Type': 'application/x-download',
-                                       //         'Content-Length': fs.statSync(zipPath).size,
-                                       //         'Content-Disposition': 'attachment; filename="wat.zip"'
-                                       //     });
-                                       //     console.log('wat');
-                                       //     console.log(fs.statSync(zipPath).size);
-//                                     //       res.setHeader('Content-Length', fs.statSync(zipPath).size);
- //                                    //       res.setHeader('Content-Type', 'application/zip');
-//                                     //       res.setHeader('Content-Disposition', 'attachment; filename=' + body.username + '.zip');
-                                       //     const readStream = fs.createReadStream(zipPath);
-                                       //     readStream.pipe(res);
-                                       // });
-                                       // 
-                                       // archive.pipe(output);
-                                       // 
-                                       const s = new Readable();
-                                       s.push(privKey);
-                                       s.push(null);
-
-                                       const s2 = new Readable();
-                                       s2.push(chain);
-                                       s2.push(null);
-                                        
-                                       // archive.append(s, {name: 'privkey.pem'});
-                                       // archive.append(s2, {name: 'fullchain.pem'});
-
-                                       // archive.finalize();
-                                    }
-                                });
-                            }
-                        }).catch(err => {
-                            console.log("Failed to get cert ARN");
-                            console.log(err);
-                        });
-                    }).catch(err => {
-                        console.log("Failed to verify identity");
-                    });
-                } else {
-                    res.writeHead(400, {'Content-Type': 'text/plain'});
-                    res.end('Cert retrieval requires username and tokens');
-                }
+        if (pathMapping) {
+            res.statusCode = 200;
+            res.setHeader("Content-Type", pathMapping.contentType);
+            const payload = fs.readFileSync(path.join(__dirname, pathMapping.path));
+            res.end(payload);
         } else {
-            let requestPath = req.url;
-
-            const queryParamIndex = requestPath.indexOf("?");
-
-            if (queryParamIndex > 0) {
-                requestPath = requestPath.substring(0, queryParamIndex);
-            }
-
-            const pathMapping = PATH_MAP[requestPath];
-
-            if (pathMapping) {
-                res.statusCode = 200;
-                res.setHeader("Content-Type", pathMapping.contentType);
-                const payload = fs.readFileSync(path.join(__dirname, pathMapping.path));
-                res.end(payload);
-            } else {
-                res.statusCode = 404;
-                res.end();
-            }
+            res.statusCode = 404;
+            res.end();
         }
     }
 });

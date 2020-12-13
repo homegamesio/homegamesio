@@ -129,20 +129,20 @@ const confirmSignup = (username) => new Promise((resolve, reject) => {
     const confirmWrapper = document.getElementById('confirm-signup-wrapper');
     confirmWrapper.removeAttribute('hidden');
 
-    const confirmForm = document.getElementById('confirm-signup');
-    const confirmButton = document.getElementById('confirm-button');
-
-    confirmButton.onclick = () => {
-        const code = confirmForm.value;
-
-        makePost('/verify', {
-            username,
-            code
-        }).then((response) => {
-            resolve(response);
-        });
-
-    };
+//    const confirmForm = document.getElementById('confirm-signup');
+//    const confirmButton = document.getElementById('confirm-button');
+//
+//    confirmButton.onclick = () => {
+//        const code = confirmForm.value;
+//
+//        makePost('/verify', {
+//            username,
+//            code
+//        }).then((response) => {
+//            resolve(response);
+//        });
+//
+//    };
 });
 
 const changePassword = () => {
@@ -157,7 +157,7 @@ const modalContent = {
         }
     },
     'sign-up': {
-        content: '<div id="close-button" class="close"></div><div class="form"><label for="username">Username</label><input type="text" id="username"></input><label for="email">Email Address</label><input type="text" id="email"></input><label for="password">Password</label><input type="password" id="password"></input><div id="submit" class="clickable">Submit</div><div id="confirm-signup-wrapper" hidden><div><label for="confirm-signup">Confirmation code (sent to your email</label><input type="text" id="confirm-signup"></input></div><div id="confirm-button" class="clickable">Click this to confirm</div></div><div>',
+        content: '<div id="close-button" class="close"></div><div class="form"><label for="username">Username</label><input type="text" id="username"></input><label for="email">Email Address</label><input type="text" id="email"></input><label for="password">Password</label><input type="password" id="password"></input><div id="submit" class="clickable">Submit</div><div id="confirm-signup-wrapper" hidden><div>We\'ve sent a confirmation link to your email address</div></div>',
         onSubmit: () => {
             const emailDiv = document.getElementById('email');
             const passwordDiv = document.getElementById('password');
@@ -167,19 +167,20 @@ const modalContent = {
                 username: usernameDiv.value,
                 password: passwordDiv.value
             }).then((userData) => {
-                confirmSignup(usernameDiv.value).then(() => {
-                    makePost('/login', {
-                        username: userData.username,
-                        password: passwordDiv.value
-                    }).then((tokenObj) => {
-                        loginData = {
-                            tokens: tokenObj,
-                            username: usernameDiv.value
-                        };
-                        renderHeader();
-                        hideModal();
-                    });
-                });
+                confirmSignup(usernameDiv.value)
+                   // .then(() => {
+                   // makePost('/login', {
+                   //     username: userData.username,
+                   //     password: passwordDiv.value
+                   // }).then((tokenObj) => {
+                   //     loginData = {
+                   //         tokens: tokenObj,
+                   //         username: usernameDiv.value
+                   //     };
+                   //     renderHeader();
+                   //     hideModal();
+                   // });
+                //});
             });
         }
     },
@@ -235,20 +236,69 @@ const tabContent = {
 const defaultTab = 'About';
 
 const contentContainer = document.getElementById('content-container');
-const tabEls = Object.values(document.getElementById('tab-list').children);
 
-const setTabContent = (tabName) => {
-    if (tabContent[tabName]) {
-        contentContainer.innerHTML = tabContent[tabName];
+if (document.getElementById('tab-list')) {
+
+    const tabEls = Object.values(document.getElementById('tab-list').children);
+    
+    const setTabContent = (tabName) => {
+        if (tabContent[tabName]) {
+            contentContainer.innerHTML = tabContent[tabName];
+        }
     }
+    
+    for (const tabIndex in tabEls) {
+        const tabEl = tabEls[tabIndex];
+        tabEl.addEventListener('click', (e) => setTabContent(e.target.textContent));
+    }
+    
+    setTabContent(defaultTab);
 }
 
-for (const tabIndex in tabEls) {
-    const tabEl = tabEls[tabIndex];
-    tabEl.addEventListener('click', (e) => setTabContent(e.target.textContent));
-}
+const attemptSignupConfirm = () => {
+    const queryString = window.location.search;
+    const contentContainer = document.getElementById('content-container');
 
-setTabContent(defaultTab);
+    const failedToGetCode = () => {
+        contentContainer.innerHTML = `Failed to get confirmation code from the link you followed. Contact support@homegames.io for assistance`
+    };
 
+    if (queryString && contentContainer) {
+        const urlParams = new URLSearchParams(queryString);
+        if (!urlParams.get('code')) {
+            failedToGetCode();
+        } else {
+            const confirmHeader = document.createElement('h1');
+            confirmHeader.innerHTML = 'Confirm signup';
 
+            const usernameLabel = document.createElement('label');
+            usernameLabel.innerHTML = 'Username';
+            
+            const usernameForm = document.createElement('input');
+            usernameForm.type = 'text';
 
+            const submitButton = document.createElement('div');
+            submitButton.innerHTML = 'Click to submit';
+            submitButton.onclick = () => {
+                makePost('/verify', {
+                    type: 'confirmUser',
+                    username: usernameForm.value,
+                    code: urlParams.get('code')
+                }).then((_response) => {
+                    const response = JSON.parse(_response);
+                    const successMessage = document.createElement('h2');
+                    successMessage.innerHTML = response.success ? 'Success' : 'Failed. Contact support@homegames.io';
+                    contentContainer.appendChild(successMessage);
+                });
+
+            };
+            
+            contentContainer.appendChild(confirmHeader);
+            contentContainer.appendChild(usernameLabel);
+            contentContainer.appendChild(usernameForm);
+            contentContainer.appendChild(submitButton);
+        }
+    } else {
+        failedToGetCode();
+    }
+};
