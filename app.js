@@ -155,8 +155,8 @@ const findUser = (email) => new Promise((resolve, reject) => {
 });
 
 const options = {
-//  key: fs.readFileSync(config.SSL_KEY_PATH),
-//  cert: fs.readFileSync(config.SSL_CERT_PATH)
+  key: fs.readFileSync(config.SSL_KEY_PATH),
+  cert: fs.readFileSync(config.SSL_CERT_PATH)
 };
 
 const getReqBody = (req, cb) => {
@@ -258,7 +258,7 @@ const generateCert = (username) => new Promise((resolve, reject) => {
     });
 });
 
-const server = http.createServer(options, (req, res) => {
+const server = https.createServer(options, (req, res) => {
     if (req.method === 'POST') {
         if (req.url === '/verify') {
             getReqBody(req, (_body) => {
@@ -346,11 +346,11 @@ const server = http.createServer(options, (req, res) => {
 
 const HTTPS_PORT = 443;
 
-server.listen(80);//HTTPS_PORT);
+server.listen(HTTPS_PORT);
 
 const HTTP_PORT = 80;
 
-//http.createServer((req, res) => {
-//    res.writeHead(301, {'Location': 'https://' + req.headers['host'] + req.url });
-//    res.end();
-//}).listen(HTTP_PORT);
+http.createServer((req, res) => {
+    res.writeHead(301, {'Location': 'https://' + req.headers['host'] + req.url });
+    res.end();
+}).listen(HTTP_PORT);
