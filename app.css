@@ -43,7 +43,8 @@ body {
 }
 
 #logo img {
-    width: 100%;
+    width: 120px;
+    height: 120px;
     vertical-align: middle;
 }
 
@@ -65,10 +66,10 @@ body {
     text-align: center;
     vertical-align: middle;
     height: 100%;
-    font-size: 30px;
+    font-size: 1.3em;
 
-    /* 100 / 3 options = 33.3% each */
-    width: 33.3%;
+    /* 100 / 2 options = 50% each */
+    width: 50%;
 }
 
 .clickable:hover {
@@ -78,14 +79,12 @@ body {
 #content-container {
     margin: 1%;
     overflow-wrap: break-word;
-    min-height: 500px;
 }
 
 #footer {
     background: #1A1A1A;
     width: 100%;
-    position: absolute;
-    bottom: 0;
+    padding: 1%;
 }
 
 #page-container {
@@ -139,3 +138,49 @@ body {
     100% {opacity:1;}
 }
 
+.download-bar, .button {
+    display: inline-block;
+    text-align: center;
+    height: 50px;
+}
+
+.download-bar a, .button a {
+    line-height: 50px;
+    text-decoration: none;
+}
+
+.download-bar {
+    width: 100%;
+}
+
+.button {
+    background: #1A1A1A;
+    border-radius: 4px;
+    height: 50px;
+    width: 10%;
+    line-height: 50px;
+}
+
+#header-container {
+    font-size: 1.4em;
+}
+
+#download-container {
+    padding: 10px;
+    text-align: center;
+}
+
+.active {
+    color: white;
+    text-decoration: underline;
+}
+
+@media screen and (max-width: 800px) {
+    .button {
+        width: 30%;
+    }
+}
+
+a {
+    color: black;
+}

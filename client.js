@@ -224,36 +224,7 @@ const onSignup = () => {
     showModal('sign-up');
 };
 
-const about = '<div>aalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotalotlotalotalotalotalotalot</div><div>test</div>';
-
-
-const tabContent = {
-    'About': about,
-    'Downloads': 'ayyy lmaoo',
-    'Podcast': 'ayyyy lmaooo'
-};
-
-const defaultTab = 'About';
-
 const contentContainer = document.getElementById('content-container');
-
-if (document.getElementById('tab-list')) {
-
-    const tabEls = Object.values(document.getElementById('tab-list').children);
-    
-    const setTabContent = (tabName) => {
-        if (tabContent[tabName]) {
-            contentContainer.innerHTML = tabContent[tabName];
-        }
-    }
-    
-    for (const tabIndex in tabEls) {
-        const tabEl = tabEls[tabIndex];
-        tabEl.addEventListener('click', (e) => setTabContent(e.target.textContent));
-    }
-    
-    setTabContent(defaultTab);
-}
 
 const attemptSignupConfirm = () => {
     const queryString = window.location.search;
@@ -300,5 +271,27 @@ const attemptSignupConfirm = () => {
         }
     } else {
         failedToGetCode();
+    }
+};
+
+const show = (content) => {
+    const podcastContent = document.getElementById('podcast-content');
+    const aboutContent = document.getElementById('about-content');
+
+    const podcastTab = document.getElementById('podcast-tab');
+    const aboutTab = document.getElementById('about-tab');
+
+    if (content === 'podcast') {
+        aboutContent.setAttribute('hidden', '');
+        podcastContent.removeAttribute('hidden');
+
+        aboutTab.classList.remove('active');
+        podcastTab.classList.add('active');
+    } else {
+        podcastContent.setAttribute('hidden', '');
+        aboutContent.removeAttribute('hidden');
+        
+        podcastTab.classList.remove('active');
+        aboutTab.classList.add('active');
     }
 };

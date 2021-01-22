@@ -11,13 +11,44 @@
         <div id="modal" hidden></div>
         <div id="page-container">
             <div id="header-container"></div>
+            <div id="download-container">
+                <div class="download-bar"><a>Downloads</a></div>
+                <a style="color: #F16F6F" href="https://builder.homegames.io/download/latest"><span class="button">Latest</span></a>
+                <a style="color: #75BFDA" href="https://builder.homegames.io/download/latest/stable"><span class="button">Latest (stable)</span></a>
+                <div class="download-bar"><a style="color: black; text-decoration: underline; font-size: .8em" href="https://builder.homegames.io" target="_blank">See more downloads</a></div>
+            </div>
             <div id="tabs">
                 <ul id="tab-list">
-                    <li class="clickable">About</li><li class="clickable">Downloads</li><li class="clickable">Podcast</li>
+                    <li id="about-tab" onclick="show('about')" class="clickable active">About</li><li id="podcast-tab" onclick="show('podcast')" class="clickable">Podcast</li>
                 </ul>
             </div>
     
             <div id="content-container">
+                <div id="about-content">
+                    <h2>Homegames is a free, open-source game platform</h2>
+                    <h3>Our goal is to provide accessible tools for people to make what they want and have fun.</h3>
+                    <p>
+                    Almost everything is built with JavaScript. We try to build as much as we reasonably can from scratch, and everything we build is open source.
+                    </p>
+                    <p>
+                    At the moment, we have a few "games" that test input handling, rendering, performance, etc. but nothing really fully featured. Download the <a href="https://builder.homegames.io/download/latest/stable" target="_blank">latest stable build</a>, check out our <a href="https://picodeg.io" target="_blank">public demo</a>, or watch <a href="https://www.youtube.com/watch?v=8A5lZKtCia8" target="_blank">this video</a> to get an idea of what we have so far.
+                    </p>
+                    <p>Homegames is maintained by <a href="https://github.com/prosif" target="_blank">Joseph Garcia</a> & <a href="https://github.com/YazeedLoonat" target="_blank">Yazeed Loonat</a>. We both work full-time as "professional" software developers and work on Homegames in our free time. We've been friends for most of our lives and we both love games. </p>
+                    <p>For questions or comments, reach out to us on <a href="https://github.com/homegamesio" target="_blank">Twitter</a> or <a href="https://reddit.com/r/homegames" target="_blank">Reddit</a>, or send an email to joseph@homegames.io.
+                </div>
+                <div id="podcast-content" hidden>
+                    <p>
+                    We have a weekly podcast where we talk about Homegames updates and what's going on in our lives. You can tweet questions to @homegamesio or email us at podcast@homegames.io to be featured on the podcast. We upload new videos every Wednesday!
+                    </p>
+                    <div style="display: inline-block; width: 45%; margin: 0; vertical-align: top;">
+                        <script src="https://www.buzzsprout.com/685979.js?player=large" type="text/javascript" charset="utf-8"></script>
+                    </div>
+
+                    <div style="display: inline-block; width: 45%; margin-left: 5%; vertical-align: top;">
+                        <iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PL9BiQ9HyAQCM2ATci_tbqfamztpy5iUDq" frameborder="0" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    </div>
+                </div>
+                </div>
             </div>
     
             <div id="footer">
