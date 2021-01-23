@@ -175,10 +175,37 @@ body {
     text-decoration: underline;
 }
 
-@media screen and (max-width: 800px) {
+@media screen and (device-width: 400px) {
+}
+@media only screen and (min-width: 375px)
+and (max-width: 812px){
     .button {
         width: 30%;
     }
+}
+
+@media only screen and (min-width: 375px)
+and (max-width: 812px) and (orientation: portrait) {
+    .button {
+        width: 30%;
+    }
+}
+
+@media only screen and (min-width: 375px)
+and (max-width: 812px) and (orientation: landscape) {
+    .button {
+        width: 30%;
+    }
+}
+
+@media only screen
+    and (device-width: 375px)
+    and (device-height: 812px)
+    and (-webkit-device-pixel-ratio: 3) { 
+    .button {
+        width: 30%;
+    }
+
 }
 
 a {
