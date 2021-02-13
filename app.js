@@ -1,7 +1,6 @@
 const https = require('https');
 const http = require('http');
 const fs = require('fs');
-const config = require('./config');
 const path = require('path');
 const Readable = require('stream').Readable
 const { confirmUser, login, signup } = require('homegames-common');
@@ -35,11 +34,6 @@ const PATH_MAP = {
         path: "app.css",
         contentType: "text/css"
     }
-};
-
-const options = {
-//  key: fs.readFileSync(config.SSL_KEY_PATH),
-//  cert: fs.readFileSync(config.SSL_CERT_PATH)
 };
 
 const getReqBody = (req, cb) => {
@@ -141,11 +135,4 @@ const server = http.createServer((req, res) => {
 
 const HTTPS_PORT = 443;
 
-server.listen(80);//HTTPS_PORT);
-
-//const HTTP_PORT = 80;
-//
-//http.createServer((req, res) => {
-//    res.writeHead(301, {'Location': 'https://' + req.headers['host'] + req.url });
-//    res.end();
-//}).listen(HTTP_PORT);
+server.listen(80);
