@@ -92,6 +92,10 @@ const renderDashboard = () => {
                 const content = document.createElement('div');
 
                 content.innerHTML = `Name: ${game.game_name}, Developer: ${game.developer_id}, ID: ${game.game_id}, Created: ${game.created_at}`;
+                content.onclick = () => {
+                    console.log('need to render modal?');
+                    showModal('game-assets', game);
+                };
 
                 return content;
             });
@@ -189,14 +193,40 @@ const changePassword = () => {
 };
 
 const modalContent = {
+    'game-assets': {
+        content: game => {
+            const main = document.createElement('div');
+
+            const closeButton = document.createElement('div');
+            closeButton.id = 'close-button';
+            closeButton.classList.add('close');
+
+            const gameInfo = document.createElement('div');
+            gameInfo.innerHTML = game.game_name;
+
+            const submit = document.createElement('div');
+            submit.innerHTML = 'submit';
+            submit.id = 'submit';
+
+            main.appendChild(closeButton);
+            main.appendChild(gameInfo);
+            main.appendChild(submit);
+
+            return main;
+//                `<div id="close-button" class="close"></div><div>${game.game_name}</div><div>${game.game_id}</div><div>assets</div><div id="submit">Confirm</div>`
+        },
+        onSubmit: () => {
+            console.log('idk yet 2');
+        }
+    },
     'settings': {
-        content: '<div id="close-button" class="close"></div><div><a href="/dashboard" target="_blank">Game dashboard</a></div><div>Cert status (coming soon)</div><div onclick="changePassword()">Change password (coming soon)</div><div>Change email (coming soon)</div><div id="submit">Confirm</div>',
+        content: (args) => '<div id="close-button" class="close"></div><div><a href="/dashboard" target="_blank">Game dashboard</a></div><div>Cert status (coming soon)</div><div onclick="changePassword()">Change password (coming soon)</div><div>Change email (coming soon)</div><div id="submit">Confirm</div>',
         onSubmit: () => {
             console.log('idk yet');
         }
     },
     'sign-up': {
-        content: '<div id="close-button" class="close"></div><div class="form"><label for="username">Username</label><input type="text" id="username"></input><label for="email">Email Address</label><input type="text" id="email"></input><label for="password">Password</label><input type="password" id="password"></input><div id="submit" class="clickable">Submit</div><div id="confirm-signup-wrapper" hidden><div>We\'ve sent a confirmation link to your email address</div></div>',
+        content: (args) => '<div id="close-button" class="close"></div><div class="form"><label for="username">Username</label><input type="text" id="username"></input><label for="email">Email Address</label><input type="text" id="email"></input><label for="password">Password</label><input type="password" id="password"></input><div id="submit" class="clickable">Submit</div><div id="confirm-signup-wrapper" hidden><div>We\'ve sent a confirmation link to your email address</div></div>',
         onSubmit: () => {
             const emailDiv = document.getElementById('email');
             const passwordDiv = document.getElementById('password');
@@ -224,7 +254,7 @@ const modalContent = {
         }
     },
     'login': {
-        content: '<div id="close-button" class="close"></div><div class="form"><label for="username">Username</label><input type="text" id="username"></input><label for="password">Password</label><input type="password" id="password"></input><div id="submit" class="clickable">Submit</div></div>',
+        content: (args) => '<div id="close-button" class="close"></div><div class="form"><label for="username">Username</label><input type="text" id="username"></input><label for="password">Password</label><input type="password" id="password"></input><div id="submit" class="clickable">Submit</div></div>',
         onSubmit: () => {
             const passwordDiv = document.getElementById('password');
             const usernameDiv = document.getElementById('username');
@@ -256,14 +286,23 @@ const hideModal = () => {
     modal.setAttribute('hidden', '');
 };
 
-const showModal = (modalType) => {
-    modal.innerHTML = modalContent[modalType].content;
+const showModal = (modalType, args) => {
+    clearChildren(modal);
+
+    // hack. all should be divs
+    const thing = modalContent[modalType].content(args);
+    if (typeof thing == "string") {
+        modal.innerHTML = thing;;//modalContent[modalType].content(args);
+        document.getElementById('close-button').addEventListener('click', hideModal);
+        document.getElementById('submit').addEventListener('click', () => {
+            modalContent[modalType].onSubmit()
+    //        hideModal();
+        });
+
+    } else {
+        modal.appendChild(thing);//modalContent[modalType].content(args));
+    }
     modal.removeAttribute('hidden');
-    document.getElementById('close-button').addEventListener('click', hideModal);
-    document.getElementById('submit').addEventListener('click', () => {
-        modalContent[modalType].onSubmit()
-//        hideModal();
-    });
 };
 
 const onSignup = () => {
