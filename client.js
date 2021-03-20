@@ -4,6 +4,8 @@ const clearChildren = (el) => {
     }
 };
 
+let _username, _token;
+
 const makeGet = (endpoint, headers) => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('GET', endpoint, true);
@@ -66,6 +68,43 @@ const modal = document.getElementById('modal');
 let loginData;
 
 const headerContainer = document.getElementById('header-container');
+const dashboardContainer = document.getElementById('dashboard-container');
+
+const listGames = (token) => new Promise((resolve, reject) => {
+    makeGet('/games', {
+        'hg-access-token': token
+    }).then(data => {
+        resolve(JSON.parse(data).games);
+    })
+});
+
+const renderDashboard = () => {
+    clearChildren(dashboardContainer);
+
+    if (!_username || !_token) {
+        const content = document.createElement('div');
+        content.innerHTML = 'Login to see dashboard';
+        dashboardContainer.appendChild(content);
+    } else { 
+        listGames(_token).then(games => {
+            const gameDivs = games.map(game => {
+                
+                const content = document.createElement('div');
+
+                content.innerHTML = `Name: ${game.game_name}, Developer: ${game.developer_id}, ID: ${game.game_id}, Created: ${game.created_at}`;
+
+                return content;
+            });
+            
+            console.log('divs');
+
+            gameDivs.forEach(gameDiv => {
+
+                dashboardContainer.appendChild(gameDiv);
+            });
+        });
+    }
+};
 
 const renderHeader = () => {
 
@@ -151,7 +190,7 @@ const changePassword = () => {
 
 const modalContent = {
     'settings': {
-        content: '<div id="close-button" class="close"></div><div onclick="changePassword()">Change password (coming soon)</div><div>Change email (coming soon)</div><div id="submit">Confirm</div>',
+        content: '<div id="close-button" class="close"></div><div><a href="/dashboard" target="_blank">Game dashboard</a></div><div>Cert status (coming soon)</div><div onclick="changePassword()">Change password (coming soon)</div><div>Change email (coming soon)</div><div id="submit">Confirm</div>',
         onSubmit: () => {
             console.log('idk yet');
         }
@@ -190,17 +229,24 @@ const modalContent = {
             const passwordDiv = document.getElementById('password');
             const usernameDiv = document.getElementById('username');
 
+            const username = usernameDiv.value;
+            const password = passwordDiv.value;
+
             makePost('/login', {
-                username: usernameDiv.value,
-                password: passwordDiv.value
+                username,
+                password
             }).then((tokenObj) => {
+
+                _token = tokenObj.accessToken;
+                _username = username;
 
                 loginData = {
                     tokens: tokenObj,
-                    username: usernameDiv.value
+                    username
                 };
 
                 renderHeader();
+                renderDashboard();
             });
         }
     }

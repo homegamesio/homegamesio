@@ -5,9 +5,38 @@ const path = require('path');
 const Readable = require('stream').Readable
 const { confirmUser, login, signup } = require('homegames-common');
 
+// copied from common. TODO: refactor everything so its not embarrassing 
+const getUrl = (url, headers = {}) => new Promise((resolve, reject) => {
+    const getModule = url.startsWith('https') ? https : http;
+
+    let responseData = '';
+
+    getModule.get(url, { headers } , (res) => {
+        const bufs = [];
+        res.on('data', (chunk) => {
+            bufs.push(chunk);
+        });
+
+        res.on('end', () => {
+            if (res.statusCode > 199 && res.statusCode < 300) {
+                resolve(Buffer.concat(bufs));
+            } else {
+                reject(Buffer.concat(bufs));
+            }
+        });
+    }).on('error', error => {
+        reject(error);
+    });
+ 
+});
+
 const PATH_MAP = {
     "/": {
         path: "index.html",
+        contentType: "text/html"
+    },
+    "/dashboard": {
+        path: "dashboard.html",
         contentType: "text/html"
     },
     "/confirm-signup": {
@@ -119,20 +148,27 @@ const server = http.createServer((req, res) => {
             requestPath = requestPath.substring(0, queryParamIndex);
         }
 
-        const pathMapping = PATH_MAP[requestPath];
-
-        if (pathMapping) {
-            res.statusCode = 200;
-            res.setHeader("Content-Type", pathMapping.contentType);
-            const payload = fs.readFileSync(path.join(__dirname, pathMapping.path));
-            res.end(payload);
+        if (req.url === '/games') {
+            getUrl('http://localhost/games', {}).then(_gameData => {
+                const gameData = JSON.parse(_gameData);
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify(gameData));
+            });
         } else {
-            res.statusCode = 404;
-            res.end();
+
+            const pathMapping = PATH_MAP[requestPath];
+
+            if (pathMapping) {
+                res.statusCode = 200;
+                res.setHeader("Content-Type", pathMapping.contentType);
+                const payload = fs.readFileSync(path.join(__dirname, pathMapping.path));
+                res.end(payload);
+            } else {
+                res.statusCode = 404;
+                res.end();
+            }
         }
     }
 });
 
-const HTTPS_PORT = 443;
-
-server.listen(80);
+server.listen(8000);
