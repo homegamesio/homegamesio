@@ -5,6 +5,38 @@ const path = require('path');
 const Readable = require('stream').Readable
 const { confirmUser, login, signup } = require('homegames-common');
 
+const makePost = (endpoint, payload, notJson)  => new Promise((resolve, reject) => {
+
+    const data = JSON.stringify(payload);
+
+    const options = {
+        hostname: 'landlord.homegames.io',
+        port: 443,
+        path: '/games',
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': data.length
+        }
+    };
+
+    const req = https.request(options, res => {
+        let response = '';
+        res.on('data', d => {
+            response += d;
+        });
+
+        res.on('end', () => {
+            resolve(response);
+        });
+    });
+
+    req.write(data);
+    req.end();
+});
+
+
+
 // copied from common. TODO: refactor everything so its not embarrassing 
 const getUrl = (url, headers = {}) => new Promise((resolve, reject) => {
     const getModule = url.startsWith('https') ? https : http;
@@ -138,36 +170,87 @@ const server = http.createServer((req, res) => {
                     res.end('Refresh requires username and token');
                 }
             });
+        } else if (req.url === '/games') {
+            getReqBody(req, _body => {
+                const body = JSON.parse(_body);
+                makePost('https://landlord.homegames.io/games', {
+                    game_name: body.game_name,
+                    developer_id: body.developer_id
+                }).then(data => {
+                    console.log("got this");
+                    console.log(data);
+                    res.end(data);
+                });
+            });
+        } else if (req.url.startsWith('/games/') && req.url.endsWith('/publish')) {
+            getReqBody(req, _body => {
+                const body = JSON.parse(_body);
+
+                const gameId = req.url.split('/games/')[1].split('/publish')[0];
+                console.log("GAME EINDF");
+                console.log(gameId);
+
+                const options = {
+                    hostname: 'landlord.homegames.io',
+                    port: 443,
+                    path: '/games/' + gameId + '/publish',
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Content-Length': _body.length
+                    }
+                };
+            
+                const _req = https.request(options, _res => {
+                    let response = '';
+                    _res.on('data', d => {
+                        response += d;
+                    });
+            
+                    _res.on('end', () => {
+                        res.end(response);
+                    });
+                });
+            
+                _req.write(_body);
+                _req.end();
+            });
         }
     } else if (req.method === 'GET') {
-        let requestPath = req.url;
+            let requestPath = req.url;
 
-        const queryParamIndex = requestPath.indexOf("?");
+            const queryParamIndex = requestPath.indexOf("?");
 
-        if (queryParamIndex > 0) {
-            requestPath = requestPath.substring(0, queryParamIndex);
-        }
-
-        if (req.url === '/games') {
-            getUrl('http://localhost/games', {}).then(_gameData => {
-                const gameData = JSON.parse(_gameData);
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify(gameData));
-            });
-        } else {
-
-            const pathMapping = PATH_MAP[requestPath];
-
-            if (pathMapping) {
-                res.statusCode = 200;
-                res.setHeader("Content-Type", pathMapping.contentType);
-                const payload = fs.readFileSync(path.join(__dirname, pathMapping.path));
-                res.end(payload);
-            } else {
-                res.statusCode = 404;
-                res.end();
+            if (queryParamIndex > 0) {
+                requestPath = requestPath.substring(0, queryParamIndex);
             }
-        }
+
+            if (req.url === '/games') {
+                getUrl('https://landlord.homegames.io/games', {}).then(_gameData => {
+                    const gameData = JSON.parse(_gameData);
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify(gameData));
+                });
+            } else if (req.url.startsWith('/games/')) {
+                getUrl('https://landlord.homegames.io' + req.url).then(_gameData => {
+                    console.log('got game data');
+                    res.end(_gameData.toString());
+                });
+            } else {
+
+                const pathMapping = PATH_MAP[requestPath];
+
+                if (pathMapping) {
+                    res.statusCode = 200;
+                    res.setHeader("Content-Type", pathMapping.contentType);
+                    const payload = fs.readFileSync(path.join(__dirname, pathMapping.path));
+                    res.end(payload);
+                } else {
+                    res.statusCode = 404;
+                    res.end();
+                }
+            }
+        
     }
 });
 

@@ -86,6 +86,35 @@ const renderDashboard = () => {
         content.innerHTML = 'Login to see dashboard';
         dashboardContainer.appendChild(content);
     } else { 
+        const gameContainer = document.createElement('div');
+        const gameTextForm = document.createElement('input');
+
+        gameTextForm.type = 'text';
+
+        const createButton = document.createElement('div');
+        createButton.innerHTML = 'Create game';
+        createButton.onclick = () => {
+            console.log('creating!');
+            console.log(gameTextForm.value);
+            console.log(_username);
+            makePost('/games', {
+                game_name: gameTextForm.value,
+                developer_id: _username
+            }).then((gameRes) => {
+                console.log('game');
+                console.log(gameRes);
+                renderDashboard();
+            });
+        };
+
+        gameContainer.appendChild(gameTextForm)
+        gameContainer.appendChild(createButton);
+
+        const gameHeader = document.createElement('h2');
+
+        gameHeader.innerHTML = 'My Games';
+        gameContainer.appendChild(gameHeader);
+
         listGames(_token).then(games => {
             const gameDivs = games.map(game => {
                 
@@ -104,8 +133,10 @@ const renderDashboard = () => {
 
             gameDivs.forEach(gameDiv => {
 
-                dashboardContainer.appendChild(gameDiv);
+                gameContainer.appendChild(gameDiv);
             });
+
+            dashboardContainer.appendChild(gameContainer);
         });
     }
 };
@@ -193,22 +224,118 @@ const changePassword = () => {
 };
 
 const modalContent = {
+    'create-game': {
+        content: () => {
+            const main = document.createElement('div');
+            main.innerHTML = 'hello';
+
+            const gameNameForm = document.createElement('input');
+            gameNameForm.type = 'text';
+
+            main.appendChild(gameNameForm);
+            return main;
+        }
+    },
     'game-assets': {
         content: game => {
             const main = document.createElement('div');
 
-            const closeButton = document.createElement('div');
-            closeButton.id = 'close-button';
-            closeButton.classList.add('close');
+            main.classList.add('form');
+
+            const versionList = document.createElement('ul');
+            versionList.style = 'float: right';
+
+            makeGet('/games/' + game.game_id).then((_gameData) => {
+                const gameData = JSON.parse(_gameData);
+                const gameVersionDivs = gameData.versions.map(v => {
+                    const el = document.createElement('li');
+                    const versionEl = document.createElement('div');
+                    versionEl.innerHTML = 'Version ' + v.version;
+
+                    const createdEl = document.createElement('div');
+                    createdEl.innerHTML = 'Created ' + v.created;
+
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = v.location;
+                    downloadLink.innerHTML = 'Download';
+
+                    const statusEl = document.createElement('div');
+                    statusEl.innerHTML = 'Status: ' + v.status;
+
+                    el.appendChild(versionEl);
+                    el.appendChild(createdEl);
+                    el.appendChild(statusEl);
+                    el.appendChild(downloadLink);
+
+                    return el;
+                });
+
+                if (gameVersionDivs.length == 0) {
+                    const noVersions = document.createElement('div');
+                    noVersions.innerHTML = 'No published versions';
+                    versionList.appendChild(noVersions);
+                }
+                gameVersionDivs.forEach(d => {
+                    versionList.appendChild(d);
+                });
+
+            });
 
             const gameInfo = document.createElement('div');
-            gameInfo.innerHTML = game.game_name;
+
+            const gameNameEl = document.createElement('h3');
+            gameNameEl.innerHTML = game.game_name;
+
+            gameInfo.appendChild(gameNameEl);
+
+            const publishForm = document.createElement('div');
+
+            const repoOwnerLabel = document.createElement('label');
+            repoOwnerLabel.innerHTML = 'Owner';
+
+            const repoOwnerInput = document.createElement('input');
+            repoOwnerInput.type = 'text';
+
+            const repoNameLabel = document.createElement('label');
+            repoNameLabel.innerHTML = 'Repo name';
+
+            const repoNameInput = document.createElement('input');
+            repoNameInput.type = 'text';
+
+            const repoCommitLabel = document.createElement('label');
+            repoCommitLabel.innerHTML = 'Commit';
+
+            const repoCommitInput = document.createElement('input');
+            repoCommitInput.type = 'text';
+
+            publishForm.appendChild(repoOwnerLabel);
+            publishForm.appendChild(repoOwnerInput);
+            publishForm.appendChild(repoNameLabel);
+            publishForm.appendChild(repoNameInput);
+            publishForm.appendChild(repoCommitLabel);
+            publishForm.appendChild(repoCommitInput);
+
+            gameInfo.appendChild(publishForm);
 
             const submit = document.createElement('div');
             submit.innerHTML = 'submit';
             submit.id = 'submit';
+            submit.style = 'clear: both';
 
-            main.appendChild(closeButton);
+            submit.onclick = () => {
+                makePost('/games/' + game.game_id + '/publish', {
+                    owner: repoOwnerInput.value,
+                    repo: repoNameInput.value,
+                    commit: repoCommitInput.value
+                }, true).then((_response) => {
+                    hideModal();
+                    renderDashboard();
+                });
+
+            };
+ 
+
+            main.appendChild(versionList);
             main.appendChild(gameInfo);
             main.appendChild(submit);
 
@@ -292,7 +419,7 @@ const showModal = (modalType, args) => {
     // hack. all should be divs
     const thing = modalContent[modalType].content(args);
     if (typeof thing == "string") {
-        modal.innerHTML = thing;;//modalContent[modalType].content(args);
+        modal.innerHTML = thing;//modalContent[modalType].content(args);
         document.getElementById('close-button').addEventListener('click', hideModal);
         document.getElementById('submit').addEventListener('click', () => {
             modalContent[modalType].onSubmit()
@@ -300,6 +427,13 @@ const showModal = (modalType, args) => {
         });
 
     } else {
+
+            const closeButton = document.createElement('div');
+            closeButton.id = 'close-button';
+            closeButton.classList.add('close');
+            closeButton.addEventListener('click', hideModal);
+
+        modal.appendChild(closeButton);
         modal.appendChild(thing);//modalContent[modalType].content(args));
     }
     modal.removeAttribute('hidden');
