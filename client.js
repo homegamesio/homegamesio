@@ -53,7 +53,7 @@ const makePost = (endpoint, payload, notJson)  => new Promise((resolve, reject) 
     xhr.send(JSON.stringify(payload));
 });
 
-const uploadAsset = (asset) => new Promise((resolve, reject) => {
+const uploadAsset = (asset, cb) => new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append('file', asset);
 
@@ -64,7 +64,7 @@ const uploadAsset = (asset) => new Promise((resolve, reject) => {
     request.setRequestHeader('hg-username', window.hgUserInfo.username);
     request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
 
-    request.onreadystatechange = () => {
+    request.onreadystatechange = (e) => {
         if (request.readyState === XMLHttpRequest.DONE) {
             if (request.status === 200) {
                 resolve();
@@ -72,6 +72,30 @@ const uploadAsset = (asset) => new Promise((resolve, reject) => {
                 reject();
             }
         }
+    };
+
+    request.onloadstart = () => {
+        cb && cb('loadstart', {});
+    };
+
+    request.onload = () => {
+        cb && cb('load', {});
+    };
+
+    request.onloadend = () => {
+        cb && cb('loadend', {});
+    };
+
+    request.onprogress = (e) => {
+        cb && cb('progress', {});
+    };
+
+    request.onerror = (error) => {
+        cb && cb('error', {error});
+    };
+
+    request.onabort = () => {
+        cb && cb('abort', {});
     };
 
     request.send(formData);
@@ -138,12 +162,19 @@ const handleLogin = (userInfo) => {
 
     window.hgUserInfo = userInfo;
     hideModal();
+    showContent('dashboard');
 };
                 
 
 const loader = () => {
     const el = document.createElement('div');
     el.className = 'loading';
+    return el;
+};
+
+const loaderBlack = () => {
+    const el = document.createElement('div');
+    el.className = 'loading-black';
     return el;
 };
 
@@ -366,6 +397,8 @@ const dashboards = {
                 container.innerHTML = 'Log in to manage assets';
                 resolve(container);
             } else {
+                const uploadSection = document.createElement('div');
+
                 const fileForm = document.createElement('input');
                 fileForm.type = 'file';
 
@@ -373,31 +406,50 @@ const dashboards = {
                 uploadButton.className = 'hg-button content-button';
                 uploadButton.innerHTML = 'Upload';
 
+                uploadSection.appendChild(fileForm);
+                uploadSection.appendChild(uploadButton);
+
                 uploadButton.onclick = () => {
                     if (fileForm.files.length == 0) {
                         return;
                     }
 
-                    uploadAsset(fileForm.files[0]).then(() => {
-                            console.log('updated!');
+                    const eventHandler = (_type, _payload) => {
+                        if (_type == 'loadstart') {
+                            clearChildren(uploadSection);
+                            const _loader = loaderBlack();
+                            uploadSection.appendChild(_loader);
+                        }
+                    };
+
+                    uploadAsset(fileForm.files[0], eventHandler).then(() => {
+                        dashboards['assets'].render().then((_container) => {
+                            clearChildren(container);
+                            container.appendChild(_container);
+                        });
                     });
                 };
 
                 const assetsHeader = document.createElement('h1');
                 assetsHeader.innerHTML = 'My Assets';
 
+                container.appendChild(uploadSection);
+
+                const _loader = loaderBlack();
+                container.appendChild(_loader);
+
                 makeGet('https://landlord.homegames.io/assets', {
                     'hg-username': window.hgUserInfo.username,
                     'hg-token': window.hgUserInfo.tokens.accessToken
                 }).then((_assets) => {
+                    container.removeChild(_loader);
                     const assets = JSON.parse(_assets).assets;
                     const table = sortableTable(assets);
-                    container.appendChild(fileForm);
-                    container.appendChild(uploadButton);
                     container.appendChild(assetsHeader);
                     container.appendChild(table);
-                    resolve(container);
                 });
+
+                resolve(container);
             }
         }),
         childOf: 'default'
