@@ -202,6 +202,10 @@ const modals = {
             const loginButton = simpleDiv('Log in');
             loginButton.className = 'hg-button';
             loginButton.onclick = () => {
+                clearChildren(container);
+                const _loader = loader();
+                container.style = 'text-align: center';
+                container.appendChild(_loader);
                 login(usernameForm.value, passwordForm.value).then(handleLogin)
             };
 
