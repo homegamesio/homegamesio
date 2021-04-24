@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const Readable = require('stream').Readable
 const { confirmUser, login, signup } = require('homegames-common');
+const aws = require('aws-sdk');
 
 const makePost = (endpoint, payload, notJson)  => new Promise((resolve, reject) => {
 
@@ -122,7 +123,46 @@ const getReqBody = (req, cb) => {
 
 const server = http.createServer((req, res) => {
     if (req.method === 'POST') {
-        if (req.url === '/verify') {
+        if (req.url === '/contact') {
+            getReqBody(req, (_body) => {
+                const body = JSON.parse(_body);
+                console.log('got this message');
+                console.log(body);
+
+                const bodyText = body.message || 'Empty message';
+
+                const bodyEmail = body.email || 'No email provided';
+
+                const emailParams = {
+                    Destination: {
+                        ToAddresses: [
+                            'support@homegames.io'
+                        ]
+                    },
+                    Message: {
+                        Body: {
+                            Text: {
+                                Charset: 'UTF-8',
+                                Data: `Email: ${bodyEmail}\nMessage:${bodyText}`
+                            }
+                        },
+                        Subject: {
+                            Charset: 'UTF-8',
+                            Data: 'Testing please'
+                        }
+                    },
+                    Source: "support-form@homegames.io"
+                };
+
+                const ses = new aws.SES({region: 'us-west-2'});
+
+                ses.sendEmail(emailParams, (err, data) => {
+                    res.end(JSON.stringify({
+                        success: !(!!err)
+                    }));
+                });
+            });
+        } else if (req.url === '/verify') {
             getReqBody(req, (_body) => {
                 const body = JSON.parse(_body);
                 if (body.username && body.code) {
