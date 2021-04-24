@@ -1,0 +1,34 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Homegames</title>
+        <link rel="stylesheet" href="app.css">
+    </head>
+
+    <body>
+        <div id="modal" class="fade-in" hidden>
+            <div class="close" onclick="hideModal()">X</div>
+            <div class="back"></div>
+            <div class="content"></div>
+        </div>
+        <div id="podcast-page-container">
+            <div id="header">
+                <div onclick="goHome()" id="logo"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
+            </div>
+ 
+            <div id="content">
+                <h1>
+                    Coming soon!
+                </h1>
+            </div>
+
+            <div id="footer" onclick="showModal('support')" id="support" class="button">
+                <h1>
+                    Contact 
+                </h1>
+            </div>
+        </div>
+    </body>
+    <script src="client.js"></script>
+</html>
