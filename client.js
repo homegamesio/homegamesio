@@ -53,6 +53,30 @@ const makePost = (endpoint, payload, notJson)  => new Promise((resolve, reject) 
     xhr.send(JSON.stringify(payload));
 });
 
+const uploadAsset = (asset) => new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append('file', asset);
+
+    const request = new XMLHttpRequest();
+
+    request.open("POST", "https://landlord.homegames.io/asset"); 
+
+    request.setRequestHeader('hg-username', window.hgUserInfo.username);
+    request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
+
+    request.onreadystatechange = () => {
+        if (request.readyState === XMLHttpRequest.DONE) {
+            if (request.status === 200) {
+                resolve();
+            } else {
+                reject();
+            }
+        }
+    };
+
+    request.send(formData);
+});
+
 const login = (username, password) => new Promise((resolve, reject) => {
     makePost('https://auth.homegames.io', {
         username,
@@ -338,52 +362,43 @@ const dashboards = {
         render: () => new Promise((resolve, reject) => {
             const container = document.createElement('div');
 
-            const uploadButton = document.createElement('div');
-            uploadButton.className = 'hg-button content-button';
-            uploadButton.innerHTML = 'Upload';
-
-            const assetsHeader = document.createElement('h1');
-            assetsHeader.innerHTML = 'My Assets';
-
-            const mockAssets = {
-    "assets": [
-        {
-            "developerId": "joseph",
-            "size": 14538,
-            "assetId": "01a2952b1867772cb1379e3bf0d4f5a7",
-            "created": 1619156008921,
-            "status": "created"
-        },
-        {
-            "developerId": "joseph",
-            "size": 14538,
-            "assetId": "65c61d3881564ef9dd08bac7b0ac37d6",
-            "created": 1619156008137,
-            "status": "created"
-        },
-        {
-            "developerId": "joseph",
-            "size": 14538,
-            "assetId": "67ed6ceb61393eb8162b7efb5e06b9f7",
-            "created": 1619156007337,
-            "status": "created"
-        },
-        {
-            "developerId": "joseph",
-            "size": 14538,
-            "assetId": "b8ccb225666695c4e7c23364e9db448e",
-            "created": 1619155338595,
-            "status": "created"
-        }
-    ]
-};
-           // makeGet('http://localhost/assets').then((_assets) => {
-                const table = sortableTable(mockAssets.assets);
-                container.appendChild(assetsHeader);
-                container.appendChild(uploadButton);
-                container.appendChild(table);
+            if (!window.hgUserInfo) {
+                container.innerHTML = 'Log in to manage assets';
                 resolve(container);
-            //});
+            } else {
+                const fileForm = document.createElement('input');
+                fileForm.type = 'file';
+
+                const uploadButton = document.createElement('div');
+                uploadButton.className = 'hg-button content-button';
+                uploadButton.innerHTML = 'Upload';
+
+                uploadButton.onclick = () => {
+                    if (fileForm.files.length == 0) {
+                        return;
+                    }
+
+                    uploadAsset(fileForm.files[0]).then(() => {
+                            console.log('updated!');
+                    });
+                };
+
+                const assetsHeader = document.createElement('h1');
+                assetsHeader.innerHTML = 'My Assets';
+
+                makeGet('https://landlord.homegames.io/assets', {
+                    'hg-username': window.hgUserInfo.username,
+                    'hg-token': window.hgUserInfo.tokens.accessToken
+                }).then((_assets) => {
+                    const assets = JSON.parse(_assets).assets;
+                    const table = sortableTable(assets);
+                    container.appendChild(fileForm);
+                    container.appendChild(uploadButton);
+                    container.appendChild(assetsHeader);
+                    container.appendChild(table);
+                    resolve(container);
+                });
+            }
         }),
         childOf: 'default'
     },
