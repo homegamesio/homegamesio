@@ -1,212 +1,154 @@
-body {
-    margin: 0;
-    color: #1A1A1A;
-    font-family: helvetica;
+@keyframes fadeIn {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
 }
 
-#sign-up {
-    width: 47%;
-    display: inline-block;
-    text-align: center;
+.fade-in {
+    animation: fadeIn ease .4s;
+    background: blue;
 }
 
-#header {
-    background: #F16F6F;
-    clear: both;
-    width: 100%;
+#modal .close, #modal .back{
+    height: 5%;
 }
 
-#header div {
-  vertical-align: middle;
-  height: inherit;
-  position: relative;
-}
-
-#log-in {
-    text-align: center;
-    width: 47%;
-    display: inline-block;
-}
-
-#social {
-    text-align: left;
-}
-
-#twitter, #github {
-    margin: .5%;
-}
-
-#logo {
-    width: 6%;
-    text-align: center;
-    display: inline-block;
-}
-
-#logo img {
-    width: 120px;
-    height: 120px;
-    vertical-align: middle;
-}
-
-#tabs {
-    clear: both;
-}
-
-#tabs ul {
-    padding: 0;
-    margin: 0;
-    background: #75BFDA;
-    padding-top: 15px;
-    padding-bottom: 15px;
-}
-
-#tabs ul li {
-    display: inline-block;
-    list-style: none;
-    text-align: center;
-    vertical-align: middle;
-    height: 100%;
-    font-size: 1.3em;
-
-    /* 100 / 2 options = 50% each */
-    width: 50%;
-}
-
-.clickable:hover {
-    cursor: pointer;
-}
-
-#content-container {
-    margin: 1%;
-    overflow-wrap: break-word;
-}
-
-#footer {
-    background: #1A1A1A;
-    width: 100%;
-    padding: 1%;
-}
-
-#page-container {
-    position: relative;
-    min-height: 100vh;
+#modal .content {
+    height: 70%;
 }
 
 #modal {
     position: absolute;
-    top: 20%;
-    left: 20%;
-    width: 60%;
-    height: 60%;
-    background: #75BFDA;
-    animation: fadeIn ease .2s;
-    z-index: 2;
-    border-radius: 8px;
+    top: 15%;
+    left: 5%;
+    width: 90%;
+    height: 70%;
+    background: rgba(181, 181, 181, 255);
+    border-radius: 1vw;
 }
 
-#modal .form {
-    margin: 2%;
-    position: relative;
+#page-container {
+    background: rgba(255, 253, 224, 255);
 }
 
-#modal label {
-    width: 100%;
-    display: block;
-}
-
-#modal input {
-    width: 25%;
-    margin-bottom: 2%;
-}
-
-#modal .close {
-    background: #F16F6F;
-    width: 10%;
-    height: 10%;
-    border-radius: 5px;
-    position: relative;
-    left: 90%;
-}
-
-#modal .close:hover {
+.hg-button:hover {
+    background: rgba(255, 247, 142, 255) !important;
+    color: rgba(26, 26, 26, 255);
     cursor: pointer;
 }
 
-@keyframes fadeIn {
-    0% {opacity:0;}
-    100% {opacity:1;}
+.bottom-button {
+    width: 20vw;
+    height: 25vh;
+    float: left;
 }
 
-.download-bar, .button {
-    display: inline-block;
-    text-align: center;
-    height: 50px;
-}
-
-.download-bar a, .button a {
-    line-height: 50px;
-    text-decoration: none;
-}
-
-.download-bar {
-    width: 100%;
-}
-
-.button {
-    background: #1A1A1A;
-    border-radius: 4px;
-    height: 50px;
-    width: 10%;
-    line-height: 50px;
-}
-
-#header-container {
-    font-size: 1.4em;
-}
-
-#download-container {
-    padding: 10px;
-    text-align: center;
-}
-
-.active {
+.hg-button a {
     color: white;
-    text-decoration: underline;
+    text-decoration: none;
+    display: inline-block;
+    width: 100%;
+    height: 100%;
 }
 
-@media screen and (device-width: 400px) {
-}
-@media only screen and (min-width: 375px)
-and (max-width: 812px){
-    .button {
-        width: 30%;
-    }
+.hg-button a:hover {
+    color: rgba(26, 26, 26, 255);
 }
 
-@media only screen and (min-width: 375px)
-and (max-width: 812px) and (orientation: portrait) {
-    .button {
-        width: 30%;
-    }
+#header {
+    background: rgba(241, 112, 111, 255);
+    height: 10vh;
 }
 
-@media only screen and (min-width: 375px)
-and (max-width: 812px) and (orientation: landscape) {
-    .button {
-        width: 30%;
-    }
+#settings {
+    line-height: 10vh;
 }
 
-@media only screen
-    and (device-width: 375px)
-    and (device-height: 812px)
-    and (-webkit-device-pixel-ratio: 3) { 
-    .button {
-        width: 30%;
-    }
-
+#logo, #settings {
+    float: left;
+    text-align: center;
+    width: 50vw;
+    height: 10vh;
 }
 
-a {
-    color: black;
+#content {
+    background: rgba(255, 253, 224, 255);
+    clear: both;
+}
+
+* {
+    color: rgba(26, 26, 26, 255);
+    font-family: sans-serif;
+}
+
+.content-button {
+    width: 10vw;
+    border-radius: 1vw;
+    height: 20vh;
+    background: rgba(26, 26, 26, 255);
+    color: white;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 20vh;
+}
+
+#content, #podcast-content {
+    clear: both;
+    height: 80vh;
+    overflow-y: scroll;
+}
+
+#info-content {
+    padding-top: 5vh;
+}
+
+#buttons {
+    padding-bottom: 5vh;
+    height: 50vh;
+}
+
+#modal-content {
+    margin: 3%;
+    height: 100%;
+}
+
+#footer {
+    background: rgba(148, 210, 229, 255);
+    height: 10vh;
+    clear: both;
+}
+
+#footer h1 {
+    line-height: 10vh;
+}
+
+#demo {
+    clear: both;
+}
+
+body, h1 {
+    margin: 0;
+}
+
+h1 {
+    font-size: 2vw;
+}
+
+#podcast-downloads h1, #footer h1 {
+    text-align: center;
+}
+
+#downloads, #demo {
+    text-align: center;
+}
+
+#downloads .hg-button {
+    float: left;
+}
+
+#logo img {
+    height: 100%;
 }

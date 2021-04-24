@@ -1,0 +1,50 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Homegames</title>
+        <link rel="stylesheet" href="app.css">
+    </head>
+
+    <body>
+        <div id="modal" class="fade-in" hidden>
+            <div class="close" onclick="hideModal()">X</div>
+            <div class="back"></div>
+            <div class="content"></div>
+        </div>
+        <div id="podcast-page-container">
+            <div id="header">
+                <div onclick="goHome()" id="logo"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
+            </div>
+ 
+            <div id="podcast-content">
+                <div>
+                    We have a podcast
+                </div>
+                <div id="podcast-media">
+                    <div>
+                        <div id='buzzsprout-large-player-685979'></div>
+                    </div>
+                    <div>
+                        <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/videoseries?list=PL9BiQ9HyAQCM2ATci_tbqfamztpy5iUDq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    </div>
+                </div>
+                <div>
+                    <img src="/assets/spotify-badge.png"></img>
+                    <img src="/assets/apple-badge.png"></img>
+                </div>
+                <div id="podcast-downloads">
+                    <h1>Downloads</h1>
+                    <h2>Coming soon</h2>
+                </div>
+            </div>
+            <div id="footer" onclick="showModal('support')" id="support" class="button">
+                <h1>
+                    Contact 
+                </h1>
+            </div>
+        </div>
+    </body>
+    <script src="client.js"></script>
+    <script type='text/javascript' charset='utf-8' src='https://www.buzzsprout.com/685979.js?container_id=buzzsprout-large-player-685979&player=large'></script>
+</html>

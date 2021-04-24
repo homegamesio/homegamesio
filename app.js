@@ -79,6 +79,18 @@ const PATH_MAP = {
         path: "favicon.ico",
         contentType: "image/x-icon"
     },
+    "/favicon-16x16.png": {
+        path: "favicon-16x16.png",
+        contentType: "image/png"
+    },
+     "/favicon-32x32.png": {
+        path: "favicon-32x32.png",
+        contentType: "image/png"
+    },
+     "/site.webmanifest": {
+        path: "site.webmanifest",
+        contentType: "application/manifest+json"
+    },
     "/assets/apple-badge.png": {
         path: "assets/apple-badge.png",
         contentType: "image/png"
@@ -236,8 +248,17 @@ const server = http.createServer((req, res) => {
                     console.log('got game data');
                     res.end(_gameData.toString());
                 });
+            } else if (req.url.startsWith('/podcast')) {
+                res.statusCode = 200;
+                res.setHeader("Content-Type", 'text/html');
+                const payload = fs.readFileSync(path.join(__dirname, 'podcast.html'));
+                res.end(payload);
+            } else if (req.url.startsWith('/developers')) {
+                res.statusCode = 200;
+                res.setHeader("Content-Type", 'text/html');
+                const payload = fs.readFileSync(path.join(__dirname, 'developers.html'));
+                res.end(payload);
             } else {
-
                 const pathMapping = PATH_MAP[requestPath];
 
                 if (pathMapping) {
