@@ -11,7 +11,7 @@
     <body>
         <div id="modal" class="fade-in" hidden>
             <div id="modal-content">
-                <div class="close" onclick="hideModal()">X</div>
+                <div class="close clickable" style="font-size: 2em" onclick="hideModal()">X</div>
                 <div class="back"></div>
                 <div class="content"></div>
             </div>
@@ -29,8 +29,8 @@
                     </div>
                     <div id="downloads">
                         <h2>Downloads</h2>
-                        <div class="hg-button content-button" style="width: 15vw; margin-right: 5vw; margin-left: 32.5vw">Latest</div>
-                        <div class="hg-button content-button" style="width: 15vw">Latest (stable)</div>
+                        <div onclick="handleDownload()" class="hg-button content-button" style="width: 15vw; margin-right: 5vw; margin-left: 32.5vw">Latest</div>
+                        <div onclick="handleDownload(true)" class="hg-button content-button" style="width: 15vw">Latest (stable)</div>
                     </div>
                     <div id="demo">
                         <h2>Demo</h2>
@@ -46,7 +46,7 @@
                 </div>
                 <div hidden id="dashboard-content"></div>
             </div>
-            <div id="footer" onclick="showModal('support')" id="support" class="hg-button">
+            <div id="footer" onclick="showModal('support')" class="hg-button">
                 <h1>
                     Contact 
                 </h1>

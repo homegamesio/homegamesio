@@ -8,18 +8,23 @@
 
     <body>
         <div id="modal" class="fade-in" hidden>
-            <div class="close" onclick="hideModal()">X</div>
-            <div class="back"></div>
-            <div class="content"></div>
+            <div id="modal-content">
+                <div class="close clickable" style="font-size: 2em" onclick="hideModal()">X</div>
+                <div class="back"></div>
+                <div class="content"></div>
+            </div>
         </div>
-        <div id="podcast-page-container">
+        <div id="page-container">
             <div id="header">
-                <div onclick="goHome()" id="logo"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
+                <div onclick="goHome()" id="logo" style="width: 100vw;" class="hg-button"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
             </div>
  
-            <div id="podcast-content">
+            <div id="content">
                 <div>
-                    We have a podcast
+                    We have a weekly podcast hosted by Homegames developers Joseph & Yazeed. We talk about life updates, Homegames progress, the weekly "song of the week" & more. We upload new episodes every Wednesday!
+                </div>
+                <div>
+                    Send us a message using the contact form below to have your question featured on the podcast.
                 </div>
                 <div id="podcast-media">
                     <div>
@@ -35,10 +40,11 @@
                 </div>
                 <div id="podcast-downloads">
                     <h1>Downloads</h1>
-                    <h2>Coming soon</h2>
+                    <h2>Coming soon!</h2>
+                    <div>At some point in the future, this will be a list of the raw MP3 & MP4 podcast files we upload to streaming services.</div>
                 </div>
             </div>
-            <div id="footer" onclick="showModal('support')" id="support" class="button">
+            <div id="footer" onclick="showModal('support')" class="hg-button">
                 <h1>
                     Contact 
                 </h1>

@@ -8,22 +8,31 @@
 
     <body>
         <div id="modal" class="fade-in" hidden>
-            <div class="close" onclick="hideModal()">X</div>
+            <div class="close clickable" style="font-size: 2em" onclick="hideModal()">X</div>
             <div class="back"></div>
             <div class="content"></div>
         </div>
-        <div id="podcast-page-container">
+        <div id="page-container">
             <div id="header">
-                <div onclick="goHome()" id="logo"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
+                <div onclick="goHome()" id="logo" class="hg-button" style="width: 100vw;"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
             </div>
  
             <div id="content">
                 <h1>
                     Coming soon!
                 </h1>
+                <div>
+                    For now, the our best developer resource is probably our <a href="https://github.com/homegamesio/homegames-core/wiki/Getting-Started">getting started wiki.</a> It's pretty outdated at this point, but the core of how stuff works is mostly the same.
+                </div>
+                <div>
+                    We also have some "building stuff" videos in this YouTube playlist for more of a "watch & learn" type of content.
+                </div>
+                <div>
+                    Obviously this all needs to be fleshed out. Up to this point, supporting external developers has been our lowest priority, but that's changing very soon. If you have any specific types of info you want to see here, please let us know by using the contact form at the bottom of the page.
+                </div>
             </div>
 
-            <div id="footer" onclick="showModal('support')" id="support" class="button">
+            <div id="footer" onclick="showModal('support')" class="hg-button">
                 <h1>
                     Contact 
                 </h1>
