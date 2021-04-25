@@ -203,6 +203,11 @@ const loaderBlack = () => {
 };
 
 const modals = {
+    'download': {
+        render: () => {
+            return simpleDiv('want to download some shit'); 
+        }
+    },
     'game-detail': {
         render: (game) => {
             const container = document.createElement('div');
@@ -896,3 +901,7 @@ const goHome = () => {
     window.location.replace(`${location.protocol}//${location.hostname}:${location.port}`);
 };
 
+
+const handleDownload = (stable) => {
+    showModal('download');
+};
