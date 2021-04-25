@@ -204,3 +204,7 @@ h1 {
 .grayish {
     background: rgba(76, 76, 76, 255);
 }
+
+.bluehover:hover {
+    background: rgba(148, 210, 229, 255);
+}

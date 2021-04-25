@@ -53,6 +53,32 @@ const makePost = (endpoint, payload, notJson)  => new Promise((resolve, reject) 
     xhr.send(JSON.stringify(payload));
 });
 
+const createGame = (gameName) => new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", "https://landlord.homegames.io/games");
+
+    request.setRequestHeader('hg-username', window.hgUserInfo.username);
+    request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
+    request.setRequestHeader("Content-Type", "application/json");
+
+    request.onreadystatechange = (e) => {
+        if (request.readyState === XMLHttpRequest.DONE) {
+            if (request.status === 200) {
+                console.log(request.response);
+                resolve(JSON.parse(request.response));
+            } else {
+                reject();
+            }
+        }
+    };
+
+    const payload = {
+        game_name: gameName
+    };
+
+    request.send(JSON.stringify(payload));
+});
+
 const uploadAsset = (asset, cb) => new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append('file', asset);
@@ -121,8 +147,6 @@ const signup = (email, username, password) => new Promise((resolve, reject) => {
         password,
         type: 'signUp'
     }).then(tokens => {
-        console.log("WHAT IS THIS");
-        console.log(tokens);
         resolve({
             username,
             tokens
@@ -179,6 +203,175 @@ const loaderBlack = () => {
 };
 
 const modals = {
+    'game-detail': {
+        render: (game) => {
+            const container = document.createElement('div');
+
+            let editingDescription = false;
+
+            const gameHeader = document.createElement('h2');
+            gameHeader.innerHTML = game.name;
+
+            container.appendChild(gameHeader);
+
+            const getDescription = () => {
+                const descriptionSection = document.createElement('div');
+                
+                if (!editingDescription) {
+                    const descriptionText = simpleDiv(game.description || 'No description available');
+                    const editButton = simpleDiv('Edit');
+    
+                    editButton.onclick = () => {
+                        editingDescription = true;
+                        clearChildren(descriptionSection);
+                        const newDescription = getDescription();
+                        descriptionSection.appendChild(newDescription);
+                    };
+
+                    descriptionSection.appendChild(descriptionText);
+                    descriptionSection.appendChild(editButton);
+                } else {
+                    const descriptionTextBox = document.createElement('textarea');
+                    if (game.description) {
+                        descriptionTextBox.value = game.description;
+                    } else {
+                        descriptionTextBox.setAttribute('placeholder', 'Enter a description here');
+                    }
+                    descriptionSection.appendChild(descriptionTextBox);
+
+                    const doneButton = simpleDiv('Done');
+                    doneButton.onclick = () => {
+                        const newDescription = descriptionTextBox.value;
+
+                        const _loader = loader();
+                        clearChildren(descriptionSection);
+                        descriptionSection.appendChild(_loader);
+                        const request = new XMLHttpRequest();
+                        request.open("POST", "https://landlord.homegames.io/games/" + game.id + "/update");
+
+                        request.setRequestHeader('hg-username', window.hgUserInfo.username);
+                        request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
+                        request.setRequestHeader("Content-Type", "application/json");
+
+                        request.onreadystatechange = (e) => {
+                            if (request.readyState === XMLHttpRequest.DONE) {
+                                if (request.status === 200) {
+                                    clearChildren(container);
+                                    const newRender = modals['game-detail'].render(game);
+                                    container.appendChild(newRender);
+                                } 
+                            }
+                        };
+
+                        request.send(JSON.stringify({description: newDescription}));
+
+                        //editingDescription = false;
+                        //clearChildren(descriptionSection);
+                        //const newDescription = getDescription();
+                        //descriptionSection.appendChild(newDescription);
+                    };
+
+                    descriptionSection.appendChild(doneButton);
+                }
+
+                return descriptionSection;
+            };
+
+            const getVersions = () => {
+                const versionContainer = document.createElement('div');
+
+                const versionHeader = document.createElement('h3');
+                versionHeader.innerHTML = 'Versions';
+
+                const _loader = loaderBlack();
+
+                versionContainer.appendChild(versionHeader);
+
+                const publishSection = document.createElement('div');
+
+                const publishButton = simpleDiv('Publish');
+
+                const repoOwnerForm = document.createElement('input');
+                repoOwnerForm.type = 'text';
+                repoOwnerForm.setAttribute('placeholder', 'Github repo owner (eg. prosif)');
+
+                const repoNameForm = document.createElement('input');
+                repoNameForm.type = 'text';
+                repoNameForm.setAttribute('placeholder', 'Github repo name (eg. do-dad)');
+
+                const commitForm = document.createElement('input');
+                commitForm.type = 'text';
+                commitForm.setAttribute('placeholder', 'GitHub repo commit (eg. 265ce105af20a721e62dbf93646197f2c2d33ac1)');
+
+                publishButton.onclick = () => {
+                    console.log('you want to publish a new version of thing');
+                    const request = new XMLHttpRequest();
+                    request.open("POST", "https://landlord.homegames.io/games/" + game.id + "/publish");
+                
+                    request.setRequestHeader('hg-username', window.hgUserInfo.username);
+                    request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
+                    request.setRequestHeader("Content-Type", "application/json");
+                
+                    request.onreadystatechange = (e) => {
+                        if (request.readyState === XMLHttpRequest.DONE) {
+                            if (request.status === 200) {
+                                console.log('published!');
+                                console.log(request.response);
+                            } else {
+                                console.log('error');
+                            }
+                        }
+                    };
+                
+                    const payload = {
+                        owner: repoOwnerForm.value, 
+                        repo: repoNameForm.value,
+                        commit: commitForm.value
+                    };
+                
+                    request.send(JSON.stringify(payload));
+                };
+
+                publishSection.appendChild(repoOwnerForm);
+                publishSection.appendChild(repoNameForm);
+                publishSection.appendChild(commitForm);
+                publishSection.appendChild(publishButton);
+
+                versionContainer.appendChild(publishSection);
+                versionContainer.appendChild(_loader);
+
+                makeGet('https://landlord.homegames.io/games/' + game.id, {
+                    'hg-username': window.hgUserInfo.username,
+                    'hg-token': window.hgUserInfo.tokens.accessToken
+                }).then((_versions) => {
+                    console.log('versions');
+                    console.log(_versions);
+                    versionContainer.removeChild(_loader);
+
+                    const versions = JSON.parse(_versions).versions;
+
+                    if (versions.length == 0) {
+                        const noVersions = simpleDiv('No published versions');
+                        versionContainer.appendChild(noVersions);
+                    } else {
+                        const versionTable = sortableTable(versions);
+                        versionContainer.appendChild(versionTable);
+                    }
+                });
+
+                return versionContainer;
+ 
+            };
+
+            const descriptionSection = getDescription();
+            const versionSection = getVersions();
+            
+            container.appendChild(descriptionSection);
+            container.appendChild(versionSection);
+
+            return container;
+        }
+    },
     'support': {
         render: () => {
             const container = document.createElement('div');
@@ -328,7 +521,7 @@ const modals = {
     }
 };
 
-const showModal = (modalName) => {
+const showModal = (modalName, args) => {
     const modal = document.getElementById('modal');
     
     const modalContentEl = modal.getElementsByClassName('content')[0];
@@ -337,7 +530,7 @@ const showModal = (modalName) => {
 
     const modalData = modals[modalName];
 
-    const modalContent = modalData.render();
+    const modalContent = modalData.render(args);
     
     if (modalData.childOf) {
         const backButton = document.createElement('div');
@@ -385,7 +578,63 @@ const dashboards = {
     },
     'games': {
         render: () => new Promise((resolve, reject) => {
-            resolve(simpleDiv('My games n sheit'));
+            const container = document.createElement('div');
+
+            if (!window.hgUserInfo) {
+                container.innerHTML = 'Log in to manage games';
+                resolve(container);
+            } else {
+                const createSection = document.createElement('div');
+
+                const nameForm = document.createElement('input');
+                nameForm.type = 'text';
+                nameForm.setAttribute('placeholder', 'Name');
+
+                const createButton = simpleDiv('Create');
+                createButton.className = 'hg-button content-button';
+                createButton.onclick = () => { 
+                    const _loader = loaderBlack();
+                    createGame(nameForm.value).then(game => {
+                        dashboards['games'].render().then((_container) => {
+                            clearChildren(container);
+                            container.appendChild(_container);
+                        });
+                    });
+                };
+
+                createSection.appendChild(nameForm);
+                createSection.appendChild(createButton);
+
+                container.appendChild(createSection);
+
+                const myGamesHeader = document.createElement('h1');
+                myGamesHeader.innerHTML = 'My Games';
+
+                container.appendChild(myGamesHeader);
+
+                const _loader = loaderBlack();
+                container.appendChild(_loader);
+               
+                makeGet('https://landlord.homegames.io/games', {
+                    'hg-username': window.hgUserInfo.username,
+                    'hg-token': window.hgUserInfo.tokens.accessToken
+                }).then((_games) => {
+                    container.removeChild(_loader);
+                    const games = JSON.parse(_games).games;
+
+                    const onCellClick = (index, field) => {
+                        const clickedGame = games[index];
+                        console.log('clicked on');
+                        console.log(clickedGame[field]);
+                        showModal('game-detail', clickedGame);
+                    };
+ 
+                    const table = sortableTable(games, {key: 'created', order: 'desc'}, onCellClick);
+                    container.appendChild(table);
+                });
+
+                resolve(container);
+            }
         }),
         childOf: 'default'
     },
@@ -402,9 +651,8 @@ const dashboards = {
                 const fileForm = document.createElement('input');
                 fileForm.type = 'file';
 
-                const uploadButton = document.createElement('div');
+                const uploadButton = simpleDiv('Upload');
                 uploadButton.className = 'hg-button content-button';
-                uploadButton.innerHTML = 'Upload';
 
                 uploadSection.appendChild(fileForm);
                 uploadSection.appendChild(uploadButton);
@@ -444,7 +692,7 @@ const dashboards = {
                 }).then((_assets) => {
                     container.removeChild(_loader);
                     const assets = JSON.parse(_assets).assets;
-                    const table = sortableTable(assets);
+                    const table = sortableTable(assets, {key: 'created', order: 'desc'});
                     container.appendChild(assetsHeader);
                     container.appendChild(table);
                 });
@@ -523,13 +771,66 @@ const hideModal = () => {
     modal.setAttribute('hidden', '');
 };
 
-//showModal('signup');
-//showModal('child');
+const doSort = (data, sort) => {
+    if (sort) {
+        data.sort((a, b) => {
+            if (sort.order === 'asc') {
+                return a[sort.key] >= b[sort.key] ? 1 : -1;
+            } else {
+                return a[sort.key] >= b[sort.key] ? -1 : 1;
+            }
+        });
+    }
 
-const sortableTable = (data) => {
+    return data;
+};
+
+
+const getRows = (data, sortState, cb) => {
+    const _data = doSort(data, sortState); 
+    const _fields = new Set();
+
+    for (const key in _data) {
+        for (const field in _data[key]) {
+            _fields.add(field);
+        }
+    }
+
+    let _rows = [];
+
+    for (const key in _data) {
+        const row = document.createElement('tr');
+
+        for (const field of _fields) {
+            const obj = _data[key];
+            const val = obj[field];
+            
+            const cell = document.createElement('td');
+            
+            if (cb) {
+                row.className = 'clickable bluehover';
+            }
+
+            cell.onclick = () => {
+                cb && cb(key, field);
+            };
+
+            cell.appendChild(simpleDiv(val));
+            row.appendChild(cell);
+        }
+
+        _rows.push(row);
+    }
+
+    return _rows;
+}
+
+const sortableTable = (data, defaultSort, cb) => {
     const tableEl = document.createElement('table');
     const tHead = document.createElement('thead');
     const tBody = document.createElement('tbody');
+
+    let sortState = Object.assign({}, defaultSort);
 
     const fields = new Set();
     for (const key in data) {
@@ -542,16 +843,35 @@ const sortableTable = (data) => {
 
     const _fields = Array.from(fields);
 
+    let rows = getRows(data, sortState, cb);
+
     for (const i in _fields) {
         const field = _fields[i];
         const headerCell = document.createElement('th');
+        headerCell.className = 'clickable';
         
-        let sorting = false;
-
         headerCell.onclick = () => {
-            console.log('you want to sort by ' + field);
-            console.log('al;ead ' + sorting);
-            sorting = !sorting;
+            if (sortState.key == field) {
+                sortState.order = sortState.order === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortState = { 
+                    key: field,
+                    order: 'asc'
+                };
+            }
+            const newRows = getRows(data, sortState, cb);
+
+            for (const i in rows) {
+                const rowEl = rows[i];
+                tBody.removeChild(rowEl);
+            }
+
+            rows = newRows;
+
+            newRows.forEach(row => {
+                tBody.appendChild(row);
+            });
+
         };
 
         headerCell.appendChild(simpleDiv(field));
@@ -561,21 +881,10 @@ const sortableTable = (data) => {
 
     tHead.appendChild(header);
 
-    for (const key in data) {
-        const row = document.createElement('tr');
-
-        for (const i in _fields) {
-            const field = _fields[i];
-            const obj = data[key];
-            const val = obj[field];
-            
-            const cell = document.createElement('td');
-            cell.appendChild(simpleDiv(val));
-            row.appendChild(cell);
-        }
-
+    rows.forEach(row => {
         tBody.appendChild(row);
-    }
+    });
+
 
     tableEl.appendChild(tHead);
     tableEl.appendChild(tBody);
