@@ -444,15 +444,26 @@ const modals = {
             const signupHeader = document.createElement('h2');
             signupHeader.innerHTML = 'Sign up';
 
+            const usernameFormDiv = document.createElement('div');
+
             const usernameForm = document.createElement('input');
             usernameForm.type = 'text';
             usernameForm.setAttribute('placeholder', 'Username');
+            usernameForm.style = 'margin-bottom: 1vh';
+
+            usernameFormDiv.appendChild(usernameForm);
+
+            const passwordFormDiv = document.createElement('div');
 
             const passwordForm = document.createElement('input');
             passwordForm.type = 'password';
             passwordForm.setAttribute('placeholder', 'Password');
+            passwordForm.style = 'margin-bottom: 1vh';
+
+            passwordFormDiv.appendChild(passwordForm);
 
             const loginButton = simpleDiv('Log in');
+            loginButton.style = 'width: 10vw';
             loginButton.className = 'hg-button';
             loginButton.onclick = () => {
                 clearChildren(container);
@@ -463,42 +474,67 @@ const modals = {
             };
 
             const loginSection = document.createElement('div');
+            loginSection.style = 'margin-bottom: 5vh';
+
             loginSection.appendChild(loginHeader);
-            loginSection.appendChild(usernameForm);
-            loginSection.appendChild(passwordForm);
+            loginSection.appendChild(usernameFormDiv);
+            loginSection.appendChild(passwordFormDiv);
             loginSection.appendChild(loginButton);
 
             const signupSection = document.createElement('div');
             signupSection.appendChild(signupHeader);
             
+            const emailFormDiv = document.createElement('div');
             const signupEmailForm = document.createElement('input');
             signupEmailForm.type = 'text';
             signupEmailForm.setAttribute('placeholder', 'Email');
+            emailFormDiv.appendChild(signupEmailForm);
+            signupEmailForm.style = 'margin-bottom: 1vh';
             
+            const signupUsernameFormDiv = document.createElement('div');
             const signupUsernameForm = document.createElement('input');
             signupUsernameForm.type = 'text';
             signupUsernameForm.setAttribute('placeholder', 'Username');
+            signupUsernameFormDiv.appendChild(signupUsernameForm);
+            signupUsernameForm.style = 'margin-bottom: 1vh';
             
+            const passwordForm1Div = document.createElement('div');
             const signupPasswordForm1 = document.createElement('input');
             signupPasswordForm1.type = 'password';
             signupPasswordForm1.setAttribute('placeholder', 'Password');
+            passwordForm1Div.appendChild(signupPasswordForm1);
+            signupPasswordForm1.style = 'margin-bottom: 1vh';
 
+            const passwordForm2Div = document.createElement('div');
             const signupPasswordForm2 = document.createElement('input');
             signupPasswordForm2.type = 'password';
             signupPasswordForm2.setAttribute('placeholder', 'Password (again)');
+            passwordForm2Div.appendChild(signupPasswordForm2);
+            signupPasswordForm2.style = 'margin-bottom: 1vh';
 
             const signupButton = simpleDiv('Sign up');
+            signupButton.style = 'width: 10vw';
             signupButton.className = 'hg-button';
             signupButton.onclick = () => {
                 if (signupPasswordForm1.value === signupPasswordForm2.value) {
-                    signup(signupEmailForm.value, signupUsernameForm.value, signupPasswordForm1.value).then(handleSignup); 
+                    const signupUsername = signupUsernameForm.value;
+                    clearChildren(signupSection);
+                    signupSection.appendChild(loader());
+                    signup(signupEmailForm.value, signupUsernameForm.value, signupPasswordForm1.value).then((userData) => {
+                        if (userData.username && userData.username == signupUsername) {
+                            login(userData.username, signupPasswordForm1.value).then((_res) => {
+                                hideModal();
+                                handleLogin(_res);
+                            });
+                        }
+                    }); 
                 }
             };
 
-            signupSection.appendChild(signupEmailForm);
-            signupSection.appendChild(signupUsernameForm);
-            signupSection.appendChild(signupPasswordForm1);
-            signupSection.appendChild(signupPasswordForm2);
+            signupSection.appendChild(emailFormDiv);
+            signupSection.appendChild(signupUsernameFormDiv);
+            signupSection.appendChild(passwordForm1Div);
+            signupSection.appendChild(passwordForm2Div);
             signupSection.appendChild(signupButton);
 
             container.appendChild(loginSection);
@@ -890,7 +926,6 @@ const sortableTable = (data, defaultSort, cb) => {
         tBody.appendChild(row);
     });
 
-
     tableEl.appendChild(tHead);
     tableEl.appendChild(tBody);
 
@@ -901,7 +936,17 @@ const goHome = () => {
     window.location.replace(`${location.protocol}//${location.hostname}:${location.port}`);
 };
 
-
 const handleDownload = (stable) => {
     showModal('download');
 };
+
+const confirmSignup = (username, code) => new Promise((resolve, reject) => {
+    console.log('signup with ' + code);
+    makePost('https://auth.homegames.io', {
+        username,
+        code,
+        type: 'confirmUser'
+    }).then(() => {
+        resolve();
+    });
+});
