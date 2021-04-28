@@ -146,11 +146,15 @@ const signup = (email, username, password) => new Promise((resolve, reject) => {
         username,
         password,
         type: 'signUp'
-    }).then(tokens => {
-        resolve({
-            username,
-            tokens
-        });
+    }).then(payload => {
+        if (payload.errorType) {
+            reject(payload.errorMessage);
+        } else {
+            resolve({
+                username,
+                tokens: payload
+            });
+        }
     });
 });
 
@@ -182,7 +186,14 @@ const handleLogin = (userInfo) => {
 
     settingsButton.appendChild(gearSpan);
     settingsButton.appendChild(usernameDiv);
-//    settingsButton.innerHTML = `&#9881;${userInfo.username}`;
+
+    if (userInfo.tokens.errorMessage == "User is not confirmed.") {
+        const confirmMessage = simpleDiv('To create games & assets, you will need to confirm your account using the link we sent to your email address.');
+        confirmMessage.className = 'hg-yellow';
+        confirmMessage.style = 'text-align: center; font-weight: center';
+        const contentContainer = document.getElementById('content');
+        contentContainer.prepend(confirmMessage);
+    }
 
     window.hgUserInfo = userInfo;
     hideModal();
@@ -204,8 +215,58 @@ const loaderBlack = () => {
 
 const modals = {
     'download': {
-        render: () => {
-            return simpleDiv('want to download some shit'); 
+        render: (path) => {
+            const container = document.createElement('div');
+
+            const _loader = loader();
+            container.appendChild(_loader);
+
+            makeGet(`https://builds.homegames.io${path}`).then((_buildInfo) => {
+                container.removeChild(_loader);
+                const buildInfo = JSON.parse(_buildInfo);
+
+                const publishedInfoDiv = simpleDiv(`Date published: ${buildInfo.datePublished}`);
+                const commitAuthorDiv = simpleDiv(`Author: ${buildInfo.commitInfo.author}`);
+
+                const commitMessageDiv = simpleDiv(`Commit message: ${buildInfo.commitInfo.message}`);
+
+                const commitHashDiv = simpleDiv(`Commit hash: ${buildInfo.commitInfo.commitHash}`);
+
+                container.appendChild(publishedInfoDiv);
+                container.appendChild(commitAuthorDiv);
+                container.appendChild(commitMessageDiv);
+                container.appendChild(commitHashDiv);
+
+                const winDiv = document.createElement('div');
+                winDiv.className = 'hg-button';
+                const winLink = document.createElement('a');
+                winLink.download = `homegames-win`;
+                winLink.href = buildInfo.windowsUrl;
+                winLink.innerHTML = 'Windows';
+                winDiv.appendChild(winLink);
+
+                const macDiv = document.createElement('div');
+                macDiv.className = 'hg-button';
+                const macLink = document.createElement('a');
+                macLink.download = `homegames-mac`;
+                macLink.href = buildInfo.macUrl;
+                macLink.innerHTML = 'Mac';
+                macDiv.appendChild(macLink);
+
+                const linuxDiv = document.createElement('div');
+                linuxDiv.className = 'hg-button';
+                const linuxLink = document.createElement('a');
+                linuxLink.download = `homegames-linux`;
+                linuxLink.href = buildInfo.linuxUrl;
+                linuxLink.innerHTML = 'Linux';
+                linuxDiv.appendChild(linuxLink);
+
+                container.appendChild(winDiv);
+                container.appendChild(macDiv);
+                container.appendChild(linuxDiv);
+            });
+            
+            return container;
         }
     },
     'game-detail': {
@@ -349,8 +410,6 @@ const modals = {
                     'hg-username': window.hgUserInfo.username,
                     'hg-token': window.hgUserInfo.tokens.accessToken
                 }).then((_versions) => {
-                    console.log('versions');
-                    console.log(_versions);
                     versionContainer.removeChild(_loader);
 
                     const versions = JSON.parse(_versions).versions;
@@ -386,7 +445,7 @@ const modals = {
             emailText.style = 'font-size: 1.4em';
 
             const emailForm = document.createElement('input');
-            emailForm.type = 'text';
+            emailForm.type = 'email';
             emailForm.setAttribute('placeHolder', 'If you want a response, enter your email address here');
             emailForm.style = 'width: 50%; margin-top: 3%; margin-bottom: 3%;';
 
@@ -486,7 +545,7 @@ const modals = {
             
             const emailFormDiv = document.createElement('div');
             const signupEmailForm = document.createElement('input');
-            signupEmailForm.type = 'text';
+            signupEmailForm.type = 'email';
             signupEmailForm.setAttribute('placeholder', 'Email');
             emailFormDiv.appendChild(signupEmailForm);
             signupEmailForm.style = 'margin-bottom: 1vh';
@@ -515,19 +574,36 @@ const modals = {
             const signupButton = simpleDiv('Sign up');
             signupButton.style = 'width: 10vw';
             signupButton.className = 'hg-button';
+
+            const signupMessageDiv = document.createElement('div');
+
             signupButton.onclick = () => {
-                if (signupPasswordForm1.value === signupPasswordForm2.value) {
+                const signupEmail = signupEmailForm.value;
+
+                const signupUsername = signupUsernameForm.value;
+
+                if (signupEmail && signupUsername && signupPasswordForm1.value === signupPasswordForm2.value) {
                     const signupUsername = signupUsernameForm.value;
-                    clearChildren(signupSection);
-                    signupSection.appendChild(loader());
+                    clearChildren(signupMessageDiv);
+                    const _loader = loader();
+                    signupMessageDiv.appendChild(_loader);
                     signup(signupEmailForm.value, signupUsernameForm.value, signupPasswordForm1.value).then((userData) => {
                         if (userData.username && userData.username == signupUsername) {
+                            const successMessage = simpleDiv('Success! Logging in...');
+                            signupMessageDiv.appendChild(successMessage);
                             login(userData.username, signupPasswordForm1.value).then((_res) => {
                                 hideModal();
                                 handleLogin(_res);
                             });
+                        } else {
+                            const supportMessage = simpleDiv('Contact support for assistance');
+                            signupMessageDiv.appendChild(supportMessage);
                         }
-                    }); 
+                    }).catch(err => {
+                        signupMessageDiv.removeChild(_loader);
+                        const errorMessage = simpleDiv(err);
+                        signupMessageDiv.appendChild(errorMessage);
+                    });
                 }
             };
 
@@ -536,6 +612,7 @@ const modals = {
             signupSection.appendChild(passwordForm1Div);
             signupSection.appendChild(passwordForm2Div);
             signupSection.appendChild(signupButton);
+            signupSection.appendChild(signupMessageDiv);
 
             container.appendChild(loginSection);
             container.appendChild(signupSection);
@@ -665,8 +742,6 @@ const dashboards = {
 
                     const onCellClick = (index, field) => {
                         const clickedGame = games[index];
-                        console.log('clicked on');
-                        console.log(clickedGame[field]);
                         showModal('game-detail', clickedGame);
                     };
  
@@ -937,16 +1012,14 @@ const goHome = () => {
 };
 
 const handleDownload = (stable) => {
-    showModal('download');
+    const path = stable ? '/latest/stable' : '/latest';
+    showModal('download', path);
 };
 
 const confirmSignup = (username, code) => new Promise((resolve, reject) => {
-    console.log('signup with ' + code);
     makePost('https://auth.homegames.io', {
         username,
         code,
         type: 'confirmUser'
-    }).then(() => {
-        resolve();
-    });
+    }).then(resolve);
 });

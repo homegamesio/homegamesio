@@ -38,10 +38,18 @@
         const confirmButton = document.getElementById('confirm-button');
         const code = new URLSearchParams(window.location.search).get('code');
 
+        const contentDiv = document.getElementById('content');
+
         if (code) {
             confirmButton.onclick = () => {
-                confirmSignup(usernameInput.value, code).then(() => {
-                    console.log('yooooo');
+                confirmSignup(usernameInput.value, code).then((data) => {
+                    if (data.success) {
+                        const confirmMessage = simpleDiv('Success!');
+                        contentDiv.appendChild(confirmMessage);
+                    } else {
+                        const failMessage = simpleDiv('Could not confirm your account. Please contact support for assistance.');
+                        contentDiv.appendChild(failMessage);
+                    }
                 }); 
             };
         }
