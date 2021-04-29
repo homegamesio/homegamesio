@@ -1,3 +1,12 @@
+.headlines {
+    padding: 3%;
+    text-align: center;
+}
+
+.headlines h1 {
+    margin-bottom: 4vh;
+}
+
 @keyframes fadeIn {
     0% {
         opacity: 0;
@@ -69,7 +78,7 @@
 
 #settings {
     line-height: 10vh;
-    font-size: 2.5em;
+    font-size: 2.2em;
 }
 
 #logo, #settings {
@@ -132,6 +141,8 @@
 
 #demo {
     clear: both;
+    margin-bottom: 3%;
+    padding-top: 1%;
 }
 
 body, h1 {

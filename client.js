@@ -264,6 +264,9 @@ const modals = {
                 container.appendChild(winDiv);
                 container.appendChild(macDiv);
                 container.appendChild(linuxDiv);
+
+                const instructions = simpleDiv('Run the homegames executable and navigate to homegames.link in your browser to play games');
+                container.appendChild(instructions);
             });
             
             return container;
@@ -450,7 +453,7 @@ const modals = {
             emailForm.style = 'width: 50%; margin-top: 3%; margin-bottom: 3%;';
 
             const messageForm = document.createElement('textarea');
-            messageForm.style = 'width: 100%; height: 60%; margin-bottom: 3%;';
+            messageForm.style = 'width: 100%; height: 50%; margin-bottom: 3%;';
 
             messageForm.oninput = () => {
                 sendButton.className = messageForm.value.length > 0 ? 'clickable hg-yellow' : 'grayish';
