@@ -41,6 +41,7 @@
 
 #page-container {
     background: rgba(255, 253, 224, 255);
+    height: 100vh;
 }
 
 .clickable:hover {
@@ -73,7 +74,7 @@
 
 #header {
     background: rgba(241, 112, 111, 255);
-    height: 10vh;
+    height: 10%;
 }
 
 #settings {
@@ -84,7 +85,7 @@
 #logo, #settings {
     float: left;
     text-align: center;
-    width: 50vw;
+    width: 50%;
     height: 10vh;
 }
 
@@ -111,7 +112,7 @@
 
 #content, #podcast-content {
     clear: both;
-    height: 80vh;
+    height: 80%;
     overflow-y: scroll;
 }
 
@@ -127,7 +128,7 @@
 
 #footer {
     background: rgba(148, 210, 229, 255);
-    height: 10vh;
+    height: 10%;
     clear: both;
 }
 
