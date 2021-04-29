@@ -115,10 +115,6 @@
     overflow-y: scroll;
 }
 
-#info-content {
-    padding-top: 5vh;
-}
-
 #buttons {
     padding-bottom: 5vh;
     height: 50vh;
@@ -150,7 +146,7 @@ body, h1 {
 }
 
 h1 {
-    font-size: 2vw;
+    font-size: 1.8em;
 }
 
 #podcast-downloads h1, #footer h1 {
