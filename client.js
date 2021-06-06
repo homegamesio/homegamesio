@@ -4,6 +4,10 @@ const clearChildren = (el) => {
     }
 };
 
+const LANDLORD_PROTOCOL = 'https';
+const LANDLORD_HOST = 'landlord.homegames.io';
+//localhost:8000';
+
 const makeGet = (endpoint, headers) => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('GET', endpoint, true);
@@ -28,14 +32,20 @@ const makeGet = (endpoint, headers) => new Promise((resolve, reject) => {
     xhr.send();
 });
 
-const makePost = (endpoint, payload, notJson)  => new Promise((resolve, reject) => {
+const makePost = (endpoint, payload, notJson, useAuth)  => new Promise((resolve, reject) => {
     var xhr = new XMLHttpRequest();
     xhr.open("POST", endpoint, true);
 
+    if (useAuth && window.hgUserInfo) {
+        xhr.setRequestHeader('hg-username', window.hgUserInfo.username);
+        xhr.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
+    }
+ 
     xhr.setRequestHeader("Content-Type", "application/json");
 
     xhr.onreadystatechange = () => {
         if (xhr.readyState === XMLHttpRequest.DONE) {
+            console.log(xhr.response);
             if (xhr.status === 200) {
                 if (notJson) {
                     resolve(xhr.response);
@@ -53,9 +63,11 @@ const makePost = (endpoint, payload, notJson)  => new Promise((resolve, reject) 
     xhr.send(JSON.stringify(payload));
 });
 
-const createGame = (gameName) => new Promise((resolve, reject) => {
+const createGame = (name, description) => new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
-    request.open("POST", "https://landlord.homegames.io/games");
+    request.open("POST", `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games`);
+    //"http://localhost:8000/games");
+    //landlord.homegames.io/games");
 
     request.setRequestHeader('hg-username', window.hgUserInfo.username);
     request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
@@ -73,7 +85,8 @@ const createGame = (gameName) => new Promise((resolve, reject) => {
     };
 
     const payload = {
-        game_name: gameName
+        game_name: name,
+        description
     };
 
     request.send(JSON.stringify(payload));
@@ -214,6 +227,101 @@ const loaderBlack = () => {
 };
 
 const modals = {
+    'tag': {
+        render: (tag) => {
+            const container = document.createElement('div');
+
+            const tagHeader = document.createElement('h2');
+            tagHeader.innerHTML = "Games tagged with " + tag;
+
+            container.appendChild(tagHeader);
+
+            makeGet('https://landlord.homegames.io/games?tags=' + tag).then(_games => {
+                const games = JSON.parse(_games);
+                const gameEls = games.games.map(game => {
+                    const _el = simpleDiv(game.name);
+                    _el.onclick = () => showModal('game-preview', game);
+                    return _el;
+                });
+
+                gameEls.forEach(el => {
+                    container.appendChild(el);
+                });
+            });
+            return container;
+        }
+    },
+    'game-preview': {
+        render: (game) => {
+            console.log('rendering game');
+            console.log(game);
+            const container = document.createElement('div');
+
+            const gameTitle = document.createElement('h2');
+            const gameAuthor = document.createElement('h3');
+            const demoButton = simpleDiv('Demo - coming soon!');
+            const gameCreated = document.createElement('h4');
+            const gameDescription = simpleDiv(game.description);
+    
+            gameTitle.innerHTML = game.name;
+            gameAuthor.innerHTML = game.author;
+            gameCreated.innerHTML = new Date(game.created);
+             
+            container.appendChild(gameTitle);
+            container.appendChild(gameAuthor);
+            container.appendChild(demoButton);
+            container.appendChild(gameCreated);
+            container.appendChild(gameDescription);
+
+            if (window.hgUserInfo) {
+
+                const tagForm = document.createElement('input');
+                tagForm.type = 'text';
+
+                const tagConfirm = simpleDiv('Click to tag');
+                tagConfirm.onclick = () => {
+                    const tagValue = tagForm.value;
+                    console.log('want to tag game with ' + tagValue);
+                    console.log(window.hgUserInfo.username);
+                    makePost('https://landlord.homegames.io/tags', {
+                        game_id: game.id,
+                        tag: tagValue
+                    }, true, true).then((res) => {
+                        console.log('tagged game'); 
+                        setTimeout(() => {
+                            showModal('game-preview', game);
+                        }, 500);
+                    });
+                };
+
+                container.appendChild(tagForm);
+                container.appendChild(tagConfirm);
+            }
+
+            makeGet('https://landlord.homegames.io/games/' + game.id).then(_gameData => {
+                console.log('game data');
+                const gameData = JSON.parse(_gameData);
+                console.log(gameData);
+                const tagsHeader = document.createElement('h4');
+                tagsHeader.innerHTML = "Tags";
+
+                container.appendChild(tagsHeader);
+                if (gameData.tags) {
+                    const tagEls = gameData.tags.map(tag => {
+                        const _el = simpleDiv(tag);
+                        _el.onclick = () => showModal('tag', tag);
+                        return _el;
+                    });
+
+                    tagEls.forEach(el => {
+                        container.appendChild(el);
+                    });
+                }
+            });
+
+            return container;
+        }
+    },
     'download': {
         render: (path) => {
             const container = document.createElement('div');
@@ -711,11 +819,14 @@ const dashboards = {
                 nameForm.type = 'text';
                 nameForm.setAttribute('placeholder', 'Name');
 
+                const descriptionForm = document.createElement('textarea');
+                descriptionForm.setAttribute('placeholder', 'Description');
+
                 const createButton = simpleDiv('Create');
                 createButton.className = 'hg-button content-button';
                 createButton.onclick = () => { 
                     const _loader = loaderBlack();
-                    createGame(nameForm.value).then(game => {
+                    createGame(nameForm.value, descriptionForm.value).then(game => {
                         dashboards['games'].render().then((_container) => {
                             clearChildren(container);
                             container.appendChild(_container);
@@ -724,6 +835,7 @@ const dashboards = {
                 };
 
                 createSection.appendChild(nameForm);
+                createSection.appendChild(descriptionForm);
                 createSection.appendChild(createButton);
 
                 container.appendChild(createSection);
@@ -736,19 +848,45 @@ const dashboards = {
                 const _loader = loaderBlack();
                 container.appendChild(_loader);
                
-                makeGet('https://landlord.homegames.io/games', {
+                    //'http://localhost:8000/games', {//landlord.homegames.io/games', {
+                makeGet(`${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games?author=${window.hgUserInfo.username}`, {
                     'hg-username': window.hgUserInfo.username,
                     'hg-token': window.hgUserInfo.tokens.accessToken
                 }).then((_games) => {
                     container.removeChild(_loader);
+                    console.log("RESPONSE_");
+                    console.log(_games);
                     const games = JSON.parse(_games).games;
+
+                    // todo: make this a function
+                    const fields = new Set();
+                    for (const key in games) {
+                        for (const field in games[key]) {
+                            fields.add(field);
+                        }
+                    }
+
+                    const cellWidth = 100 / fields.size;
+
+                    console.log('cell width ' + cellWidth);
 
                     const onCellClick = (index, field) => {
                         const clickedGame = games[index];
                         showModal('game-detail', clickedGame);
                     };
+
+                    const rowStyler = (rowEl) => {
+                        rowEl.style = 'height: 10vh';
+                    }; 
+
+                    const cellStyler = (cellEl, field) => {
+                        let styleString = `width: ${cellWidth}vw;`;
+                        styleString += 'text-align: center';
+
+                        cellEl.style = styleString;
+                    };
  
-                    const table = sortableTable(games, {key: 'created', order: 'desc'}, onCellClick);
+                    const table = sortableTable(games, {key: 'created', order: 'desc'}, onCellClick, {rowStyler, cellStyler});
                     container.appendChild(table);
                 });
 
@@ -894,9 +1032,9 @@ const doSort = (data, sort) => {
     if (sort) {
         data.sort((a, b) => {
             if (sort.order === 'asc') {
-                return a[sort.key] >= b[sort.key] ? 1 : -1;
+                return (a[sort.key] || 0)  >= (b[sort.key] || 0) ? 1 : -1;
             } else {
-                return a[sort.key] >= b[sort.key] ? -1 : 1;
+                return (a[sort.key] || 0) >= (b[sort.key] || 0) ? -1 : 1;
             }
         });
     }
@@ -905,7 +1043,7 @@ const doSort = (data, sort) => {
 };
 
 
-const getRows = (data, sortState, cb) => {
+const getRows = (data, sortState, cb, stylers) => {
     const _data = doSort(data, sortState); 
     const _fields = new Set();
 
@@ -920,11 +1058,19 @@ const getRows = (data, sortState, cb) => {
     for (const key in _data) {
         const row = document.createElement('tr');
 
+        if (stylers && stylers.rowStyler) {
+            stylers.rowStyler(row);
+        }
+
         for (const field of _fields) {
             const obj = _data[key];
             const val = obj[field];
             
             const cell = document.createElement('td');
+
+            if (stylers && stylers.cellStyler) {
+                stylers.cellStyler(cell, field);
+            }
             
             if (cb) {
                 row.className = 'clickable bluehover';
@@ -944,7 +1090,7 @@ const getRows = (data, sortState, cb) => {
     return _rows;
 }
 
-const sortableTable = (data, defaultSort, cb) => {
+const sortableTable = (data, defaultSort, cb, stylers) => {
     const tableEl = document.createElement('table');
     const tHead = document.createElement('thead');
     const tBody = document.createElement('tbody');
@@ -962,7 +1108,7 @@ const sortableTable = (data, defaultSort, cb) => {
 
     const _fields = Array.from(fields);
 
-    let rows = getRows(data, sortState, cb);
+    let rows = getRows(data, sortState, cb, stylers);
 
     for (const i in _fields) {
         const field = _fields[i];
@@ -978,7 +1124,7 @@ const sortableTable = (data, defaultSort, cb) => {
                     order: 'asc'
                 };
             }
-            const newRows = getRows(data, sortState, cb);
+            const newRows = getRows(data, sortState, cb, stylers);
 
             for (const i in rows) {
                 const rowEl = rows[i];
@@ -1026,3 +1172,64 @@ const confirmSignup = (username, code) => new Promise((resolve, reject) => {
         type: 'confirmUser'
     }).then(resolve);
 });
+
+const listGames = (limit = 10, offset = 0) => new Promise((resolve, reject) => { 
+    //'http://landlord.homegames.io/games').then((_games) => {
+    const gameUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games`;
+    makeGet(gameUrl).then((_games) => {
+        resolve(JSON.parse(_games));
+    }); 
+});
+
+const searchGames = (query) => new Promise((resolve, reject) => {
+    const gameUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games?query=${query}`;
+    makeGet(gameUrl).then((_games) => {
+        resolve(JSON.parse(_games));
+    });
+});
+
+const gamesContent = document.getElementById('games-content');
+const searchBox = document.getElementById('games-search');
+
+let searchTimer;
+
+searchBox.oninput = () => {
+    console.log(searchBox.value);
+    if (searchTimer) {
+        clearTimeout(searchTimer);
+    }
+    searchTimer = setTimeout(() => {
+        if (searchBox.value) {
+            searchGames(searchBox.value).then(renderGames);
+        } else {
+            listGames().then(renderGames);
+        }
+    }, 300);
+};
+
+const renderGames = (games) => {
+    console.log(games);
+    clearChildren(gamesContent);
+
+    if (games && games.games) {
+        games.games.forEach(g => {
+            const _div = simpleDiv();
+            const gameName = simpleDiv(g.name);
+            const gameAuthor = simpleDiv('Author: ' + g.author);
+            
+            _div.onclick = () => {
+                showModal('game-preview', g);
+            };
+
+            _div.appendChild(gameName);
+            _div.appendChild(gameAuthor);
+            _div.style = "width: 30vw; margin-left: .5vw; margin-right: .5vw;  display: inline-block; height: 20vh; border: 2px solid black; border-radius: 5px; text-align: center; line-height: 10vh;";
+            gamesContent.appendChild(_div);
+        });
+    } else {
+        gamesContent.appendChild(simpleDiv('No results'));
+    }
+};
+
+listGames().then(renderGames);
+
