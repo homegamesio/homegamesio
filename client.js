@@ -296,6 +296,8 @@ const modals = {
 
                 container.appendChild(tagForm);
                 container.appendChild(tagConfirm);
+            } else {
+                container.appendChild(simpleDiv('Log in to tag'));
             }
 
             makeGet('https://landlord.homegames.io/games/' + game.id).then(_gameData => {
@@ -1181,6 +1183,14 @@ const listGames = (limit = 10, offset = 0) => new Promise((resolve, reject) => {
     }); 
 });
 
+const listTags = (limit = 10, offset = 0) => new Promise((resolve, reject) => { 
+    //'http://landlord.homegames.io/games').then((_games) => {
+    const tagUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/tags`;
+    makeGet(tagUrl).then((_tags) => {
+        resolve(JSON.parse(_tags));
+    }); 
+});
+
 const searchGames = (query) => new Promise((resolve, reject) => {
     const gameUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games?query=${query}`;
     makeGet(gameUrl).then((_games) => {
@@ -1188,7 +1198,15 @@ const searchGames = (query) => new Promise((resolve, reject) => {
     });
 });
 
+const searchTags = (query) => new Promise((resolve, reject) => {
+    const tagUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/tags?query=${query}`;
+    makeGet(tagUrl).then((_tags) => {
+        resolve(JSON.parse(_tags));
+    });
+});
+
 const gamesContent = document.getElementById('games-content');
+const tagsContent = document.getElementById('tags-content');
 const searchBox = document.getElementById('games-search');
 
 let searchTimer;
@@ -1201,11 +1219,37 @@ searchBox.oninput = () => {
     searchTimer = setTimeout(() => {
         if (searchBox.value) {
             searchGames(searchBox.value).then(renderGames);
+            searchTags(searchBox.value).then(renderTags);
         } else {
             listGames().then(renderGames);
+            listTags().then(renderTags);
         }
-    }, 300);
+    }, 200);
 };
+
+const renderTags = (tags) => {
+    console.log('need to render these tags');
+    console.log(tags);
+    clearChildren(tagsContent);
+    if (tags && tags.tags.length > 0) {
+        tags.tags.forEach(tag => {
+            const _div = simpleDiv();
+            const tagName = simpleDiv(tag);
+            _div.onclick = () => {
+                showModal('tag', tag);
+            };
+
+            _div.appendChild(tagName);
+            _div.style = "width: 10vw; margin-left: 1vw; margin-right: 1vw;  display: inline-block; height: 10vh; border: 2px solid black; border-radius: 5px; text-align: center; line-height: 10vh;";
+            tagsContent.appendChild(_div);
+        });
+    } else {
+        tagsContent.appendChild(simpleDiv('No results'));
+    }
+};
+
+const tagResultsHeader = document.getElementById('tags-results-header');
+const gameResultsHeader = document.getElementById('games-results-header');
 
 const renderGames = (games) => {
     console.log(games);
@@ -1232,4 +1276,5 @@ const renderGames = (games) => {
 };
 
 listGames().then(renderGames);
+listTags().then(renderTags);
 
