@@ -45,7 +45,6 @@ const makePost = (endpoint, payload, notJson, useAuth)  => new Promise((resolve,
 
     xhr.onreadystatechange = () => {
         if (xhr.readyState === XMLHttpRequest.DONE) {
-            console.log(xhr.response);
             if (xhr.status === 200) {
                 if (notJson) {
                     resolve(xhr.response);
@@ -53,8 +52,6 @@ const makePost = (endpoint, payload, notJson, useAuth)  => new Promise((resolve,
                     resolve(JSON.parse(xhr.response));
                 }
             } else {
-                console.log("uh oh");
-                console.log(xhr);
                 reject(xhr.response)
             }
         }
@@ -76,7 +73,6 @@ const createGame = (name, description) => new Promise((resolve, reject) => {
     request.onreadystatechange = (e) => {
         if (request.readyState === XMLHttpRequest.DONE) {
             if (request.status === 200) {
-                console.log(request.response);
                 resolve(JSON.parse(request.response));
             } else {
                 reject();
@@ -145,10 +141,15 @@ const login = (username, password) => new Promise((resolve, reject) => {
         username,
         password,
         type: 'login'
-    }).then(tokens => {
+    }).then(loginData => {
         resolve({
             username,
-            tokens
+            created: loginData.created,
+            tokens: {
+                accessToken: loginData.accessToken,
+                idToken: loginData.idToken,
+                refreshToken: loginData.refreshToken
+            }
         });
     });
 });
@@ -253,8 +254,6 @@ const modals = {
     },
     'game-preview': {
         render: (game) => {
-            console.log('rendering game');
-            console.log(game);
             const container = document.createElement('div');
 
             const gameTitle = document.createElement('h2');
@@ -281,13 +280,10 @@ const modals = {
                 const tagConfirm = simpleDiv('Click to tag');
                 tagConfirm.onclick = () => {
                     const tagValue = tagForm.value;
-                    console.log('want to tag game with ' + tagValue);
-                    console.log(window.hgUserInfo.username);
                     makePost('https://landlord.homegames.io/tags', {
                         game_id: game.id,
                         tag: tagValue
                     }, true, true).then((res) => {
-                        console.log('tagged game'); 
                         setTimeout(() => {
                             showModal('game-preview', game);
                         }, 500);
@@ -301,9 +297,7 @@ const modals = {
             }
 
             makeGet('https://landlord.homegames.io/games/' + game.id).then(_gameData => {
-                console.log('game data');
                 const gameData = JSON.parse(_gameData);
-                console.log(gameData);
                 const tagsHeader = document.createElement('h4');
                 tagsHeader.innerHTML = "Tags";
 
@@ -456,6 +450,62 @@ const modals = {
                 return descriptionSection;
             };
 
+            const getPublishRequests = () => {
+                const requestsContainer = document.createElement('div');
+
+                const requestsHeader = document.createElement('h3');
+                requestsHeader.innerHTML = 'Publish Requests';
+
+                const _loader = loaderBlack();
+
+                const requestSection = document.createElement('div');
+                makeGet('https://landlord.homegames.io/games/' + game.id + "/publish_requests", {
+                    'hg-username': window.hgUserInfo.username,
+                    'hg-token': window.hgUserInfo.tokens.accessToken
+                }).then((_publishRequests) => {
+                    requestSection.removeChild(_loader);
+                    const publishRequests = JSON.parse(_publishRequests);
+                    const tableData = publishRequests && publishRequests.requests || [];
+                    const detailState = {};
+                    const _onCellClick = (index) => {
+                        const _clickedReq = publishRequests.requests[index];
+                        const showEvents = (request) => {
+                            if (!request.request_id) {
+                                console.log(request);
+                                return;
+                            }
+                            if (detailState[request.request_id]) {
+                                detailState[request.request_id].remove();
+                                delete detailState[request.request_id];
+                            } else {
+                                makeGet('https://landlord.homegames.io/publish_requests/' + request.request_id + '/events', {
+                                    'hg-username': window.hgUserInfo.username,
+                                    'hg-token': window.hgUserInfo.tokens.accessToken
+                                }).then((_eventData) => {
+                                    const eventData = JSON.parse(_eventData);
+                                    const eventTable = sortableTable(eventData.events);
+                                    eventsContainer.appendChild(eventTable);
+                                });
+                                const eventsHeader = document.createElement('h4');
+                                eventsHeader.innerHTML = `Events for ${request.request_id}`;
+                                const eventsContainer = simpleDiv();
+                                eventsContainer.appendChild(eventsHeader);
+                                requestSection.appendChild(eventsContainer);
+                                detailState[request.request_id] = eventsContainer;
+                            }
+                        };
+                        showEvents(_clickedReq);
+                    };
+                    const _table = sortableTable(tableData, null, _onCellClick);
+                    requestSection.appendChild(_table);
+                });
+ 
+                requestSection.appendChild(_loader);
+                requestsContainer.appendChild(requestsHeader);
+                requestsContainer.appendChild(requestSection);
+                return requestsContainer;
+            };
+
             const getVersions = () => {
                 const versionContainer = document.createElement('div');
 
@@ -463,8 +513,6 @@ const modals = {
                 versionHeader.innerHTML = 'Versions';
 
                 const _loader = loaderBlack();
-
-                versionContainer.appendChild(versionHeader);
 
                 const publishSection = document.createElement('div');
 
@@ -483,7 +531,6 @@ const modals = {
                 commitForm.setAttribute('placeholder', 'GitHub repo commit (eg. 265ce105af20a721e62dbf93646197f2c2d33ac1)');
 
                 publishButton.onclick = () => {
-                    console.log('you want to publish a new version of thing');
                     const request = new XMLHttpRequest();
                     request.open("POST", "https://landlord.homegames.io/games/" + game.id + "/publish");
                 
@@ -495,7 +542,6 @@ const modals = {
                         if (request.readyState === XMLHttpRequest.DONE) {
                             if (request.status === 200) {
                                 console.log('published!');
-                                console.log(request.response);
                             } else {
                                 console.log('error');
                             }
@@ -517,6 +563,9 @@ const modals = {
                 publishSection.appendChild(publishButton);
 
                 versionContainer.appendChild(publishSection);
+
+                versionContainer.appendChild(versionHeader);
+                
                 versionContainer.appendChild(_loader);
 
                 makeGet('https://landlord.homegames.io/games/' + game.id, {
@@ -542,9 +591,11 @@ const modals = {
 
             const descriptionSection = getDescription();
             const versionSection = getVersions();
+            const requestsSection = getPublishRequests();
             
             container.appendChild(descriptionSection);
             container.appendChild(versionSection);
+            container.appendChild(requestsSection);
 
             return container;
         }
@@ -588,7 +639,6 @@ const modals = {
                     email: emailForm.value,
                     message: messageForm.value
                 }).then((res) => {
-                    console.log(res);
                     if (res.success) { 
                         container.innerHTML = 'Success! Your message has been sent.';
                     } else {
@@ -780,11 +830,20 @@ const showModal = (modalName, args) => {
 const dashboards = {
     'default': {
         render: () => new Promise((resolve, reject) => {
+            const memberSinceVal = window.hgUserInfo ? window.hgUserInfo.created : 'Not Available';
             const meSection = document.createElement('div');
-            const memberSince = simpleDiv('Member since: Coming soon');
-            const certStatus = simpleDiv('Cert status: Coming soon');
-            const changeEmail = simpleDiv('Change email: Coming soon');
-            const changePassword = simpleDiv('Change password: Coming soon');
+
+            const memberSince = document.createElement('h4');
+            memberSince.innerHTML = `Member since: ${memberSinceVal}`;
+
+            const certStatus = document.createElement('h4');
+            certStatus.innerHTML = 'Cert status: Coming soon';
+
+            const changeEmail = document.createElement('h4');
+            changeEmail.innerHTML = 'Change email: Coming soon';
+
+            const changePassword = document.createElement('h4');
+            changePassword.innerHTML = 'Change password: Coming soon';
 
             meSection.appendChild(memberSince);
             meSection.appendChild(certStatus);
@@ -792,7 +851,12 @@ const dashboards = {
             meSection.appendChild(changePassword);
 
             const gamesButton = simpleDiv('My Games');
+            gamesButton.className = 'hg-button content-button';
+            gamesButton.style = 'margin: 2%; float: left;';
+
             const assetsButton = simpleDiv('My Assets');
+            assetsButton.className = 'hg-button content-button';
+            assetsButton.style = 'margin: 2%; float: left;';
     
             gamesButton.onclick = () => updateDashboardContent('games');
     
@@ -817,12 +881,18 @@ const dashboards = {
             } else {
                 const createSection = document.createElement('div');
 
+                const nameFormDiv = document.createElement('div');
                 const nameForm = document.createElement('input');
                 nameForm.type = 'text';
                 nameForm.setAttribute('placeholder', 'Name');
+                nameForm.style = 'width: 25vw; height: 5vh';
+                nameFormDiv.appendChild(nameForm);
 
+                const descriptionFormDiv = document.createElement('div');
                 const descriptionForm = document.createElement('textarea');
                 descriptionForm.setAttribute('placeholder', 'Description');
+                descriptionForm.style = 'width: 25vw; height: 8vh';
+                descriptionFormDiv.appendChild(descriptionForm);
 
                 const createButton = simpleDiv('Create');
                 createButton.className = 'hg-button content-button';
@@ -836,13 +906,14 @@ const dashboards = {
                     });
                 };
 
-                createSection.appendChild(nameForm);
-                createSection.appendChild(descriptionForm);
+                createSection.appendChild(nameFormDiv);
+                createSection.appendChild(descriptionFormDiv);
                 createSection.appendChild(createButton);
 
                 container.appendChild(createSection);
 
                 const myGamesHeader = document.createElement('h1');
+                myGamesHeader.style = 'margin-top: 10vh';
                 myGamesHeader.innerHTML = 'My Games';
 
                 container.appendChild(myGamesHeader);
@@ -856,8 +927,6 @@ const dashboards = {
                     'hg-token': window.hgUserInfo.tokens.accessToken
                 }).then((_games) => {
                     container.removeChild(_loader);
-                    console.log("RESPONSE_");
-                    console.log(_games);
                     const games = JSON.parse(_games).games;
 
                     // todo: make this a function
@@ -869,8 +938,6 @@ const dashboards = {
                     }
 
                     const cellWidth = 100 / fields.size;
-
-                    console.log('cell width ' + cellWidth);
 
                     const onCellClick = (index, field) => {
                         const clickedGame = games[index];
@@ -987,6 +1054,8 @@ const getDashboardContent = (state) => new Promise((resolve, reject) => {
             if (dashboards[thing].childOf) {
                 const backButton = document.createElement('div');
                 backButton.innerHTML = "back";
+                backButton.className = 'hg-button content-button';
+                backButton.style = 'margin-bottom: 2.5%';
                 backButton.onclick = () => {
                     updateDashboardContent(dashboards[thing].childOf);
                 };
@@ -1211,21 +1280,21 @@ const searchBox = document.getElementById('games-search');
 
 let searchTimer;
 
-searchBox.oninput = () => {
-    console.log(searchBox.value);
-    if (searchTimer) {
-        clearTimeout(searchTimer);
-    }
-    searchTimer = setTimeout(() => {
-        if (searchBox.value) {
-            searchGames(searchBox.value).then(renderGames);
-            searchTags(searchBox.value).then(renderTags);
-        } else {
-            listGames().then(renderGames);
-            listTags().then(renderTags);
-        }
-    }, 200);
-};
+//searchBox.oninput = () => {
+//    console.log(searchBox.value);
+//    if (searchTimer) {
+//        clearTimeout(searchTimer);
+//    }
+//    searchTimer = setTimeout(() => {
+//        if (searchBox.value) {
+//            searchGames(searchBox.value).then(renderGames);
+//            searchTags(searchBox.value).then(renderTags);
+//        } else {
+//            listGames().then(renderGames);
+//            listTags().then(renderTags);
+//        }
+//    }, 200);
+//};
 
 const renderTags = (tags) => {
     console.log('need to render these tags');
@@ -1252,7 +1321,6 @@ const tagResultsHeader = document.getElementById('tags-results-header');
 const gameResultsHeader = document.getElementById('games-results-header');
 
 const renderGames = (games) => {
-    console.log(games);
     clearChildren(gamesContent);
 
     if (games && games.games) {
@@ -1275,6 +1343,6 @@ const renderGames = (games) => {
     }
 };
 
-listGames().then(renderGames);
-listTags().then(renderTags);
+//listGames().then(renderGames);
+//listTags().then(renderTags);
 
