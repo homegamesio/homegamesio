@@ -8,12 +8,16 @@ const LANDLORD_PROTOCOL = 'https';
 const LANDLORD_HOST = 'landlord.homegames.io';
 //localhost:8000';
 
-const makeGet = (endpoint, headers) => new Promise((resolve, reject) => {
+const makeGet = (endpoint, headers, isBlob) => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('GET', endpoint, true);
 
     for (const key in headers) {
         xhr.setRequestHeader(key, headers[key]);
+    }
+
+    if (isBlob) {
+        xhr.responseType = "blob";
     }
 
     xhr.onreadystatechange = () => {
@@ -144,7 +148,7 @@ const login = (username, password) => new Promise((resolve, reject) => {
     }).then(loginData => {
         resolve({
             username,
-            created: loginData.created,
+            created: new Date(loginData.created),
             tokens: {
                 accessToken: loginData.accessToken,
                 idToken: loginData.idToken,
@@ -827,6 +831,35 @@ const showModal = (modalName, args) => {
     modal.removeAttribute('hidden');
 };
 
+const getCertInfo = () => new Promise((resolve, reject) => {
+   makeGet(`https://certifier.homegames.io/cert-info`, {
+        'hg-username': window.hgUserInfo.username,
+        'hg-token': window.hgUserInfo.tokens.accessToken
+    }).then((certResponse) => {
+        resolve(JSON.parse(certResponse));
+    });
+});
+
+const requestCert = () => new Promise((resolve, reject) => {
+    makeGet(`https://certifier.homegames.io/get-cert`, {
+        'hg-username': window.hgUserInfo.username,
+        'hg-token': window.hgUserInfo.tokens.accessToken
+    }, true).then((certResponse) => {
+        resolve(certResponse);
+        // console.log("cert status");
+        // console.log(certResponse);
+        // const downloadUrl = URL.createObjectURL(certResponse);
+        // const a = document.createElement("a");
+        // certStatus.appendChild(a);
+        // a.style = "display: none";
+        // a.href = downloadUrl;
+        // a.download = 'cert-bundle.zip';
+        // a.click();
+        //certStatus.innerHTML = 'loaded';//Cert status: Coming soon';
+    });
+});
+
+
 const dashboards = {
     'default': {
         render: () => new Promise((resolve, reject) => {
@@ -837,8 +870,29 @@ const dashboards = {
             memberSince.innerHTML = `Member since: ${memberSinceVal}`;
 
             const certStatus = document.createElement('h4');
-            certStatus.innerHTML = 'Cert status: Coming soon';
 
+            getCertInfo().then((certResponse) => {
+                const statusDiv = simpleDiv('Cert status: ' + certResponse?.status || 'Unavailable');
+                certStatus.appendChild(statusDiv);
+
+                if (!certResponse.status || certResponse.status !== 'VALID') {
+                    const requestCertButton = document.createElement('div');
+                    requestCertButton.innerHTML = 'Request certificate';
+                    requestCertButton.className = 'clickable';
+                    requestCertButton.onclick = () => {
+                        makePost('https://certifier.homegames.io/request-cert', {
+                            message: 'hmmm'
+                        }, false, true).then((__res) => {
+                            console.log('sent request');
+                            console.log(__res);
+                            certStatus.removeChild(requestCertButton);
+                        });
+                    };
+                    certStatus.appendChild(requestCertButton);
+                }
+            });
+
+        
             const changeEmail = document.createElement('h4');
             changeEmail.innerHTML = 'Change email: Coming soon';
 
