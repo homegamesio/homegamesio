@@ -1,213 +1,443 @@
-body {
+.headlines {
+    text-align: center;
+    margin-top: 2.5%;
+    margin-bottom: 2.5%;
+}
+
+.headlines h1 {
     margin: 0;
-    color: #1A1A1A;
-    font-family: helvetica;
 }
 
-#sign-up {
-    width: 47%;
-    display: inline-block;
-    text-align: center;
-}
-
-#header {
-    background: #F16F6F;
-    clear: both;
-    width: 100%;
-}
-
-#header div {
-  vertical-align: middle;
-  height: inherit;
-  position: relative;
-}
-
-#log-in {
-    text-align: center;
-    width: 47%;
-    display: inline-block;
-}
-
-#social {
-    text-align: left;
-}
-
-#twitter, #github {
+.close {
+    width: 5%;
     margin: .5%;
-}
-
-#logo {
-    width: 6%;
+    padding: .5%;
     text-align: center;
-    display: inline-block;
+    font-size: 2.5em;
 }
 
-#logo img {
-    width: 120px;
-    height: 120px;
-    vertical-align: middle;
+.close:hover {
+    color:  rgba(241, 112, 111, 255);
 }
 
-#tabs {
-    clear: both;
-}
-
-#tabs ul {
-    padding: 0;
-    margin: 0;
-    background: #75BFDA;
-    padding-top: 15px;
-    padding-bottom: 15px;
-}
-
-#tabs ul li {
-    display: inline-block;
-    list-style: none;
+#modal .loading {
     text-align: center;
-    vertical-align: middle;
+    width: 100%;
+    margin-left: 50%;
+    margin-top: 19%;
+}
+
+#modal {
+    position: absolute;
+    z-index: 100;
+    margin-left: 10%;
+    z-index: 100;
+    width: 80%;
+    height: 80%;
+    background: red;
+    margin-top: 5%;
+    overflow: scroll;
+    border-radius: 20px;
+    background: #4D4D4D;
+    color: white;
+}
+
+#main {
+    position:  absolute;
+    display: flex;
     height: 100%;
-    font-size: 1.3em;
+    width: 100%;
+    flex-direction: row;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
 
-    /* 100 / 2 options = 50% each */
-    width: 50%;
+#page-container {
+    background: #fbfff2;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    flex: 1; 
 }
 
 .clickable:hover {
     cursor: pointer;
 }
 
-#content-container {
-    margin: 1%;
-    overflow-wrap: break-word;
+#header {
+    background: rgba(241, 112, 111, 255);
+    /*height: 10%;*/
+    width: 100%;
+    /*padding:  .5%;*/
+    /*height: 15%;*/
+    height: 10%;
+    line-height: 80px;
+}
+
+#settings {
+    width: 50%;
+    float: left;
+    height: 100%;
+}
+
+#settings h2 {
+    margin: 0;
+    text-align: center;
+}
+
+#logo:hover, #settings:hover {
+    background: rgba(255, 247, 142, 255);
+}
+
+#content {
+    background: #fbfff2;
+    height: 80%;
+    width: 100%;
+    overflow-y: scroll;
 }
 
 #footer {
-    background: #1A1A1A;
-    width: 100%;
-    padding: 1%;
-}
-
-#page-container {
-    position: relative;
-    min-height: 100vh;
-}
-
-#modal {
-    position: absolute;
-    top: 20%;
-    left: 20%;
-    width: 60%;
-    height: 60%;
-    background: #75BFDA;
-    animation: fadeIn ease .2s;
-    z-index: 2;
-    border-radius: 8px;
-}
-
-#modal .form {
-    margin: 2%;
-    position: relative;
-    top: 25%;
-}
-
-#modal label {
-    width: 100%;
-    display: block;
-}
-
-#modal input {
-    width: 25%;
-    margin-bottom: 2%;
-}
-
-#modal .close {
-    background: #F16F6F;
-    width: 10%;
     height: 10%;
-    border-radius: 5px;
-    position: relative;
-    left: 90%;
-}
-
-#modal .close:hover {
-    cursor: pointer;
-}
-
-@keyframes fadeIn {
-    0% {opacity:0;}
-    100% {opacity:1;}
-}
-
-.download-bar, .button {
-    display: inline-block;
-    text-align: center;
-    height: 50px;
-}
-
-.download-bar a, .button a {
-    line-height: 50px;
-    text-decoration: none;
-}
-
-.download-bar {
     width: 100%;
-}
-
-.button {
-    background: #1A1A1A;
-    border-radius: 4px;
-    height: 50px;
-    width: 10%;
-    line-height: 50px;
-}
-
-#header-container {
-    font-size: 1.4em;
-}
-
-#download-container {
-    padding: 10px;
+    background: rgba(148, 210, 229, 255);
     text-align: center;
+    line-height: 80px;
 }
 
-.active {
-    color: white;
-    text-decoration: underline;
+#footer:hover {
+    background: rgba(255, 247, 142, 255);
 }
 
-@media screen and (device-width: 400px) {
-}
-@media only screen and (min-width: 375px)
-and (max-width: 812px){
-    .button {
-        width: 30%;
-    }
+#footer h1 {
+    margin: 0;
 }
 
-@media only screen and (min-width: 375px)
-and (max-width: 812px) and (orientation: portrait) {
-    .button {
-        width: 30%;
-    }
+#links {
+    clear: both;
+    text-align: center;
+    padding-top: 2.5%;
 }
 
-@media only screen and (min-width: 375px)
-and (max-width: 812px) and (orientation: landscape) {
-    .button {
-        width: 30%;
-    }
+#links ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
 }
 
-@media only screen
-    and (device-width: 375px)
-    and (device-height: 812px)
-    and (-webkit-device-pixel-ratio: 3) { 
-    .button {
-        width: 30%;
-    }
-
+#links ul li {
+  margin:.5%;
+  font-size:1.1em
+  
 }
 
 a {
     color: black;
+}
+
+#demo {
+    clear: both;
+    text-align: center;
+    padding-top: 2.5%;
+}
+
+body {
+    font-family: sans-serif;
+    margin: 0;
+}
+
+#downloads {
+    text-align: center;
+}
+
+#logo {
+    text-align: center;
+    width: 50%;
+    float: left;
+    height: 100%;
+}
+
+#big-logo {
+    text-align: center;
+    width: 100%;
+    height: 100%;
+}
+
+#logo img, #big-logo img {
+    height: 100%;
+}
+
+.loading, .loading-black {
+  display: inline-block;
+  width: 80px;
+  height: 80px;
+}
+
+.loading:after {
+  content: " ";
+  display: block;
+  width: 64px;
+  height: 64px;
+  margin: 8px;
+  border-radius: 50%;
+  border: 6px solid #fff;
+  border-color: #fff transparent #fff transparent;
+  animation: loading-ring 1.2s linear infinite;
+}
+
+.loading-black:after {
+  content: " ";
+  display: block;
+  width: 64px;
+  height: 64px;
+  margin: 8px;
+  border-radius: 50%;
+  border: 6px solid rgb(26, 26, 26);
+  border-color: rgb(26, 26, 26) transparent rgb(26, 26, 26) transparent;
+  animation: loading-ring 1.2s linear infinite;
+}
+
+.hg-yellow {
+    background: rgba(255, 247, 142, 255);
+}
+
+@keyframes fadeIn {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+.fade-in {
+    animation: fadeIn ease .4s;
+}
+
+
+@keyframes loading-ring {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+#downloads .hg-button {
+    border-radius: 3px;
+    border: 1px solid black;
+    width: 15%;
+    text-align: center;
+    /*margin-left: 20%;*/
+    line-height: 100px;
+    height: 100px;
+    float: left;
+}
+
+#login-section {
+    width:  40%;
+    float:  left;
+    margin: 5%;
+}
+
+#login-section input {
+    width: 100%;
+    border-radius: 5px;
+    height: 40px;
+    margin-bottom: 20px;
+    padding: 5px;
+}
+
+#login-section h2 {
+    /*text-align: center;*/
+}
+
+#signup-section {
+    width:  40%;
+    float:  left;
+    margin: 5%;
+}
+
+#signup-section input {
+    width: 100%;
+    border-radius: 5px;
+    height: 40px;
+    margin-bottom: 20px;
+    padding: 5px;
+}
+
+#signup-section h2 {
+    text-align: center;
+}
+
+#signup-button, #login-button {
+    border-radius: 5px;
+    border: 1px solid white;
+    line-height: 50px;
+    height: 50px;
+    text-align: center;
+}
+
+#signup-button:hover, #login-button:hover {
+    background: white;
+    color: #4D4D4D;
+}
+
+#me-label {
+    margin-left: 5%;
+}
+
+#me-section {
+    margin-left: 5%;
+    margin-right: 5%;
+    border: 1px solid black;
+    border-radius: 5px;
+    padding: 3%;
+}
+
+#my-games-button, #my-assets-button {
+    border-radius: 5px;
+    border: 1px solid black;
+    width: 20%;
+    text-align: center;
+    height: 100px;
+    line-height: 100px;
+    font-weight: 500;
+    margin-left: 5%;
+    margin-top: 5%;
+    float: left;
+    color: #fbfff2;
+    background: black;
+}
+
+#my-games-button:hover, #my-assets-button:hover {
+    color: black;
+    background: #fbfff2;
+}
+
+#support-container input {
+    width: 50%;
+}
+
+#support-container textarea {
+    width: 100%;
+    height: 200px;
+    margin-top: 50px;
+}
+
+#support-container {
+    padding: 5%;
+    padding-top: 2.5%;
+}
+
+#send-button {
+    border-radius: 5px;
+    border: 1px solid black;
+    width: 20%;
+    text-align: center;
+    height: 50px;
+    line-height: 50px;
+    font-weight: 500;
+    margin-left: 40%;
+    margin-top: 5%;
+    background: white;
+    color: #4D4D4D;
+}
+
+#send-button:hover {
+    background: #4D4D4D;
+    color: white;
+}
+
+#forgot-password-button {
+    margin-top: 20px;
+}
+
+#reset-password-modal .back-button {
+    border: 1px solid white;
+    text-align: center;
+    height: 40px;
+    line-height: 40px;
+    width: 10%;
+    border-radius: 5px;
+    margin-left: 2.5%;
+    margin-top: 2.5%;
+}
+
+#dashboard-content {
+    margin-left: 2.5%;
+}
+
+#dashboard-content .back-button {
+    border: 1px solid black;
+    text-align: center;
+    height: 40px;
+    line-height: 40px;
+    width: 10%;
+    border-radius: 5px;
+    margin-top: 2.5%;
+    margin-bottom: 2.5%;
+    background: #4D4D4D;
+    color: white;
+}
+
+#reset-password-container {
+    margin-top: 5%;
+    margin-left: 5%;
+}
+
+#reset-password-container input {
+    height: 40px;
+    padding: 5px;
+    width: 50%;
+}
+
+#request-reset-button {
+    border: 1px solid white;
+    text-align: center;
+    height: 40px;
+    line-height: 40px;
+    width: 25%;
+    border-radius: 5px;
+    margin-top: 2.5%;
+}
+
+#new-game-description-form {
+    width: 40%;
+    height: 50px;
+    padding: 5px;
+    margin-top: 20px;
+}
+
+#new-game-name-form {
+    height: 50px;
+    width: 20%;
+    padding: 5px;
+}
+
+#create-game-button {
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    border: 1px solid black;
+    border-radius: 5px;
+    width: 10%;
+    margin-top: 10px;
+}
+
+#game-detail-modal input {
+    height: 40px;
+    line-height: 40px;
+    padding: 5px;
+    width: 90%;
+    margin-bottom: 10px;
+}
+
+#game-detail-modal {
+    margin-left: 5%;
 }

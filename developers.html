@@ -1,0 +1,57 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Homegames</title>
+        <link rel="stylesheet" href="app.css">
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+        <link rel="manifest" href="/site.webmanifest">
+    </head>
+
+    <body>
+        <div id="modal" class="fade-in" hidden>
+            <div id="modal-content">
+                <div class="close clickable" onclick="hideModal()">X</div>
+                <div class="back"></div>
+                <div class="content"></div>
+            </div>
+        </div>
+        <div id="main">
+            <div id="page-container">
+                <div id="header">
+                    <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
+                </div>
+                <div id="content">
+                    <h1>
+                        Coming soon!
+                    </h1>
+                    <div>
+                        <p>
+                            For now, the our best developer resource is probably our <a href="https://github.com/homegamesio/homegames-core/wiki/Getting-Started">getting started wiki.</a> It's pretty outdated at this point, but the core of how stuff works is mostly the same.
+                        </p>
+                        <p>
+                        We also have some "building stuff" videos in <a href="https://www.youtube.com/playlist?list=PL9BiQ9HyAQCMAZZQ-4FH3oCLYo-8BYYly" target="_blank">this YouTube playlist</a> for more of a "watch & learn" type of content.
+                        </p>
+                        <p>
+                            Obviously this all needs to be fleshed out. Up to this point, supporting external developers has been our lowest priority, but that's changing very soon. If you have any specific types of info you want to see here, please let us know by using the contact form at the bottom of the page.
+                        </p>
+                    </div>
+                </div>
+                <div id="footer" onclick="showModal('support')" class="clickable">
+                    <h1>
+                        Contact
+                    </h1>
+                </div>
+            </div>
+        </div>
+    </body>
+    <script src="client.js"></script>
+    <script>
+
+    </script>
+    <style>
+        #content input {height: 40px; line-height: 40px; width: 20%; padding: 5px; margin-left: 2%; margin-right: 78%; margin-top: 1%}
+        #submit-button {margin-top: 1%; margin-left: 2%; text-decoration: underline;}
+    </style>
+
+</html>

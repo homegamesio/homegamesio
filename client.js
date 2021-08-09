@@ -4,7 +4,11 @@ const clearChildren = (el) => {
     }
 };
 
-const makeGet = (endpoint, headers) => new Promise((resolve, reject) => {
+const LANDLORD_PROTOCOL = 'https';
+const LANDLORD_HOST = 'landlord.homegames.io';
+//localhost:8000';
+
+const makeGet = (endpoint, headers, isBlob) => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('GET', endpoint, true);
 
@@ -12,7 +16,11 @@ const makeGet = (endpoint, headers) => new Promise((resolve, reject) => {
         xhr.setRequestHeader(key, headers[key]);
     }
 
-    xhr.onreadystatechange = () => { 
+    if (isBlob) {
+        xhr.responseType = "blob";
+    }
+
+    xhr.onreadystatechange = () => {
         if (xhr.readyState === XMLHttpRequest.DONE) {
             if (xhr.status === 200) {
                 resolve(xhr.response);
@@ -28,13 +36,18 @@ const makeGet = (endpoint, headers) => new Promise((resolve, reject) => {
     xhr.send();
 });
 
-const makePost = (endpoint, payload, notJson)  => new Promise((resolve, reject) => {
+const makePost = (endpoint, payload, notJson, useAuth)  => new Promise((resolve, reject) => {
     var xhr = new XMLHttpRequest();
     xhr.open("POST", endpoint, true);
 
+    if (useAuth && window.hgUserInfo) {
+        xhr.setRequestHeader('hg-username', window.hgUserInfo.username);
+        xhr.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
+    }
+ 
     xhr.setRequestHeader("Content-Type", "application/json");
 
-    xhr.onreadystatechange = () => { 
+    xhr.onreadystatechange = () => {
         if (xhr.readyState === XMLHttpRequest.DONE) {
             if (xhr.status === 200) {
                 if (notJson) {
@@ -43,8 +56,6 @@ const makePost = (endpoint, payload, notJson)  => new Promise((resolve, reject) 
                     resolve(JSON.parse(xhr.response));
                 }
             } else {
-                console.log("uh oh");
-                console.log(xhr);
                 reject(xhr.response)
             }
         }
@@ -53,245 +64,1459 @@ const makePost = (endpoint, payload, notJson)  => new Promise((resolve, reject) 
     xhr.send(JSON.stringify(payload));
 });
 
-const onLogin = () => {
-    showModal('login');
+
+const formatDate = (date) => {
+
 };
 
-const showSettings = () => {
-    showModal('settings');
-};
+const createGame = (name, description) => new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games`);
+    //"http://localhost:8000/games");
+    //landlord.homegames.io/games");
 
-const modal = document.getElementById('modal');
+    request.setRequestHeader('hg-username', window.hgUserInfo.username);
+    request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
+    request.setRequestHeader("Content-Type", "application/json");
 
-let loginData;
+    request.onreadystatechange = (e) => {
+        if (request.readyState === XMLHttpRequest.DONE) {
+            if (request.status === 200) {
+                resolve(JSON.parse(request.response));
+            } else {
+                reject();
+            }
+        }
+    };
 
-const headerContainer = document.getElementById('header-container');
+    const payload = {
+        game_name: name,
+        description
+    };
 
-const renderHeader = () => {
-
-    clearChildren(headerContainer);
-
-    let leftEl, logoEl, rightEl;
-
-    const headerEl = document.createElement('div');
-    headerEl.id = 'header';
-
-    if (loginData) {
-        const usernameEl = document.createElement('div');
-        usernameEl.className = 'clickable';
-        usernameEl.innerHTML = loginData.username;
-        // hack. need to use classes
-        usernameEl.id = 'sign-up';
-        leftEl = usernameEl;
-
-        const settingsEl = document.createElement('div');
-        settingsEl.innerHTML = 'Settings';
-        settingsEl.className = 'clickable';
-        settingsEl.id = 'log-in';
-        settingsEl.onclick = showSettings;
-        rightEl = settingsEl;
-    } else {
-        const signupEl = document.createElement('div');
-        signupEl.className = 'clickable';
-        signupEl.onclick = onSignup;
-        signupEl.id = 'sign-up';
-        signupEl.innerHTML = 'Sign Up';
-        leftEl = signupEl;
-
-        const loginEl = document.createElement('div');
-        loginEl.className = 'clickable';
-        loginEl.onclick = onLogin;
-        loginEl.id = 'log-in';
-        loginEl.innerHTML = 'Log in';
-        rightEl = loginEl;
-    }
-
-    const logoImgEl = document.createElement('img');
-    logoImgEl.src = 'https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png';
-    
-    logoEl = document.createElement('div');
-    logoEl.id = 'logo';
-
-    logoEl.appendChild(logoImgEl);
-
-    headerEl.appendChild(leftEl);
-    headerEl.appendChild(logoEl);
-    headerEl.appendChild(rightEl);
-
-    headerContainer.appendChild(headerEl);
-};
-
-const verifyState = {};
-
-let code;
-
-const confirmSignup = (username) => new Promise((resolve, reject) => {
-    const confirmWrapper = document.getElementById('confirm-signup-wrapper');
-    confirmWrapper.removeAttribute('hidden');
-
-//    const confirmForm = document.getElementById('confirm-signup');
-//    const confirmButton = document.getElementById('confirm-button');
-//
-//    confirmButton.onclick = () => {
-//        const code = confirmForm.value;
-//
-//        makePost('/verify', {
-//            username,
-//            code
-//        }).then((response) => {
-//            resolve(response);
-//        });
-//
-//    };
+    request.send(JSON.stringify(payload));
 });
 
-const changePassword = () => {
-    console.log('todo');
+const uploadAsset = (asset, cb) => new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append('file', asset);
+
+    const request = new XMLHttpRequest();
+
+    request.open("POST", "https://landlord.homegames.io/asset"); 
+
+    request.setRequestHeader('hg-username', window.hgUserInfo.username);
+    request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
+
+    request.onreadystatechange = (e) => {
+        if (request.readyState === XMLHttpRequest.DONE) {
+            if (request.status === 200) {
+                resolve();
+            } else {
+                reject();
+            }
+        }
+    };
+
+    request.onloadstart = () => {
+        cb && cb('loadstart', {});
+    };
+
+    request.onload = () => {
+        cb && cb('load', {});
+    };
+
+    request.onloadend = () => {
+        cb && cb('loadend', {});
+    };
+
+    request.onprogress = (e) => {
+        cb && cb('progress', {});
+    };
+
+    request.onerror = (error) => {
+        cb && cb('error', {error});
+    };
+
+    request.onabort = () => {
+        cb && cb('abort', {});
+    };
+
+    request.send(formData);
+});
+
+const login = (username, password) => new Promise((resolve, reject) => {
+    makePost('https://auth.homegames.io', {
+        username,
+        password,
+        type: 'login'
+    }).then(loginData => {
+        if (loginData.errorType === 'Error') {
+            if (loginData.errorMessage && loginData.errorMessage === 'User is not confirmed.') {
+                resolve({
+                    username,
+                    confirmed: false
+                })
+            } else {
+                reject(loginData.error);
+            }
+        } else {
+            resolve({
+                username,
+                confirmed: true,
+                created: new Date(loginData.created),
+                tokens: {
+                    accessToken: loginData.accessToken,
+                    idToken: loginData.idToken,
+                    refreshToken: loginData.refreshToken
+                }
+            });
+        }
+    });
+});
+
+const signup = (email, username, password) => new Promise((resolve, reject) => {
+    makePost('https://auth.homegames.io', {
+        email,
+        username,
+        password,
+        type: 'signUp'
+    }).then(payload => {
+        if (payload.errorType) {
+            reject(payload.errorMessage);
+        } else {
+            resolve({
+                username,
+                tokens: payload
+            });
+        }
+    });
+});
+
+const simpleDiv = (text) => {
+    const div = document.createElement('div');
+
+    if (text) {
+        div.innerHTML = text;
+    }
+
+    return div;
 };
 
-const modalContent = {
-    'settings': {
-        content: '<div id="close-button" class="close"></div><div onclick="changePassword()">Change password (coming soon)</div><div>Change email (coming soon)</div><div id="submit">Confirm</div>',
-        onSubmit: () => {
-            console.log('idk yet');
+const handleLogin = (userInfo) => {
+    const settingsButton = document.getElementById('settings');
+
+    clearChildren(settingsButton);
+
+    settingsButton.onclick = () => {
+        showContent('dashboard');
+    };
+
+    const dashboardButton = document.createElement('h2');
+    dashboardButton.innerHTML = "Dashboard";
+
+    settingsButton.appendChild(dashboardButton);
+
+    if (!userInfo.confirmed) {
+        const confirmMessage = simpleDiv('To create games & assets, you will need to confirm your account using the link we sent to your email address.');
+        confirmMessage.className = 'hg-yellow';
+
+        confirmMessage.style = 'height: 100px; line-height: 100px; text-align: center;font-weight: bold;';
+        const contentContainer = document.getElementById('content');
+        contentContainer.prepend(confirmMessage);
+    } else {
+        window.hgUserInfo = userInfo;
+        hideModal();
+        showContent('dashboard');
+    }
+};
+                
+
+const loader = () => {
+    const el = document.createElement('div');
+    el.className = 'loading';
+    return el;
+};
+
+const loaderBlack = () => {
+    const el = document.createElement('div');
+    el.className = 'loading-black';
+    return el;
+};
+
+const modals = {
+    'tag': {
+        render: (tag) => {
+            const container = document.createElement('div');
+
+            const tagHeader = document.createElement('h2');
+            tagHeader.innerHTML = "Games tagged with " + tag;
+
+            container.appendChild(tagHeader);
+
+            makeGet('https://landlord.homegames.io/games?tags=' + tag).then(_games => {
+                const games = JSON.parse(_games);
+                const gameEls = games.games.map(game => {
+                    const _el = simpleDiv(game.name);
+                    _el.onclick = () => showModal('game-preview', game);
+                    return _el;
+                });
+
+                gameEls.forEach(el => {
+                    container.appendChild(el);
+                });
+            });
+            return container;
         }
     },
-    'sign-up': {
-        content: '<div id="close-button" class="close"></div><div class="form"><label for="username">Username</label><input type="text" id="username"></input><label for="email">Email Address</label><input type="text" id="email"></input><label for="password">Password</label><input type="password" id="password"></input><div id="submit" class="clickable">Submit</div><div id="confirm-signup-wrapper" hidden><div>We\'ve sent a confirmation link to your email address</div></div>',
-        onSubmit: () => {
-            const emailDiv = document.getElementById('email');
-            const passwordDiv = document.getElementById('password');
-            const usernameDiv = document.getElementById('username');
-            makePost('/signup', {
-                email: emailDiv.value,
-                username: usernameDiv.value,
-                password: passwordDiv.value
-            }).then((userData) => {
-                confirmSignup(usernameDiv.value)
-                   // .then(() => {
-                   // makePost('/login', {
-                   //     username: userData.username,
-                   //     password: passwordDiv.value
-                   // }).then((tokenObj) => {
-                   //     loginData = {
-                   //         tokens: tokenObj,
-                   //         username: usernameDiv.value
-                   //     };
-                   //     renderHeader();
-                   //     hideModal();
-                   // });
-                //});
+    'game-preview': {
+        render: (game) => {
+            const container = document.createElement('div');
+
+            const gameTitle = document.createElement('h2');
+            const gameAuthor = document.createElement('h3');
+            const demoButton = simpleDiv('Demo - coming soon!');
+            const gameCreated = document.createElement('h4');
+            const gameDescription = simpleDiv(game.description);
+    
+            gameTitle.innerHTML = game.name;
+            gameAuthor.innerHTML = game.author;
+            gameCreated.innerHTML = new Date(game.created);
+             
+            container.appendChild(gameTitle);
+            container.appendChild(gameAuthor);
+            container.appendChild(demoButton);
+            container.appendChild(gameCreated);
+            container.appendChild(gameDescription);
+
+            if (window.hgUserInfo) {
+
+                const tagForm = document.createElement('input');
+                tagForm.type = 'text';
+
+                const tagConfirm = simpleDiv('Click to tag');
+                tagConfirm.onclick = () => {
+                    const tagValue = tagForm.value;
+                    makePost('https://landlord.homegames.io/tags', {
+                        game_id: game.id,
+                        tag: tagValue
+                    }, true, true).then((res) => {
+                        setTimeout(() => {
+                            showModal('game-preview', game);
+                        }, 500);
+                    });
+                };
+
+                container.appendChild(tagForm);
+                container.appendChild(tagConfirm);
+            } else {
+                container.appendChild(simpleDiv('Log in to tag'));
+            }
+
+            makeGet('https://landlord.homegames.io/games/' + game.id).then(_gameData => {
+                const gameData = JSON.parse(_gameData);
+                const tagsHeader = document.createElement('h4');
+                tagsHeader.innerHTML = "Tags";
+
+                container.appendChild(tagsHeader);
+                if (gameData.tags) {
+                    const tagEls = gameData.tags.map(tag => {
+                        const _el = simpleDiv(tag);
+                        _el.onclick = () => showModal('tag', tag);
+                        return _el;
+                    });
+
+                    tagEls.forEach(el => {
+                        container.appendChild(el);
+                    });
+                }
             });
+
+            return container;
+        }
+    },
+    'download': {
+        render: (path) => {
+            const container = document.createElement('div');
+
+            const _loader = loader();
+            container.appendChild(_loader);
+
+            makeGet(`https://builds.homegames.io${path}`).then((_buildInfo) => {
+                container.removeChild(_loader);
+                const buildInfo = JSON.parse(_buildInfo);
+
+                const publishedInfoDiv = simpleDiv(`Date published: ${buildInfo.datePublished}`);
+                const commitAuthorDiv = simpleDiv(`Author: ${buildInfo.commitInfo.author}`);
+
+                const commitMessageDiv = simpleDiv(`Commit message: ${buildInfo.commitInfo.message}`);
+
+                const commitHashDiv = simpleDiv(`Commit hash: ${buildInfo.commitInfo.commitHash}`);
+
+                container.appendChild(publishedInfoDiv);
+                container.appendChild(commitAuthorDiv);
+                container.appendChild(commitMessageDiv);
+                container.appendChild(commitHashDiv);
+
+                const winDiv = document.createElement('div');
+                winDiv.className = 'hg-button';
+                const winLink = document.createElement('a');
+                winLink.download = `homegames-win`;
+                winLink.href = buildInfo.windowsUrl;
+                winLink.innerHTML = 'Windows';
+                winDiv.appendChild(winLink);
+
+                const macDiv = document.createElement('div');
+                macDiv.className = 'hg-button';
+                const macLink = document.createElement('a');
+                macLink.download = `homegames-mac`;
+                macLink.href = buildInfo.macUrl;
+                macLink.innerHTML = 'Mac';
+                macDiv.appendChild(macLink);
+
+                const linuxDiv = document.createElement('div');
+                linuxDiv.className = 'hg-button';
+                const linuxLink = document.createElement('a');
+                linuxLink.download = `homegames-linux`;
+                linuxLink.href = buildInfo.linuxUrl;
+                linuxLink.innerHTML = 'Linux';
+                linuxDiv.appendChild(linuxLink);
+
+                container.appendChild(winDiv);
+                container.appendChild(macDiv);
+                container.appendChild(linuxDiv);
+
+                const instructions = simpleDiv('Run the homegames executable and navigate to homegames.link in your browser to play games');
+                container.appendChild(instructions);
+            });
+            
+            return container;
+        }
+    },
+    'game-detail': {
+        render: (game) => {
+            const container = document.createElement('div');
+
+            let editingDescription = false;
+
+            const gameHeader = document.createElement('h1');
+            const idSubHeader = document.createElement('h3');
+            gameHeader.innerHTML = game.name;
+            idSubHeader.innerHTML =`ID: ${game.id}`;
+
+            container.appendChild(gameHeader);
+            container.appendChild(idSubHeader);
+
+            const getDescription = () => {
+                const descriptionSection = document.createElement('div');
+                descriptionSection.style = 'float: left;width: 50%;';
+
+                const descriptionHeader = document.createElement('h2');
+                descriptionHeader.innerHTML = 'Description';
+
+                descriptionSection.appendChild(descriptionHeader);
+                
+                if (!editingDescription) {
+                    const descriptionText = simpleDiv(game.description || 'No description available');
+                    const editButton = simpleDiv('Edit');
+    
+                    editButton.onclick = () => {
+                        editingDescription = true;
+                        clearChildren(descriptionSection);
+                        const newDescription = getDescription();
+                        descriptionSection.appendChild(newDescription);
+                    };
+
+                    descriptionSection.appendChild(descriptionText);
+                    descriptionSection.appendChild(editButton);
+                } else {
+                    const descriptionTextBox = document.createElement('textarea');
+                    if (game.description) {
+                        descriptionTextBox.value = game.description;
+                    } else {
+                        descriptionTextBox.setAttribute('placeholder', 'Enter a description here');
+                    }
+                    descriptionSection.appendChild(descriptionTextBox);
+
+                    const doneButton = simpleDiv('Done');
+                    doneButton.onclick = () => {
+                        const newDescription = descriptionTextBox.value;
+
+                        const _loader = loader();
+                        clearChildren(descriptionSection);
+                        descriptionSection.appendChild(_loader);
+                        const request = new XMLHttpRequest();
+                        request.open("POST", "https://landlord.homegames.io/games/" + game.id + "/update");
+
+                        request.setRequestHeader('hg-username', window.hgUserInfo.username);
+                        request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
+                        request.setRequestHeader("Content-Type", "application/json");
+
+                        request.onreadystatechange = (e) => {
+                            if (request.readyState === XMLHttpRequest.DONE) {
+                                if (request.status === 200) {
+                                    const newGame = JSON.parse(request.response);
+                                    clearChildren(container);
+                                    const newRender = modals['game-detail'].render(newGame);
+                                    container.appendChild(newRender);
+                                } 
+                            }
+                        };
+
+                        request.send(JSON.stringify({description: newDescription}));
+
+                        //editingDescription = false;
+                        //clearChildren(descriptionSection);
+                        //const newDescription = getDescription();
+                        //descriptionSection.appendChild(newDescription);
+                    };
+
+                    descriptionSection.appendChild(doneButton);
+                }
+
+                return descriptionSection;
+            };
+
+            const getPublishRequests = () => {
+                const requestsContainer = document.createElement('div');
+
+                const requestsHeader = document.createElement('h3');
+                requestsHeader.innerHTML = 'Publish Requests';
+
+                const _loader = loaderBlack();
+
+                const requestSection = document.createElement('div');
+                makeGet('https://landlord.homegames.io/games/' + game.id + "/publish_requests", {
+                    'hg-username': window.hgUserInfo.username,
+                    'hg-token': window.hgUserInfo.tokens.accessToken
+                }).then((_publishRequests) => {
+                    requestSection.removeChild(_loader);
+                    const publishRequests = JSON.parse(_publishRequests);
+                    const tableData = publishRequests && publishRequests.requests || [];
+                    const detailState = {};
+                    const _onCellClick = (index) => {
+                        const _clickedReq = publishRequests.requests[index];
+                        const showEvents = (request) => {
+                            if (!request.request_id) {
+                                console.log(request);
+                                return;
+                            }
+                            if (detailState[request.request_id]) {
+                                detailState[request.request_id].remove();
+                                delete detailState[request.request_id];
+                            } else {
+                                makeGet('https://landlord.homegames.io/publish_requests/' + request.request_id + '/events', {
+                                    'hg-username': window.hgUserInfo.username,
+                                    'hg-token': window.hgUserInfo.tokens.accessToken
+                                }).then((_eventData) => {
+                                    const eventData = JSON.parse(_eventData);
+                                    const eventTable = sortableTable(eventData.events);
+                                    eventsContainer.appendChild(eventTable);
+                                });
+                                const eventsHeader = document.createElement('h4');
+                                eventsHeader.innerHTML = `Events for ${request.request_id}`;
+                                const eventsContainer = simpleDiv();
+                                eventsContainer.appendChild(eventsHeader);
+                                requestSection.appendChild(eventsContainer);
+                                detailState[request.request_id] = eventsContainer;
+                            }
+                        };
+                        showEvents(_clickedReq);
+                    };
+                    const _table = sortableTable(tableData, null, _onCellClick);
+                    requestSection.appendChild(_table);
+                });
+ 
+                requestSection.appendChild(_loader);
+                requestsContainer.appendChild(requestsHeader);
+                requestsContainer.appendChild(requestSection);
+                return requestsContainer;
+            };
+
+            const getVersions = () => {
+                const versionContainer = document.createElement('div');
+
+                const versionHeader = document.createElement('h3');
+                versionHeader.innerHTML = 'Versions';
+
+                const _loader = loaderBlack();
+
+                const publishHeader = document.createElement('h2');
+                publishHeader.innerHTML = 'Submit a new publish request'
+
+                const publishSection = document.createElement('div');
+                publishSection.style = 'float: left;width: 50%;';
+
+                const publishButton = simpleDiv('Publish');
+                publishButton.className = 'clickable';
+
+                const repoOwnerForm = document.createElement('input');
+                repoOwnerForm.type = 'text';
+                repoOwnerForm.setAttribute('placeholder', 'Github repo owner (eg. prosif)');
+
+                const repoNameForm = document.createElement('input');
+                repoNameForm.type = 'text';
+                repoNameForm.setAttribute('placeholder', 'Github repo name (eg. do-dad)');
+
+                const commitForm = document.createElement('input');
+                commitForm.type = 'text';
+                commitForm.setAttribute('placeholder', 'GitHub repo commit (eg. 265ce105af20a721e62dbf93646197f2c2d33ac1)');
+
+                publishButton.onclick = () => {
+                    const request = new XMLHttpRequest();
+                    request.open("POST", "https://landlord.homegames.io/games/" + game.id + "/publish");
+                
+                    request.setRequestHeader('hg-username', window.hgUserInfo.username);
+                    request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
+                    request.setRequestHeader("Content-Type", "application/json");
+                
+                    request.onreadystatechange = (e) => {
+                        if (request.readyState === XMLHttpRequest.DONE) {
+                            if (request.status === 200) {
+                                console.log('published!');
+                            } else {
+                                console.log('error');
+                            }
+                        }
+                    };
+                
+                    const payload = {
+                        owner: repoOwnerForm.value, 
+                        repo: repoNameForm.value,
+                        commit: commitForm.value
+                    };
+                
+                    request.send(JSON.stringify(payload));
+                };
+
+                publishSection.appendChild(publishHeader)
+                publishSection.appendChild(repoOwnerForm);
+                publishSection.appendChild(repoNameForm);
+                publishSection.appendChild(commitForm);
+                publishSection.appendChild(publishButton);
+
+                versionContainer.appendChild(publishSection);
+
+                versionContainer.appendChild(versionHeader);
+                
+                versionContainer.appendChild(_loader);
+
+                makeGet('https://landlord.homegames.io/games/' + game.id, {
+                    'hg-username': window.hgUserInfo.username,
+                    'hg-token': window.hgUserInfo.tokens.accessToken
+                }).then((_versions) => {
+                    versionContainer.removeChild(_loader);
+
+                    const versions = JSON.parse(_versions).versions;
+
+                    if (versions.length == 0) {
+                        const noVersions = simpleDiv('No published versions');
+                        versionContainer.appendChild(noVersions);
+                    } else {
+                        const versionTable = sortableTable(versions);
+                        versionContainer.appendChild(versionTable);
+                    }
+                });
+
+                return versionContainer;
+ 
+            };
+
+            const descriptionSection = getDescription();
+            const versionSection = getVersions();
+            const requestsSection = getPublishRequests();
+            
+            container.appendChild(descriptionSection);
+            container.appendChild(versionSection);
+            container.appendChild(requestsSection);
+
+            return container;
+        },
+        elementId: 'game-detail-modal'
+    },
+    'reset-password': {
+        render: () => {
+                const container = document.createElement('div');
+                container.id = 'reset-password-container';
+
+                const resetPasswordHeader = document.createElement('h2');
+                resetPasswordHeader.innerHTML = 'Reset password';
+
+                const emailInput = document.createElement('input');
+
+                emailInput.placeholder ='Email address';
+
+                const resetButton = simpleDiv('Request reset');
+                resetButton.id = 'request-reset-button';
+                resetButton.className = 'clickable';
+                
+                resetButton.onclick = () => {
+
+                    if (!emailInput.value) {
+                        return;
+                    }
+
+                    const params = {
+                        type: 'resetPassword',
+                        email: emailInput.value
+                    };
+
+                    const _loader = loader();
+                    container.removeChild(emailInput);
+                    container.removeChild(resetButton);
+                    container.appendChild(_loader);
+
+                    makePost('https://auth.homegames.io', params).then((res) => {
+                        container.removeChild(_loader);
+                        const sentMessage = simpleDiv('If an account with that email address exists, we\'ll send an email with a link to reset your password.<br /> If you don\'t receive an email, contact us using the button at the bottom of the page.');
+                        container.appendChild(sentMessage);
+                    });
+                }
+
+                container.appendChild(resetPasswordHeader);
+                container.appendChild(emailInput);
+                container.appendChild(resetButton);
+                
+                return container;
+        },
+        childOf: 'login',
+        elementId: 'reset-password-modal'
+    },
+    'support': {
+        render: () => {
+            const container = document.createElement('div');
+            container.id = 'support-container';
+            // container.style = 'height: 100%';
+
+            const emailText = document.createElement('h3');
+            emailText.innerHTML = 'Send us questions, feedback, or pretty much whatever';
+            // emailText.style = 'font-size: 1.4em';
+
+            const emailForm = document.createElement('input');
+            emailForm.type = 'email';
+            emailForm.setAttribute('placeHolder', 'If you want a response, enter your email address here');
+            // emailForm.style = 'width: 50%; margin-top: 3%; margin-bottom: 3%;';
+
+            const messageForm = document.createElement('textarea');
+            // messageForm.style = 'width: 100%; height: 50%; margin-bottom: 3%;';
+
+            messageForm.oninput = () => {
+                sendButton.className = messageForm.value.length > 0 ? 'clickable hg-yellow' : 'grayish';
+            }
+
+            const sendButton = simpleDiv('Send');
+            sendButton.id = 'send-button';
+            // sendButton.style = 'text-align: center; border-radius: 1vw; width: 50%; height: 2.5em; margin-left: 25%; line-height: 2.5em;';
+            sendButton.className = 'grayish clickable';
+
+            sendButton.onclick = () => {
+                if (!messageForm.value) {
+                    return;
+                }
+
+                clearChildren(container);
+                
+                // container.style = 'font-size: 2em; text-align: center';
+
+                container.appendChild(loader());
+
+                makePost('/contact', {
+                    email: emailForm.value,
+                    message: messageForm.value
+                }).then((res) => {
+                    if (res.success) { 
+                        container.innerHTML = 'Success! Your message has been sent.';
+                    } else {
+                        container.innerHTML = 'Could not send your message. Please email support@homegames.io';
+                    }
+                });
+            };
+
+            container.appendChild(emailText);
+            container.appendChild(emailForm);
+
+            container.appendChild(messageForm);
+            container.appendChild(sendButton);
+
+            return container;
         }
     },
     'login': {
-        content: '<div id="close-button" class="close"></div><div class="form"><label for="username">Username</label><input type="text" id="username"></input><label for="password">Password</label><input type="password" id="password"></input><div id="submit" class="clickable">Submit</div></div>',
-        onSubmit: () => {
-            const passwordDiv = document.getElementById('password');
-            const usernameDiv = document.getElementById('username');
+        render: () => {
+            const container = document.createElement('div');
 
-            makePost('/login', {
-                username: usernameDiv.value,
-                password: passwordDiv.value
-            }).then((tokenObj) => {
+            const loginHeader = document.createElement('h2');
+            loginHeader.innerHTML = 'Log in';
 
-                loginData = {
-                    tokens: tokenObj,
-                    username: usernameDiv.value
+            const signupHeader = document.createElement('h2');
+            signupHeader.innerHTML = 'Sign up';
+
+            const usernameFormDiv = document.createElement('div');
+
+            const usernameForm = document.createElement('input');
+            usernameForm.type = 'text';
+            usernameForm.setAttribute('placeholder', 'Username');
+            // usernameForm.style = 'margin-bottom: 1vh';
+
+            usernameFormDiv.appendChild(usernameForm);
+
+            const passwordFormDiv = document.createElement('div');
+
+            const passwordForm = document.createElement('input');
+            passwordForm.type = 'password';
+            passwordForm.setAttribute('placeholder', 'Password');
+            // passwordForm.style = 'margin-bottom: 1vh';
+
+            passwordFormDiv.appendChild(passwordForm);
+
+            const loginButton = simpleDiv('Log in');
+            // loginButton.style = 'width: 10vw';
+            loginButton.className = 'hg-button clickable';
+            loginButton.id = 'login-button';
+            loginButton.onclick = () => {
+                clearChildren(container);
+                const _loader = loader();
+                // container.style = 'text-align: center';
+                container.appendChild(_loader);
+                login(usernameForm.value, passwordForm.value).then(handleLogin)
+            };
+
+            const forgotPasswordButton = simpleDiv('Forgot password?');
+            forgotPasswordButton.id = 'forgot-password-button';
+            forgotPasswordButton.className = 'clickable underline';
+            forgotPasswordButton.onclick = () => {
+                showModal('reset-password');
+            };
+
+            const loginSection = document.createElement('div');
+            loginSection.id = 'login-section';
+            // loginSection.style = 'margin-bottom: 5vh';
+
+            loginSection.appendChild(loginHeader);
+            loginSection.appendChild(usernameFormDiv);
+            loginSection.appendChild(passwordFormDiv);
+            loginSection.appendChild(loginButton);
+            loginSection.appendChild(forgotPasswordButton);
+
+            const signupSection = document.createElement('div');
+            signupSection.id = 'signup-section';
+            
+            signupSection.appendChild(signupHeader);
+
+            
+            const emailFormDiv = document.createElement('div');
+            const signupEmailForm = document.createElement('input');
+            signupEmailForm.type = 'email';
+            signupEmailForm.setAttribute('placeholder', 'Email');
+            emailFormDiv.appendChild(signupEmailForm);
+            // signupEmailForm.style = 'margin-bottom: 1vh';
+            
+            const signupUsernameFormDiv = document.createElement('div');
+            const signupUsernameForm = document.createElement('input');
+            signupUsernameForm.type = 'text';
+            signupUsernameForm.setAttribute('placeholder', 'Username');
+            signupUsernameFormDiv.appendChild(signupUsernameForm);
+            // signupUsernameForm.style = 'margin-bottom: 1vh';
+            
+            const passwordForm1Div = document.createElement('div');
+            const signupPasswordForm1 = document.createElement('input');
+            signupPasswordForm1.type = 'password';
+            signupPasswordForm1.setAttribute('placeholder', 'Password');
+            passwordForm1Div.appendChild(signupPasswordForm1);
+            // signupPasswordForm1.style = 'margin-bottom: 1vh';
+
+            const passwordForm2Div = document.createElement('div');
+            const signupPasswordForm2 = document.createElement('input');
+            signupPasswordForm2.type = 'password';
+            signupPasswordForm2.setAttribute('placeholder', 'Password (again)');
+            passwordForm2Div.appendChild(signupPasswordForm2);
+            // signupPasswordForm2.style = 'margin-bottom: 1vh';
+
+            const signupButton = simpleDiv('Sign up');
+            // signupButton.style = 'width: 10vw';
+            signupButton.className = 'hg-button clickable';
+            signupButton.id = 'signup-button';
+
+            const signupMessageDiv = document.createElement('div');
+
+            signupButton.onclick = () => {
+                const signupEmail = signupEmailForm.value;
+
+                const signupUsername = signupUsernameForm.value;
+
+                if (signupEmail && signupUsername && signupPasswordForm1.value === signupPasswordForm2.value) {
+                    const signupUsername = signupUsernameForm.value;
+                    clearChildren(signupMessageDiv);
+                    const _loader = loader();
+                    signupMessageDiv.appendChild(_loader);
+                    signup(signupEmailForm.value, signupUsernameForm.value, signupPasswordForm1.value).then((userData) => {
+                        if (userData.username && userData.username == signupUsername) {
+                            const successMessage = simpleDiv('Success! Logging in...');
+                            signupMessageDiv.appendChild(successMessage);
+                            login(userData.username, signupPasswordForm1.value).then((_res) => {
+                                hideModal();
+                                handleLogin(_res);
+                            });
+                        } else {
+                            const supportMessage = simpleDiv('Contact support for assistance');
+                            signupMessageDiv.appendChild(supportMessage);
+                        }
+                    }).catch(err => {
+                        signupMessageDiv.removeChild(_loader);
+                        const errorMessage = simpleDiv(err);
+                        signupMessageDiv.appendChild(errorMessage);
+                    });
+                }
+            };
+
+            signupSection.appendChild(emailFormDiv);
+            signupSection.appendChild(signupUsernameFormDiv);
+            signupSection.appendChild(passwordForm1Div);
+            signupSection.appendChild(passwordForm2Div);
+            signupSection.appendChild(signupButton);
+            signupSection.appendChild(signupMessageDiv);
+
+            container.appendChild(loginSection);
+            container.appendChild(signupSection);
+
+            return container;
+        }
+    },
+    'signup': {
+        render: () => {
+            const ting = document.createElement('div');
+            ting.innerHTML = 'Hello world';
+
+            return ting;
+        }
+    },
+    'child': {
+        render: () => {
+            const ting = document.createElement('div');
+            ting.innerHTML = 'I am a child';
+
+            return ting;
+        },
+        childOf: 'signup'
+    }
+};
+
+const showModal = (modalName, args) => {
+    const modal = document.getElementById('modal');
+    
+    const modalContentEl = modal.getElementsByClassName('content')[0];
+
+    clearChildren(modalContentEl);
+
+    const modalWrapper = document.createElement('div');
+
+    const modalData = modals[modalName];
+
+    if (modalData.elementId) {
+        modalWrapper.id = modalData.elementId;
+    }
+
+    const modalContent = modalData.render(args);
+    
+    if (modalData.childOf) {
+        const backButton = document.createElement('div');
+        backButton.innerHTML = 'Back';
+        backButton.className = 'back-button clickable';
+        backButton.onclick = () => {
+            showModal(modalData.childOf);
+        }
+        modalWrapper.appendChild(backButton);
+    }
+
+    modalWrapper.appendChild(modalContent);
+    modalContentEl.appendChild(modalWrapper);
+
+    modal.removeAttribute('hidden');
+};
+
+const getCertInfo = () => new Promise((resolve, reject) => {
+   makeGet(`https://certifier.homegames.io/cert-info`, {
+        'hg-username': window.hgUserInfo.username,
+        'hg-token': window.hgUserInfo.tokens.accessToken
+    }).then((certResponse) => {
+        resolve(JSON.parse(certResponse));
+    });
+});
+
+const requestCert = () => new Promise((resolve, reject) => {
+    makeGet(`https://certifier.homegames.io/get-cert`, {
+        'hg-username': window.hgUserInfo.username,
+        'hg-token': window.hgUserInfo.tokens.accessToken
+    }, true).then((certResponse) => {
+        resolve(certResponse);
+    });
+});
+
+
+const dashboards = {
+    'default': {
+        render: () => new Promise((resolve, reject) => {
+
+            if (!window.hgUserInfo || !window.hgUserInfo.confirmed) {
+                const requiresConfirmationEl = document.createElement('div');
+                const requiresConfirmationText = document.createElement('h2');
+                const confirmationSubMessage = document.createElement('h3');
+                const confirmationSubSubMessage = document.createElement('h4');
+                requiresConfirmationText.innerHTML = `Game creation requires email verification. To verify your account, click on the link the Homegames Robot sent to your email address.`;
+                confirmationSubMessage.innerHTML = `If you don't have a verification link, contact us using the button at the bottom of the page.`;
+                confirmationSubSubMessage.innerHTML = `Once you confirm your account, you'll need to log out and log back in for the changes to take effect. We'll fix that at some point.`;
+                requiresConfirmationEl.appendChild(requiresConfirmationText);
+                requiresConfirmationEl.appendChild(confirmationSubMessage);
+                requiresConfirmationEl.appendChild(confirmationSubSubMessage);
+
+                resolve(requiresConfirmationEl);
+            } else {
+                const memberSinceVal = window.hgUserInfo ? window.hgUserInfo.created : 'Not Available';
+                const meLabel = document.createElement('h2');
+                meLabel.id = 'me-label';
+                meLabel.innerHTML = window.hgUserInfo?.username || 'Unknown';
+
+                const meSection = document.createElement('div');
+                meSection.id = 'me-section';
+
+                const usernameSection = document.createElement('h4');
+                usernameSection.innerHTML = window.hgUserInfo?.username || 'Unknown';
+
+                const memberSince = document.createElement('h4');
+                memberSince.innerHTML = `Member since: ${memberSinceVal}`;
+
+                const certStatus = document.createElement('h4');
+
+                getCertInfo().then((certResponse) => {
+                    const statusDiv = simpleDiv('Cert status: ' + certResponse?.status || 'Unavailable');
+                    certStatus.appendChild(statusDiv);
+
+                    if (!certResponse.status || certResponse.status !== 'VALID') {
+                        const requestCertButton = document.createElement('div');
+                        requestCertButton.innerHTML = 'Request certificate';
+                        requestCertButton.className = 'clickable';
+                        requestCertButton.onclick = () => {
+                            makePost('https://certifier.homegames.io/request-cert', {
+                                message: 'hmmm'
+                            }, false, true).then((__res) => {
+                                console.log('sent request');
+                                console.log(__res);
+                                certStatus.removeChild(requestCertButton);
+                            });
+                        };
+                        certStatus.appendChild(requestCertButton);
+                    }
+                });
+
+        
+                const changeEmail = document.createElement('h4');
+                changeEmail.innerHTML = 'Change email: Coming soon';
+
+                const changePassword = document.createElement('h4');
+                changePassword.innerHTML = 'Change password: Coming soon';
+
+                // meSection.appendChild(usernameSection);
+                meSection.appendChild(memberSince);
+                meSection.appendChild(certStatus);
+                meSection.appendChild(changeEmail);
+                meSection.appendChild(changePassword);
+
+                const gamesButton = simpleDiv('My Games');
+                gamesButton.id = 'my-games-button';
+                gamesButton.className = 'hg-button clickable content-button';
+                // gamesButton.style = 'margin: 2%; float: left;';
+
+                const assetsButton = simpleDiv('My Assets');
+                assetsButton.id = 'my-assets-button';
+                assetsButton.className = 'hg-button clickable content-button';
+                // assetsButton.style = 'margin: 2%; float: left;';
+    
+                gamesButton.onclick = () => updateDashboardContent('games');
+    
+                assetsButton.onclick = () => updateDashboardContent('assets');
+    
+                const el = document.createElement('div');
+    
+                el.appendChild(meLabel);
+                el.appendChild(meSection);
+                el.appendChild(gamesButton);
+                el.appendChild(assetsButton);
+    
+                resolve(el);
+            }
+        })
+    },
+    'games': {
+        render: () => new Promise((resolve, reject) => {
+            const container = document.createElement('div');
+
+            if (!window.hgUserInfo) {
+                container.innerHTML = 'Log in to manage games';
+                resolve(container);
+            } else {
+                const createSection = document.createElement('div');
+                const createHeader = document.createElement('h2');
+                createHeader.innerHTML = 'Create a game';
+
+                const nameFormDiv = document.createElement('div');
+                const nameForm = document.createElement('input');
+                nameForm.type = 'text';
+                nameForm.setAttribute('placeholder', 'Name');
+                nameForm.id = 'new-game-name-form';
+                // nameForm.style = 'width: 25vw; height: 5vh';
+                nameFormDiv.appendChild(nameForm);
+
+                const descriptionFormDiv = document.createElement('div');
+                const descriptionForm = document.createElement('textarea');
+                descriptionForm.id = 'new-game-description-form';
+                descriptionForm.setAttribute('placeholder', 'Description');
+                // descriptionForm.style = 'width: 25vw; height: 8vh';
+                descriptionFormDiv.appendChild(descriptionForm);
+
+                const createButton = simpleDiv('Create');
+                createButton.id = 'create-game-button';
+                createButton.className = 'clickable hg-button content-button';
+                createButton.onclick = () => { 
+                    const _loader = loaderBlack();
+                    createGame(nameForm.value, descriptionForm.value).then(game => {
+                        dashboards['games'].render().then((_container) => {
+                            clearChildren(container);
+                            container.appendChild(_container);
+                        });
+                    });
                 };
 
-                renderHeader();
-            });
-        }
+                createSection.appendChild(createHeader);
+                createSection.appendChild(nameFormDiv);
+                createSection.appendChild(descriptionFormDiv);
+                createSection.appendChild(createButton);
+
+                container.appendChild(createSection);
+
+                const myGamesHeader = document.createElement('h1');
+                // myGamesHeader.style = 'margin-top: 10vh';
+                myGamesHeader.innerHTML = 'My Games';
+
+                container.appendChild(myGamesHeader);
+
+                const _loader = loaderBlack();
+                container.appendChild(_loader);
+               
+                    //'http://localhost:8000/games', {//landlord.homegames.io/games', {
+                makeGet(`${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games?author=${window.hgUserInfo.username}`, {
+                    'hg-username': window.hgUserInfo.username,
+                    'hg-token': window.hgUserInfo.tokens.accessToken
+                }).then((_games) => {
+                    container.removeChild(_loader);
+                    const games = JSON.parse(_games).games;
+
+                    // todo: make this a function
+                    const fields = new Set();
+                    for (const key in games) {
+                        for (const field in games[key]) {
+                            fields.add(field);
+                        }
+                    }
+
+                    const cellWidth = 100 / fields.size;
+
+                    const onCellClick = (index, field) => {
+                        const clickedGame = games[index];
+                        showModal('game-detail', clickedGame);
+                    };
+
+                    const rowStyler = (rowEl) => {
+                        // rowEl.style = 'height: 10vh';
+                    }; 
+
+                    const cellStyler = (cellEl, field) => {
+                        let styleString = `width: ${cellWidth}vw;`;
+                        styleString += 'text-align: center';
+
+                        // cellEl.style = styleString;
+                    };
+ 
+                    const table = sortableTable(games, {key: 'created', order: 'desc'}, onCellClick, {rowStyler, cellStyler});
+                    container.appendChild(table);
+                });
+
+                resolve(container);
+            }
+        }),
+        childOf: 'default'
+    },
+    'assets': {
+        render: () => new Promise((resolve, reject) => {
+            const container = document.createElement('div');
+
+            if (!window.hgUserInfo) {
+                container.innerHTML = 'Log in to manage assets';
+                resolve(container);
+            } else {
+                const uploadSection = document.createElement('div');
+
+                const fileForm = document.createElement('input');
+                fileForm.type = 'file';
+
+                const uploadButton = simpleDiv('Upload');
+                uploadButton.className = 'hg-button content-button';
+
+                uploadSection.appendChild(fileForm);
+                uploadSection.appendChild(uploadButton);
+
+                uploadButton.onclick = () => {
+                    if (fileForm.files.length == 0) {
+                        return;
+                    }
+
+                    const eventHandler = (_type, _payload) => {
+                        if (_type == 'loadstart') {
+                            clearChildren(uploadSection);
+                            const _loader = loaderBlack();
+                            uploadSection.appendChild(_loader);
+                        }
+                    };
+
+                    uploadAsset(fileForm.files[0], eventHandler).then(() => {
+                        dashboards['assets'].render().then((_container) => {
+                            clearChildren(container);
+                            container.appendChild(_container);
+                        });
+                    });
+                };
+
+                const assetsHeader = document.createElement('h1');
+                assetsHeader.innerHTML = 'My Assets';
+
+                container.appendChild(uploadSection);
+
+                const _loader = loaderBlack();
+                container.appendChild(_loader);
+
+                makeGet('https://landlord.homegames.io/assets', {
+                    'hg-username': window.hgUserInfo.username,
+                    'hg-token': window.hgUserInfo.tokens.accessToken
+                }).then((_assets) => {
+                    container.removeChild(_loader);
+                    const assets = JSON.parse(_assets).assets;
+                    const table = sortableTable(assets, {key: 'created', order: 'desc'});
+                    container.appendChild(assetsHeader);
+                    container.appendChild(table);
+                });
+
+                resolve(container);
+            }
+        }),
+        childOf: 'default'
+    },
+    'me': {
+        render: () => {
+            return simpleDiv('meeee');
+        },
+        childOf: 'default'
+    }
+};
+
+const updateDashboardContent = (state) => {
+    getDashboardContent(state).then(dashboardContent => {
+        const dashboardContentEl = document.getElementById('dashboard-content');
+        clearChildren(dashboardContentEl);
+        dashboardContentEl.appendChild(dashboardContent);
+    });
+};
+
+const getDashboardContent = (state) => new Promise((resolve, reject) => {
+
+    const buildThing = (thing) => new Promise((resolve, reject) => {
+        const el = document.createElement('div');
+
+        dashboards[thing].render().then(content => {
+
+            if (dashboards[thing].childOf) {
+                const backButton = document.createElement('div');
+                backButton.innerHTML = "Back";
+                backButton.className = 'clickable back-button hg-button content-button';
+                // backButton.style = 'margin-bottom: 2.5%';
+                backButton.onclick = () => {
+                    updateDashboardContent(dashboards[thing].childOf);
+                };
+                el.appendChild(backButton);
+            }
+
+            el.appendChild(content);
+
+            resolve(el);
+        });
+    });
+
+    if (!state || !dashboards[state]) {
+        resolve(buildThing('default'));
+    } else {
+        resolve(buildThing(state));
+    }
+});
+
+const showContent = (contentName) => {
+    const contentEl = document.getElementById('content');
+
+    const infoContentEl = document.getElementById('info-content');
+    const dashboardContentEl = document.getElementById('dashboard-content');
+
+    if (contentName == 'dashboard') {
+        clearChildren(dashboardContentEl);
+        getDashboardContent().then(dashboardContent => {
+            infoContentEl.setAttribute('hidden', '');
+            dashboardContentEl.appendChild(dashboardContent);
+            dashboardContentEl.removeAttribute('hidden');
+        });
+    } else {
+        dashboardContentEl.setAttribute('hidden', '');
+        infoContentEl.removeAttribute('hidden');
     }
 };
 
 const hideModal = () => {
+    const modal = document.getElementById('modal');
     modal.setAttribute('hidden', '');
 };
 
-const showModal = (modalType) => {
-    modal.innerHTML = modalContent[modalType].content;
-    modal.removeAttribute('hidden');
-    document.getElementById('close-button').addEventListener('click', hideModal);
-    document.getElementById('submit').addEventListener('click', () => {
-        modalContent[modalType].onSubmit()
-//        hideModal();
-    });
+const doSort = (data, sort) => {
+    if (sort) {
+        data.sort((a, b) => {
+            if (sort.order === 'asc') {
+                return (a[sort.key] || 0)  >= (b[sort.key] || 0) ? 1 : -1;
+            } else {
+                return (a[sort.key] || 0) >= (b[sort.key] || 0) ? -1 : 1;
+            }
+        });
+    }
+
+    return data;
 };
 
-const onSignup = () => {
-    showModal('sign-up');
-};
 
-const contentContainer = document.getElementById('content-container');
+const getRows = (data, sortState, cb, stylers) => {
+    const _data = doSort(data, sortState); 
+    const _fields = new Set();
 
-const attemptSignupConfirm = () => {
-    const queryString = window.location.search;
-    const contentContainer = document.getElementById('content-container');
-
-    const failedToGetCode = () => {
-        contentContainer.innerHTML = `Failed to get confirmation code from the link you followed. Contact support@homegames.io for assistance`
-    };
-
-    if (queryString && contentContainer) {
-        const urlParams = new URLSearchParams(queryString);
-        if (!urlParams.get('code')) {
-            failedToGetCode();
-        } else {
-            const confirmHeader = document.createElement('h1');
-            confirmHeader.innerHTML = 'Confirm signup';
-
-            const usernameLabel = document.createElement('label');
-            usernameLabel.innerHTML = 'Username';
-            
-            const usernameForm = document.createElement('input');
-            usernameForm.type = 'text';
-
-            const submitButton = document.createElement('div');
-            submitButton.innerHTML = 'Click to submit';
-            submitButton.onclick = () => {
-                makePost('/verify', {
-                    type: 'confirmUser',
-                    username: usernameForm.value,
-                    code: urlParams.get('code')
-                }).then((_response) => {
-                    const response = JSON.parse(_response);
-                    const successMessage = document.createElement('h2');
-                    successMessage.innerHTML = response.success ? 'Success' : 'Failed. Contact support@homegames.io';
-                    contentContainer.appendChild(successMessage);
-                });
-
-            };
-            
-            contentContainer.appendChild(confirmHeader);
-            contentContainer.appendChild(usernameLabel);
-            contentContainer.appendChild(usernameForm);
-            contentContainer.appendChild(submitButton);
+    for (const key in _data) {
+        for (const field in _data[key]) {
+            _fields.add(field);
         }
-    } else {
-        failedToGetCode();
     }
-};
 
-const show = (content) => {
-    const podcastContent = document.getElementById('podcast-content');
-    const aboutContent = document.getElementById('about-content');
+    let _rows = [];
 
-    const podcastTab = document.getElementById('podcast-tab');
-    const aboutTab = document.getElementById('about-tab');
+    for (const key in _data) {
+        const row = document.createElement('tr');
 
-    if (content === 'podcast') {
-        aboutContent.setAttribute('hidden', '');
-        podcastContent.removeAttribute('hidden');
+        if (stylers && stylers.rowStyler) {
+            stylers.rowStyler(row);
+        }
 
-        aboutTab.classList.remove('active');
-        podcastTab.classList.add('active');
-    } else {
-        podcastContent.setAttribute('hidden', '');
-        aboutContent.removeAttribute('hidden');
+        for (const field of _fields) {
+            const obj = _data[key];
+            const val = obj[field];
+            
+            const cell = document.createElement('td');
+
+            if (stylers && stylers.cellStyler) {
+                stylers.cellStyler(cell, field);
+            }
+            
+            if (cb) {
+                row.className = 'clickable bluehover';
+            }
+
+            cell.onclick = () => {
+                cb && cb(key, field);
+            };
+
+            cell.appendChild(simpleDiv(val));
+            row.appendChild(cell);
+        }
+
+        _rows.push(row);
+    }
+
+    return _rows;
+}
+
+const sortableTable = (data, defaultSort, cb, stylers) => {
+    const tableEl = document.createElement('table');
+    const tHead = document.createElement('thead');
+    const tBody = document.createElement('tbody');
+
+    let sortState = Object.assign({}, defaultSort);
+
+    const fields = new Set();
+    for (const key in data) {
+        for (const field in data[key]) {
+            fields.add(field);
+        }
+    }
+
+    const header = document.createElement('tr');
+
+    const _fields = Array.from(fields);
+
+    let rows = getRows(data, sortState, cb, stylers);
+
+    for (const i in _fields) {
+        const field = _fields[i];
+        const headerCell = document.createElement('th');
+        headerCell.className = 'clickable';
         
-        podcastTab.classList.remove('active');
-        aboutTab.classList.add('active');
+        headerCell.onclick = () => {
+            if (sortState.key == field) {
+                sortState.order = sortState.order === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortState = { 
+                    key: field,
+                    order: 'asc'
+                };
+            }
+            const newRows = getRows(data, sortState, cb, stylers);
+
+            for (const i in rows) {
+                const rowEl = rows[i];
+                tBody.removeChild(rowEl);
+            }
+
+            rows = newRows;
+
+            newRows.forEach(row => {
+                tBody.appendChild(row);
+            });
+
+        };
+
+        headerCell.appendChild(simpleDiv(field));
+
+        header.appendChild(headerCell);
+    }
+
+    tHead.appendChild(header);
+
+    rows.forEach(row => {
+        tBody.appendChild(row);
+    });
+
+    tableEl.appendChild(tHead);
+    tableEl.appendChild(tBody);
+
+    return tableEl;
+};
+
+const showOrHide = (id) => {
+    const el = document.getElementById(id);
+    if (el) {
+        if (el.attributes.hidden) {
+            el.removeAttribute('hidden');
+        } else {
+            el.setAttribute('hidden', '');
+        }
     }
 };
+
+const goHome = () => {
+    window.location.replace(`${location.protocol}//${location.hostname}:${location.port}`);
+};
+
+const handleDownload = (stable) => {
+    const path = stable ? '/latest/stable' : '/latest';
+    showModal('download', path);
+};
+
+const confirmSignup = (username, code) => new Promise((resolve, reject) => {
+    makePost('https://auth.homegames.io', {
+        username,
+        code,
+        type: 'confirmUser'
+    }).then(resolve);
+});
+
+const listGames = (limit = 10, offset = 0) => new Promise((resolve, reject) => { 
+    //'http://landlord.homegames.io/games').then((_games) => {
+    const gameUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games`;
+    makeGet(gameUrl).then((_games) => {
+        resolve(JSON.parse(_games));
+    }); 
+});
+
+const listTags = (limit = 10, offset = 0) => new Promise((resolve, reject) => { 
+    //'http://landlord.homegames.io/games').then((_games) => {
+    const tagUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/tags`;
+    makeGet(tagUrl).then((_tags) => {
+        resolve(JSON.parse(_tags));
+    }); 
+});
+
+const searchGames = (query) => new Promise((resolve, reject) => {
+    const gameUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games?query=${query}`;
+    makeGet(gameUrl).then((_games) => {
+        resolve(JSON.parse(_games));
+    });
+});
+
+const searchTags = (query) => new Promise((resolve, reject) => {
+    const tagUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/tags?query=${query}`;
+    makeGet(tagUrl).then((_tags) => {
+        resolve(JSON.parse(_tags));
+    });
+});
+
+const gamesContent = document.getElementById('games-content');
+const tagsContent = document.getElementById('tags-content');
+const searchBox = document.getElementById('games-search');
+
+let searchTimer;
+
+const renderTags = (tags) => {
+    clearChildren(tagsContent);
+    if (tags && tags.tags.length > 0) {
+        tags.tags.forEach(tag => {
+            const _div = simpleDiv();
+            const tagName = simpleDiv(tag);
+            _div.onclick = () => {
+                showModal('tag', tag);
+            };
+
+            _div.appendChild(tagName);
+            // _div.style = "width: 10vw; margin-left: 1vw; margin-right: 1vw;  display: inline-block; height: 10vh; border: 2px solid black; border-radius: 5px; text-align: center; line-height: 10vh;";
+            tagsContent.appendChild(_div);
+        });
+    } else {
+        tagsContent.appendChild(simpleDiv('No results'));
+    }
+};
+
+const tagResultsHeader = document.getElementById('tags-results-header');
+const gameResultsHeader = document.getElementById('games-results-header');
+
+const renderGames = (games) => {
+    clearChildren(gamesContent);
+
+    if (games && games.games) {
+        games.games.forEach(g => {
+            const _div = simpleDiv();
+            const gameName = simpleDiv(g.name);
+            const gameAuthor = simpleDiv('Author: ' + g.author);
+            
+            _div.onclick = () => {
+                showModal('game-preview', g);
+            };
+
+            _div.appendChild(gameName);
+            _div.appendChild(gameAuthor);
+            // _div.style = "width: 30vw; margin-left: .5vw; margin-right: .5vw;  display: inline-block; height: 20vh; border: 2px solid black; border-radius: 5px; text-align: center; line-height: 10vh;";
+            gamesContent.appendChild(_div);
+        });
+    } else {
+        gamesContent.appendChild(simpleDiv('No results'));
+    }
+};
+
+//listGames().then(renderGames);
+//listTags().then(renderTags);
+

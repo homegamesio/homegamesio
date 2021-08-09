@@ -1,0 +1,66 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Homegames</title>
+        <link rel="stylesheet" href="app.css">
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+        <link rel="manifest" href="/site.webmanifest">
+    </head>
+
+    <body>
+        <div id="modal" class="fade-in" hidden>
+            <div id="modal-content">
+                <div class="close clickable" onclick="hideModal()">X</div>
+                <div class="back"></div>
+                <div class="content"></div>
+            </div>
+        </div>
+        <div id="main">
+            <div id="page-container">
+                <div id="header">
+                    <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
+                </div>
+                <div id="content">
+                    <div>
+                        <p>
+                            We have a semi-weekly podcast where Joseph & Yazeed give updates on Homegames development. We upload new episodes every other Wednesday.
+                        </p>
+                        <p>
+                            Send us a message using the contact form below to have your question featured on the podcast!
+                        </p>
+                    </div>
+                    <div id="podcast-media">
+                        <div>
+                            <div style="width: 40%; float: left; margin-right: 10%;" id='buzzsprout-large-player-685979'></div>
+                        </div>
+                        <div style="width: 40%; float: left;">
+                            <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/videoseries?list=PL9BiQ9HyAQCM2ATci_tbqfamztpy5iUDq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                        </div>
+                    </div>
+                    <div style="clear:both">
+                        <a href="https://podcasts.apple.com/us/podcast/the-homegames-podcast/id1484750864" target="_blank"> <img src="/assets/apple-badge.png" style="width: 200px;  margin: 50px"></img></a>
+                        <a href="https://open.spotify.com/show/0ZjCaMQld0OcBqKgOIUiez?si=Kum5Pf1KSjKjIDtBdyafFA&dl_branch=1" target="_blank"><img src="/assets/spotify-badge.png" style="width: 200px; margin: 50px"></img></a>
+                    </div>
+                    <div id="podcast-downloads">
+                        <h1 style="text-align: center">Downloads</h1>
+                        <h2>Coming soon!</h2>
+                        <div>At some point in the future, this will be a list of the raw MP3 & MP4 podcast files we upload to streaming services.</div>
+                    </div>
+                </div>
+                <div id="footer" onclick="showModal('support')" class="clickable">
+                    <h1>
+                        Contact
+                    </h1>
+                </div>
+            </div>
+        </div>
+    </body>
+    <script src="client.js"></script>
+    <script type='text/javascript' charset='utf-8' src='https://www.buzzsprout.com/685979.js?container_id=buzzsprout-large-player-685979&player=large'></script>
+    <style>
+        #content input {height: 40px; line-height: 40px; width: 20%; padding: 5px; margin-left: 2%; margin-right: 78%; margin-top: 1%}
+        #submit-button {margin-top: 1%; margin-left: 2%; text-decoration: underline;}
+    </style>
+
+</html>

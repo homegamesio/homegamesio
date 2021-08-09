@@ -1,0 +1,120 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Homegames</title>
+        <link rel="stylesheet" href="app.css">
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+        <link rel="manifest" href="/site.webmanifest">
+    </head>
+
+    <body>
+        <div id="modal" class="fade-in" hidden>
+            <div id="modal-content">
+                <div class="close clickable" onclick="hideModal()">X</div>
+                <div class="back"></div>
+                <div class="content"></div>
+            </div>
+        </div>
+        <div id="main">
+            <div id="page-container">
+                <div id="header">
+                    <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
+                </div>
+                <div id="content">
+                    <p>This roadmap is a rough outline of the project goals we currently have in mind. Some of these may change or not happen at all. The dates are estimates - we aren't promising we will hit them. If you have any feedback on this roadmap, let us know using the contact button at the buttom of the page.</p>
+
+                    <p>Click on a roadmap item to get an explanation for why we want to do it</p>
+                    <ul>
+                        <li onclick="showOrHide('sub-a')">
+                            <div class="clickable">
+                                <strong>October 2021</strong>: Rewritten core components in Typescript
+                            </div>
+                            <div hidden id="sub-a">
+                                Over the course of the development of the core guts of Homegames, we created a lot of technical debt that makes it difficult for people to understand the code. It also makes it difficult for us to add features, since the codebase has become fragile and stuff tends to break when we make changes. All of this is to say we need to fully rewrite a lot of our code. There are many benefits to using Typescript that don't necessarily need to be described here, but basically it's good and we want to use it.  
+                            </div>
+                        </li>
+                        <li onclick="showOrHide('sub-b')">
+                            <div class="clickable">
+                                <strong>November 2021</strong>: Basic documentation for core components
+                            </div>
+                            <div hidden id="sub-b">
+                                We've tried to document pieces here and there throughout development, but never committed much time to it because the pieces themselves were changing so fast. Now that we have a solid model of how all of this works, we're in a better position to document it.
+                            </div>
+                        </li>
+                        <li onclick="showOrHide('sub-c')">
+                            <div class="clickable">
+                                <strong>December 2021</strong>: Developer guide for building games
+                            </div>
+                            <div hidden id="sub-c">
+                                Documenting core components is one thing, but giving developers good resources to build stuff is another. We don't think we can really call this "done" at any point because we will need to update guides as we add features, but we want to have an initial version of this done by the end of 2021.
+                            </div>
+                        </li>
+                        <li onclick="showOrHide('sub-e')">
+                            <div class="clickable">
+                                <strong>January 2022</strong>: Homegames locker service completion
+                            </div>
+                            <div hidden id="sub-e">
+                                The idea behind the locker service is that the Homegames server will need to access information that we (the Homegames team) should not be able to access. For example, if someone makes a game that integrates with Twitter, then that game will need access a Twitter API key. Homegames does not currently have any integrations with Twitter. So let's say the game needs to use the user's (the person running the Homegames server) Twitter API key. The locker will be a service where a user can store an encrypted version of their Twitter API key that can later be accessed by their Homegames server when running games.
+                            </div>
+                        </li> 
+                        <li onclick="showOrHide('sub-f')">
+                            <div class="clickable">
+                                <strong>February 2022</strong>: Signed binaries
+                            </div>
+                            <div hidden id="sub-f">
+                                As of August 2021, our download process feels pretty sketchy. We use <a href="https://github.com/vercel/pkg" target="_blank">pkg</a> to build binaries which are then pushed to S3 and linked to from the Homegames build service. These binaries are not signed, so when you download them on Windows or MacOS (shout out to Linux), you get a warning telling you the thing you just downloaded is from an unidentified developer. This turns people off of the whole thing, so we need to make that process smoother. We've looked into this and apparently it just costs money? Anyway we'll figure it out.
+                            </div>
+                        </li>
+                        <li onclick="showOrHide('sub-g')">
+                            <div class="clickable">
+                                <strong>April 2022</strong>: Client integration with social APIs
+                            </div>
+                            <div hidden id="sub-g">
+                                We imagine something developers would want to do is build games that integrate with players' social media profiles. For example, let's say someone wants to build a game that loads all of someone's Facebook photos and lets them view them as a slideshow. Doesn't sound like a great game, but it's something we want to make possible. Integrating with Twitter, Facebook, Instagram, etc. would involve adding dependencies to the core Homegames libraries and would likely have an impact on our terms of service in some way. We need to figure out how all of that would work before we can offer any social media integrations in Homegames.
+                            </div>
+                        </li> 
+                        <li onclick="showOrHide('sub-h')">
+                            <div class="clickable">
+                                <strong>June 2022</strong>: Game catalog service
+                            </div>
+                            <div hidden id="sub-h">
+                                Published games are currently only accessible by ID, meaning the only way someone can share a game with you is by sending you the ID directly. This doesn't really work when the whole point of this thing is to share games with people, so we want to add a "game catalog" section to the Homegames website where people can search for games and try them out via picodeg.io - our public Homegames instance. At some point in the future it'd be nice to access the catalog through the Homegames server itself, but by June 2022 we want to have it available in the website. 
+                            </div>
+                        </li>
+                        <li onclick="showOrHide('sub-i')">
+                            <div class="clickable">
+                                <strong>2023</strong>: Game save / achievement service
+                            </div>
+                            <div hidden id="sub-i">
+                                This is kind of a rough idea as of August 2021, since we're still deciding whether or not we even want to offer any kind of persistence for games in the service. The main pro-game save argument is "people will build things that can't be fully experienced in a short lived multiplayer setting," while the main anti-game save argument is "Homegames was built around short lived multiplayer experiences and that should remain its focus". We're still figuring it out.
+                            </div>
+                        </li>
+                        <li onclick="showOrHide('sub-j')">
+                            <div class="clickable">
+                                <strong>2023</strong>: "Homegames premium"
+                            </div>
+                            <div hidden id="sub-j">
+                                This is a very fuzzy idea as of August 2021. Basically, we recognize that downloading a game server to your computer and running it yourself is not something a lot of people want to do. If this project gets a significant user base and we build interesting games that people want to play, then it makes sense to make the games easier to access. To us, that seems like a premium verison of Homegames where we host it for you and provide some nice extra features. We won't seriously consider this until we feel like it's worth paying for, which is not any time soon.  
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                <div id="footer" onclick="showModal('support')" class="clickable">
+                    <h1>
+                        Contact
+                    </h1>
+                </div>
+            </div>
+        </div>
+    </body>
+    <script src="client.js"></script>
+    <style>
+        #content p {margin: 2.5%;font-weight: bold;}
+        #content ul {list-style-type: none;}
+        #content ul li {margin-bottom: 20px;}
+        #content ul li div:first-child {text-decoration: underline;}
+        #content ul li div:last-child {margin-top: 10px;}
+    </style>
+
+</html>
