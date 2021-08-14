@@ -336,8 +336,10 @@ const modals = {
         }
     },
     'download': {
+        elementId: 'download-modal',
         render: (path) => {
             const container = document.createElement('div');
+            container.style = 'margin: 2%';
 
             const _loader = loader();
             container.appendChild(_loader);
@@ -346,21 +348,23 @@ const modals = {
                 container.removeChild(_loader);
                 const buildInfo = JSON.parse(_buildInfo);
 
-                const publishedInfoDiv = simpleDiv(`Date published: ${buildInfo.datePublished}`);
+                const publishedInfoDiv = simpleDiv(`Date published: ${new Date(buildInfo.datePublished)}`);
                 const commitAuthorDiv = simpleDiv(`Author: ${buildInfo.commitInfo.author}`);
 
-                const commitMessageDiv = simpleDiv(`Commit message: ${buildInfo.commitInfo.message}`);
+                const commitMessageDiv = simpleDiv(`Commit message:<br />${buildInfo.commitInfo.message}`);
 
                 const commitHashDiv = simpleDiv(`Commit hash: ${buildInfo.commitInfo.commitHash}`);
 
                 container.appendChild(publishedInfoDiv);
                 container.appendChild(commitAuthorDiv);
-                container.appendChild(commitMessageDiv);
                 container.appendChild(commitHashDiv);
+                container.appendChild(commitMessageDiv);
 
                 const winDiv = document.createElement('div');
                 winDiv.className = 'hg-button';
+                winDiv.style = 'width: 20%; border: 1px solid white; margin: 2%; border-radius: 5px; height: 40px; text-align: center; line-height: 40px;';
                 const winLink = document.createElement('a');
+                winLink.style = 'color: white; text-decoration: none;';
                 winLink.download = `homegames-win`;
                 winLink.href = buildInfo.windowsUrl;
                 winLink.innerHTML = 'Windows';
@@ -368,7 +372,9 @@ const modals = {
 
                 const macDiv = document.createElement('div');
                 macDiv.className = 'hg-button';
+                macDiv.style = 'width: 20%; border: 1px solid white; margin: 2%; border-radius: 5px; height: 40px; text-align: center; line-height: 40px;';
                 const macLink = document.createElement('a');
+                macLink.style = 'color: white; text-decoration: none;';
                 macLink.download = `homegames-mac`;
                 macLink.href = buildInfo.macUrl;
                 macLink.innerHTML = 'Mac';
@@ -376,7 +382,9 @@ const modals = {
 
                 const linuxDiv = document.createElement('div');
                 linuxDiv.className = 'hg-button';
+                linuxDiv.style = 'width: 20%; border: 1px solid white; margin: 2%; border-radius: 5px; height: 40px; text-align: center; line-height: 40px;';
                 const linuxLink = document.createElement('a');
+                linuxLink.style = 'color: white; text-decoration: none;';
                 linuxLink.download = `homegames-linux`;
                 linuxLink.href = buildInfo.linuxUrl;
                 linuxLink.innerHTML = 'Linux';
