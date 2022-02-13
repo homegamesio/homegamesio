@@ -69,17 +69,24 @@ const formatDate = (date) => {
 
 };
 
-const createGame = (name, description) => new Promise((resolve, reject) => {
+const createGame = (name, description, thumbnail) => new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
+
+    const formData = new FormData();
+    formData.append('thumbnail', thumbnail);
+    formData.append('name', name);
+    formData.append('description', description);
     request.open("POST", `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games`);
     //"http://localhost:8000/games");
     //landlord.homegames.io/games");
 
     request.setRequestHeader('hg-username', window.hgUserInfo.username);
     request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
-    request.setRequestHeader("Content-Type", "application/json");
+//    request.setRequestHeader("Content-Type", "multipart/form-data");
 
     request.onreadystatechange = (e) => {
+        console.log('eeeee');
+        console.log(e);
         if (request.readyState === XMLHttpRequest.DONE) {
             if (request.status === 200) {
                 resolve(JSON.parse(request.response));
@@ -94,7 +101,8 @@ const createGame = (name, description) => new Promise((resolve, reject) => {
         description
     };
 
-    request.send(JSON.stringify(payload));
+//    request.send(JSON.stringify(payload));
+    request.send(formData);
 });
 
 const uploadAsset = (asset, cb) => new Promise((resolve, reject) => {
@@ -407,6 +415,8 @@ const modals = {
 
             let editingDescription = false;
 
+            console.log("GAME");
+            console.log(game);
             const gameHeader = document.createElement('h1');
             const idSubHeader = document.createElement('h3');
             gameHeader.innerHTML = game.name;
@@ -1081,22 +1091,52 @@ const dashboards = {
                 // descriptionForm.style = 'width: 25vw; height: 8vh';
                 descriptionFormDiv.appendChild(descriptionForm);
 
+                const thumbnailDiv = document.createElement('div');
+                const thumbnailLabel = document.createElement('label');
+                thumbnailLabel.innerHTML = 'Thumbnail';
+                thumbnailDiv.appendChild(thumbnailLabel);
+
+                const thumbnailFormDiv = document.createElement('div');
+                const thumbnailForm = document.createElement('input');
+                thumbnailForm.type = 'file';
+                thumbnailForm.setAttribute('accept', 'image/png, image/jpeg');
+                thumbnailFormDiv.appendChild(thumbnailDiv);
+                thumbnailFormDiv.appendChild(thumbnailForm);
+
+                let uploadedFile;
+
+                thumbnailForm.oninput = (e) => {
+                    console.log('jsdfgdfg');
+                    console.log(thumbnailForm.files);
+                    if (thumbnailForm.files && thumbnailForm.files.length > 0) {
+                        const file = thumbnailForm.files[0];
+                        if (file.size < 2000000) {
+                            uploadedFile = file;
+                        } else {
+                            console.error('image too large');
+                        }
+                    }
+                };
+
                 const createButton = simpleDiv('Create');
                 createButton.id = 'create-game-button';
                 createButton.className = 'clickable hg-button content-button';
                 createButton.onclick = () => { 
                     const _loader = loaderBlack();
-                    createGame(nameForm.value, descriptionForm.value).then(game => {
-                        dashboards['games'].render().then((_container) => {
-                            clearChildren(container);
-                            container.appendChild(_container);
+                    if (uploadedFile && nameForm.value && descriptionForm.value) {
+                        createGame(nameForm.value, descriptionForm.value, uploadedFile).then(game => {
+                            dashboards['games'].render().then((_container) => {
+                                clearChildren(container);
+                                container.appendChild(_container);
+                            });
                         });
-                    });
+                    }
                 };
 
                 createSection.appendChild(createHeader);
                 createSection.appendChild(nameFormDiv);
                 createSection.appendChild(descriptionFormDiv);
+                createSection.appendChild(thumbnailFormDiv);
                 createSection.appendChild(createButton);
 
                 container.appendChild(createSection);
@@ -1303,15 +1343,11 @@ const doSort = (data, sort) => {
 };
 
 
-const getRows = (data, sortState, cb, stylers) => {
+const getRows = (data, fields, sortState, cb, stylers) => {
     const _data = doSort(data, sortState); 
-    const _fields = new Set();
 
-    for (const key in _data) {
-        for (const field in _data[key]) {
-            _fields.add(field);
-        }
-    }
+    console.log(_data);
+    console.log(data);
 
     let _rows = [];
 
@@ -1322,7 +1358,7 @@ const getRows = (data, sortState, cb, stylers) => {
             stylers.rowStyler(row);
         }
 
-        for (const field of _fields) {
+        for (const field of fields) {
             const obj = _data[key];
             const val = obj[field];
             
@@ -1340,7 +1376,22 @@ const getRows = (data, sortState, cb, stylers) => {
                 cb && cb(key, field);
             };
 
-            cell.appendChild(simpleDiv(val));
+            console.log('whjat the fiuck');
+            console.log(obj);
+            console.log(val);
+            console.log(field);
+            console.log(key);
+
+            if (field  === 'thumbnail') {
+                const imageEl = document.createElement('img');
+                imageEl.setAttribute('src', val);
+                imageEl.setAttribute('width', 200);
+                const div = simpleDiv();
+                div.appendChild(imageEl);
+                cell.appendChild(div);
+            } else {
+                cell.appendChild(simpleDiv(val));
+            }
             row.appendChild(cell);
         }
 
@@ -1357,21 +1408,21 @@ const sortableTable = (data, defaultSort, cb, stylers) => {
 
     let sortState = Object.assign({}, defaultSort);
 
-    const fields = new Set();
+    const _fields = new Set();
     for (const key in data) {
         for (const field in data[key]) {
-            fields.add(field);
+            _fields.add(field);
         }
     }
 
     const header = document.createElement('tr');
 
-    const _fields = Array.from(fields);
+    const fields = Array.from(_fields);
 
-    let rows = getRows(data, sortState, cb, stylers);
+    let rows = getRows(data, fields, sortState, cb, stylers);
 
-    for (const i in _fields) {
-        const field = _fields[i];
+    for (const i in fields) {
+        const field = fields[i];
         const headerCell = document.createElement('th');
         headerCell.className = 'clickable';
         
@@ -1384,7 +1435,7 @@ const sortableTable = (data, defaultSort, cb, stylers) => {
                     order: 'asc'
                 };
             }
-            const newRows = getRows(data, sortState, cb, stylers);
+            const newRows = getRows(data, fields, sortState, cb, stylers);
 
             for (const i in rows) {
                 const rowEl = rows[i];
@@ -1429,6 +1480,14 @@ const showOrHide = (id) => {
 
 const goHome = () => {
     window.location.replace(`${location.protocol}//${location.hostname}:${location.port}`);
+};
+
+const navigateToCatalog = () => {
+    window.location.assign('/catalog');
+};
+
+const navigateToPicodegio = () => {
+    window.location.assign('http://picodeg.io');
 };
 
 const handleDownload = (stable) => {
@@ -1524,6 +1583,13 @@ const renderGames = (games) => {
         gamesContent.appendChild(simpleDiv('No results'));
     }
 };
+
+const getAllGames = () => new Promise((resolve, reject) => {
+    const gamesUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games`;
+    makeGet(gamesUrl).then((games) => {
+        resolve(JSON.parse(games));
+    });
+});
 
 //listGames().then(renderGames);
 //listTags().then(renderTags);

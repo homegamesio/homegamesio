@@ -278,6 +278,11 @@ const server = http.createServer((req, res) => {
                 res.setHeader("Content-Type", 'text/html');
                 const payload = fs.readFileSync(path.join(__dirname, 'developers.html'));
                 res.end(payload);
+            } else if (req.url.startsWith('/catalog')) {
+                res.statusCode = 200;
+                res.setHeader("Content-Type", 'text/html');
+                const payload = fs.readFileSync(path.join(__dirname, 'catalog.html'));
+                res.end(payload);
             } else if (req.url.startsWith('/roadmap')) {
                 res.statusCode = 200;
                 res.setHeader("Content-Type", 'text/html');

@@ -8,6 +8,11 @@
     margin: 0;
 }
 
+#catalog-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
 .close {
     width: 5%;
     margin: .5%;
@@ -150,8 +155,10 @@ body {
     margin: 0;
 }
 
-#downloads {
+#downloads, #top-buttons {
     text-align: center;
+    clear: both;
+    padding-top: 20px;
 }
 
 #logo {
@@ -229,10 +236,10 @@ body {
   }
 }
 
-#downloads .hg-button {
+#downloads .hg-button, #top-buttons .hg-button {
     border-radius: 3px;
     border: 1px solid black;
-    width: 15%;
+    width: 10%;
     text-align: center;
     /*margin-left: 20%;*/
     line-height: 100px;
