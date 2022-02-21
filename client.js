@@ -409,6 +409,52 @@ const modals = {
             return container;
         }
     },
+    'catalog-game-detail': {
+        render: (game) => {
+            const container = document.createElement('div');
+
+            const titleContainer = document.createElement('h1');
+            titleContainer.innerHTML = game.name || 'Unnamed game';
+
+            const authorContainer = document.createElement('div');
+            authorContainer.innerHTML = game.createdBy || 'Unknown author';
+
+            const createdContainer = document.createElement('div');
+            createdContainer.innerHTML = `Created ${new Date(game.createdAt)}`;
+
+            const imageContainer = document.createElement('div');
+            const imageEl = document.createElement('img');
+            imageEl.setAttribute('src', game.thumbnail);
+            imageContainer.appendChild(imageEl);
+
+            const descriptionContainer = document.createElement('div');
+            descriptionContainer.innerHTML = game.description || 'No description available';
+
+            const versionSelectorContainer = document.createElement('div');
+            const versionDetailContainer = document.createElement('div');
+
+            makeGet(`https://landlord.homegames.io/games/${game.id}`).then(_gameDetails => {
+                console.log('got game details');
+                const gameDetails = JSON.parse(_gameDetails);
+                console.log(gameDetails);
+                if (!gameDetails.versions || gameDetails.versions.length < 1) {
+                    const noVersionsContainer = document.createElement('div');
+                    noVersionsContainer.innerHTML = 'No published versions';
+                    versionDetailContainer.appendChild(noVersionsContainer);
+                }
+            });
+
+            container.appendChild(titleContainer);
+            container.appendChild(authorContainer);
+            container.appendChild(createdContainer);
+            container.appendChild(imageContainer);
+            container.appendChild(descriptionContainer);
+            container.appendChild(versionSelectorContainer);
+            container.appendChild(versionDetailContainer);
+
+            return container;
+        }
+    },
     'game-detail': {
         render: (game) => {
             const container = document.createElement('div');

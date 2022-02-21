@@ -13,6 +13,10 @@
     grid-template-columns: 1fr 1fr 1fr;
 }
 
+#catalog-container div :hover {
+    cursor: pointer;
+}
+
 .close {
     width: 5%;
     margin: .5%;
