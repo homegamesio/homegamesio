@@ -1630,8 +1630,8 @@ const renderGames = (games) => {
     }
 };
 
-const getAllGames = () => new Promise((resolve, reject) => {
-    const gamesUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games`;
+const getAllGames = (page) => new Promise((resolve, reject) => {
+    const gamesUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games?page=${page || 1}`;
     makeGet(gamesUrl).then((games) => {
         resolve(JSON.parse(games));
     });

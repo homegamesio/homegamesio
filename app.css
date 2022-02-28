@@ -11,6 +11,8 @@
 #catalog-container {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
+    min-height: 90%;
+    max-height: 90%;
 }
 
 #catalog-container div :hover {
