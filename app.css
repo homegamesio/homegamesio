@@ -161,10 +161,12 @@ body {
     margin: 0;
 }
 
-#downloads, #top-buttons {
+#top-buttons {
     text-align: center;
     clear: both;
     padding-top: 20px;
+    display: inline-block;
+    width: 100%;
 }
 
 #logo {
