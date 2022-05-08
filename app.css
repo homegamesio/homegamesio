@@ -316,7 +316,7 @@ body {
     padding: 3%;
 }
 
-#my-games-button, #my-assets-button {
+#my-games-button, #my-assets-button, #admin-button {
     border-radius: 5px;
     border: 1px solid black;
     width: 20%;

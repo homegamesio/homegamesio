@@ -177,7 +177,8 @@ const login = (username, password) => new Promise((resolve, reject) => {
                     accessToken: loginData.accessToken,
                     idToken: loginData.idToken,
                     refreshToken: loginData.refreshToken
-                }
+                },
+                isAdmin: loginData.isAdmin || false
             });
         }
     });
@@ -1095,9 +1096,13 @@ const dashboards = {
                 assetsButton.className = 'hg-button clickable content-button';
                 // assetsButton.style = 'margin: 2%; float: left;';
     
+                const adminButton = simpleDiv('Admin');
+                adminButton.id = 'admin-button';
+                adminButton.className = 'hg-button clickable content-button';
+                
                 gamesButton.onclick = () => updateDashboardContent('games');
-    
                 assetsButton.onclick = () => updateDashboardContent('assets');
+                adminButton.onclick = () => updateDashboardContent('admin');
     
                 const el = document.createElement('div');
     
@@ -1105,6 +1110,7 @@ const dashboards = {
                 el.appendChild(meSection);
                 el.appendChild(gamesButton);
                 el.appendChild(assetsButton);
+                el.appendChild(adminButton);
     
                 resolve(el);
             }
@@ -1307,6 +1313,115 @@ const dashboards = {
         render: () => {
             return simpleDiv('meeee');
         },
+        childOf: 'default'
+    },
+    'admin': {
+        render: () => new Promise((resolve, reject) => {
+            const container = document.createElement('div');
+
+            if (!window.hgUserInfo) {
+                container.innerHTML = 'Log in to manage assets';
+            } else {
+                const adminHeader = document.createElement('h1');
+                adminHeader.innerHTML = 'Admin';
+
+                container.appendChild(adminHeader);
+                makeGet('https://landlord.homegames.io/admin/publish_requests', {
+                    'hg-username': window.hgUserInfo.username,
+                    'hg-token': window.hgUserInfo.tokens.accessToken
+                }).then((_publishRequests) => {
+                    const tableContainer = document.createElement('table');
+                    const tableHeaderRow = document.createElement('tr');
+
+                    const requestIdHeader = document.createElement('th');
+                    requestIdHeader.innerHTML = 'Request ID';
+
+                    const requesterHeader = document.createElement('th');
+                    requesterHeader.innerHTML = 'Requester';
+
+                    const codeHeader = document.createElement('th');
+                    codeHeader.innerHTML = 'Code';
+
+                    const actionHeader = document.createElement('th');
+                    actionHeader.innerHTML = 'Action';
+
+                    tableHeaderRow.appendChild(requestIdHeader);
+                    tableHeaderRow.appendChild(requesterHeader);
+                    tableHeaderRow.appendChild(codeHeader);
+                    tableHeaderRow.appendChild(actionHeader);
+
+                    tableContainer.appendChild(tableHeaderRow);
+                    console.log('sdfkjdsfds');
+                    console.log(_publishRequests);
+                    const publishRequests = JSON.parse(_publishRequests);
+                    for (const index in publishRequests.requests) {
+                        const request = publishRequests.requests[index];
+
+                        const row = document.createElement('tr');
+
+                        const requestIdCell = document.createElement('td');
+                        const requesterCell = document.createElement('td');
+                        const codeCell = document.createElement('td');
+                        const actionCell = document.createElement('td');
+                        
+                        requestIdCell.innerHTML = request.request_id;
+                        requesterCell.innerHTML = request.requester;
+                        const codeLink = document.createElement('a');
+                        codeLink.target = '_blank';
+                        codeLink.href = `https://github.com/${request.repo_owner}/${request.repo_name}/commit/${request.commit_hash}`;
+                        codeLink.innerHTML = 'Link';
+                        codeCell.appendChild(codeLink);
+
+                        row.appendChild(requestIdCell);
+                        row.appendChild(requesterCell);
+                        row.appendChild(codeCell);
+
+                        const actionForm = document.createElement('input');
+                        actionForm.type = 'text';
+
+                        const approveButton = document.createElement('div');
+                        const rejectButton = document.createElement('div');
+                        approveButton.innerHTML = 'Approve';
+                        approveButton.onclick = () => {
+                            if (actionForm.value) {
+                                makePost(`https://landlord.homegames.io/admin/request/${request.request_id}/action`, {
+                                    action: 'approve',
+                                    message: actionForm.value
+                                }, false, true).then(() => {
+                                    console.log("need to update ui");
+                                });
+                            }
+                        };
+
+                        rejectButton.innerHTML = 'Reject';
+                        rejectButton.onclick = () => {
+                            if (actionForm.value) {
+                                makePost(`https://landlord.homegames.io/admin/request/${request.request_id}/action`, {
+                                    action: 'reject',
+                                    message: actionForm.value
+                                }, false, true).then(() => {
+                                    console.log("need to update ui");
+                                });
+                            }
+                        };
+
+
+                        actionCell.appendChild(rejectButton);
+                        actionCell.appendChild(actionForm);
+                        actionCell.appendChild(approveButton);
+                        
+                        row.appendChild(actionCell);
+                        tableContainer.appendChild(row);
+                        // container.appendChild(requestContainer);
+                    }
+
+                    container.appendChild(tableContainer);
+                });
+                
+            }
+            resolve(container);
+
+        }),
         childOf: 'default'
     }
 };
