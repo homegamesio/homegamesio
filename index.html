@@ -29,21 +29,23 @@
                             <h1>Homegames is a free, open-source game platform</h1>
                             <h3>Play browser-based games built by the Homegames community or build your own</h3>
                         </div>
-                        <div id="downloads">
-                            <h2>Downloads</h2>
-                            <div>
-                                <div style="margin-left: 32.5%; margin-right: 2.5%; background: #A0EB5D; font-size: 1.1em;" onclick="handleDownload(true)" class="clickable hg-button content-button">Latest (stable)</div>
-                                <div style="margin-left: 2.5%; background: rgba(255, 247, 142, 255); font-size: 1.1em;" onclick="handleDownload()" class="clickable hg-button content-button">
-                                    Latest
-                                </div>
+                        <div id="top-buttons">
+                            <div style="width: 100%; display: flex; justify-content: center;">
+                                <div style="background: rgba(148, 210, 229, 255); font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" onclick="handleDownload()" class="clickable hg-button content-button">Download</div>
                             </div>
-                        </div>
+                            <div style="width: 100%; display: flex; justify-content: center;">                      
+                                <div style="background: #A0EB5D; font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px; margin-right: 160px;" onclick="navigateToDeveloperResources()" class="clickable hg-button content-button">Developers</div>
+                                <div style="background: rgba(241, 112, 111, 255); font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" onclick="navigateToCatalog()" class="clickable hg-button content-button">Catalog</div>
+                            </div>
+                            <div style="width: 100%; display: flex; justify-content: center;">
+                                <div style="background: rgba(255, 247, 142, 255); font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" onclick="navigateToPicodegio()" class="clickable hg-button content-button">Demo</div>
+                            </div>
+                        </div> 
                         <div id="links">
                             <h2>Links</h2>
                             <ul>
-                                <li><a href="https://www.youtube.com/watch?v=7locc9EyIuM" target="_blank">Demo</a></li>
+                                <li><a href="https://www.youtube.com/watch?v=7locc9EyIuM" target="_blank">Demo Video</a></li>
                                 <li><a href="/roadmap" target="_blank">Project Roadmap</a></li>
-                                <li><a href="/developers" target="_blank">Developer Resources</a></li>
                                 <li><a href="/podcast" target="_blank">Podcast</a></li>
                                 <li><a href="https://github.com/homegamesio" target="_blank">GitHub</a></li>
                                 <li><a href="https://twitter.com/homegamesio" target="_blank">Twitter</a></li>

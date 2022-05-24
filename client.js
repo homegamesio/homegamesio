@@ -69,15 +69,17 @@ const formatDate = (date) => {
 
 };
 
-const createGame = (name, description) => new Promise((resolve, reject) => {
+const createGame = (name, description, thumbnail) => new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
+
+    const formData = new FormData();
+    formData.append('thumbnail', thumbnail);
+    formData.append('name', name);
+    formData.append('description', description);
     request.open("POST", `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games`);
-    //"http://localhost:8000/games");
-    //landlord.homegames.io/games");
 
     request.setRequestHeader('hg-username', window.hgUserInfo.username);
     request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
-    request.setRequestHeader("Content-Type", "application/json");
 
     request.onreadystatechange = (e) => {
         if (request.readyState === XMLHttpRequest.DONE) {
@@ -94,7 +96,7 @@ const createGame = (name, description) => new Promise((resolve, reject) => {
         description
     };
 
-    request.send(JSON.stringify(payload));
+    request.send(formData);
 });
 
 const uploadAsset = (asset, cb) => new Promise((resolve, reject) => {
@@ -169,7 +171,8 @@ const login = (username, password) => new Promise((resolve, reject) => {
                     accessToken: loginData.accessToken,
                     idToken: loginData.idToken,
                     refreshToken: loginData.refreshToken
-                }
+                },
+                isAdmin: loginData.isAdmin || false
             });
         }
     });
@@ -401,12 +404,60 @@ const modals = {
             return container;
         }
     },
+    'catalog-game-detail': {
+        render: (game) => {
+            const container = document.createElement('div');
+
+            const titleContainer = document.createElement('h1');
+            titleContainer.innerHTML = game.name || 'Unnamed game';
+
+            const authorContainer = document.createElement('div');
+            authorContainer.innerHTML = game.createdBy || 'Unknown author';
+
+            const createdContainer = document.createElement('div');
+            createdContainer.innerHTML = `Created ${new Date(game.createdAt)}`;
+
+            const imageContainer = document.createElement('div');
+            const imageEl = document.createElement('img');
+            imageEl.setAttribute('src', game.thumbnail);
+            imageContainer.appendChild(imageEl);
+
+            const descriptionContainer = document.createElement('div');
+            descriptionContainer.innerHTML = game.description || 'No description available';
+
+            const versionSelectorContainer = document.createElement('div');
+            const versionDetailContainer = document.createElement('div');
+
+            makeGet(`https://landlord.homegames.io/games/${game.id}`).then(_gameDetails => {
+                console.log('got game details');
+                const gameDetails = JSON.parse(_gameDetails);
+                console.log(gameDetails);
+                if (!gameDetails.versions || gameDetails.versions.length < 1) {
+                    const noVersionsContainer = document.createElement('div');
+                    noVersionsContainer.innerHTML = 'No published versions';
+                    versionDetailContainer.appendChild(noVersionsContainer);
+                }
+            });
+
+            container.appendChild(titleContainer);
+            container.appendChild(authorContainer);
+            container.appendChild(createdContainer);
+            container.appendChild(imageContainer);
+            container.appendChild(descriptionContainer);
+            container.appendChild(versionSelectorContainer);
+            container.appendChild(versionDetailContainer);
+
+            return container;
+        }
+    },
     'game-detail': {
         render: (game) => {
             const container = document.createElement('div');
 
             let editingDescription = false;
 
+            console.log("GAME");
+            console.log(game);
             const gameHeader = document.createElement('h1');
             const idSubHeader = document.createElement('h3');
             gameHeader.innerHTML = game.name;
@@ -1039,9 +1090,13 @@ const dashboards = {
                 assetsButton.className = 'hg-button clickable content-button';
                 // assetsButton.style = 'margin: 2%; float: left;';
     
+                const adminButton = simpleDiv('Admin');
+                adminButton.id = 'admin-button';
+                adminButton.className = 'hg-button clickable content-button';
+                
                 gamesButton.onclick = () => updateDashboardContent('games');
-    
                 assetsButton.onclick = () => updateDashboardContent('assets');
+                adminButton.onclick = () => updateDashboardContent('admin');
     
                 const el = document.createElement('div');
     
@@ -1049,6 +1104,7 @@ const dashboards = {
                 el.appendChild(meSection);
                 el.appendChild(gamesButton);
                 el.appendChild(assetsButton);
+                el.appendChild(adminButton);
     
                 resolve(el);
             }
@@ -1081,22 +1137,52 @@ const dashboards = {
                 // descriptionForm.style = 'width: 25vw; height: 8vh';
                 descriptionFormDiv.appendChild(descriptionForm);
 
+                const thumbnailDiv = document.createElement('div');
+                const thumbnailLabel = document.createElement('label');
+                thumbnailLabel.innerHTML = 'Thumbnail';
+                thumbnailDiv.appendChild(thumbnailLabel);
+
+                const thumbnailFormDiv = document.createElement('div');
+                const thumbnailForm = document.createElement('input');
+                thumbnailForm.type = 'file';
+                thumbnailForm.setAttribute('accept', 'image/png, image/jpeg');
+                thumbnailFormDiv.appendChild(thumbnailDiv);
+                thumbnailFormDiv.appendChild(thumbnailForm);
+
+                let uploadedFile;
+
+                thumbnailForm.oninput = (e) => {
+                    console.log('jsdfgdfg');
+                    console.log(thumbnailForm.files);
+                    if (thumbnailForm.files && thumbnailForm.files.length > 0) {
+                        const file = thumbnailForm.files[0];
+                        if (file.size < 2000000) {
+                            uploadedFile = file;
+                        } else {
+                            console.error('image too large');
+                        }
+                    }
+                };
+
                 const createButton = simpleDiv('Create');
                 createButton.id = 'create-game-button';
                 createButton.className = 'clickable hg-button content-button';
                 createButton.onclick = () => { 
                     const _loader = loaderBlack();
-                    createGame(nameForm.value, descriptionForm.value).then(game => {
-                        dashboards['games'].render().then((_container) => {
-                            clearChildren(container);
-                            container.appendChild(_container);
+                    if (uploadedFile && nameForm.value && descriptionForm.value) {
+                        createGame(nameForm.value, descriptionForm.value, uploadedFile).then(game => {
+                            dashboards['games'].render().then((_container) => {
+                                clearChildren(container);
+                                container.appendChild(_container);
+                            });
                         });
-                    });
+                    }
                 };
 
                 createSection.appendChild(createHeader);
                 createSection.appendChild(nameFormDiv);
                 createSection.appendChild(descriptionFormDiv);
+                createSection.appendChild(thumbnailFormDiv);
                 createSection.appendChild(createButton);
 
                 container.appendChild(createSection);
@@ -1222,6 +1308,114 @@ const dashboards = {
             return simpleDiv('meeee');
         },
         childOf: 'default'
+    },
+    'admin': {
+        render: () => new Promise((resolve, reject) => {
+            const container = document.createElement('div');
+
+            if (!window.hgUserInfo) {
+                container.innerHTML = 'Log in to manage assets';
+            } else {
+                const adminHeader = document.createElement('h1');
+                adminHeader.innerHTML = 'Admin';
+
+                container.appendChild(adminHeader);
+                makeGet('https://landlord.homegames.io/admin/publish_requests', {
+                    'hg-username': window.hgUserInfo.username,
+                    'hg-token': window.hgUserInfo.tokens.accessToken
+                }).then((_publishRequests) => {
+                    const tableContainer = document.createElement('table');
+                    const tableHeaderRow = document.createElement('tr');
+
+                    const requestIdHeader = document.createElement('th');
+                    requestIdHeader.innerHTML = 'Request ID';
+
+                    const requesterHeader = document.createElement('th');
+                    requesterHeader.innerHTML = 'Requester';
+
+                    const codeHeader = document.createElement('th');
+                    codeHeader.innerHTML = 'Code';
+
+                    const actionHeader = document.createElement('th');
+                    actionHeader.innerHTML = 'Action';
+
+                    tableHeaderRow.appendChild(requestIdHeader);
+                    tableHeaderRow.appendChild(requesterHeader);
+                    tableHeaderRow.appendChild(codeHeader);
+                    tableHeaderRow.appendChild(actionHeader);
+
+                    tableContainer.appendChild(tableHeaderRow);
+
+                    const publishRequests = JSON.parse(_publishRequests);
+                    for (const index in publishRequests.requests) {
+                        const request = publishRequests.requests[index];
+
+                        const row = document.createElement('tr');
+
+                        const requestIdCell = document.createElement('td');
+                        const requesterCell = document.createElement('td');
+                        const codeCell = document.createElement('td');
+                        const actionCell = document.createElement('td');
+                        
+                        requestIdCell.innerHTML = request.request_id;
+                        requesterCell.innerHTML = request.requester;
+                        const codeLink = document.createElement('a');
+                        codeLink.target = '_blank';
+                        codeLink.href = `https://github.com/${request.repo_owner}/${request.repo_name}/commit/${request.commit_hash}`;
+                        codeLink.innerHTML = 'Link';
+                        codeCell.appendChild(codeLink);
+
+                        row.appendChild(requestIdCell);
+                        row.appendChild(requesterCell);
+                        row.appendChild(codeCell);
+
+                        const actionForm = document.createElement('input');
+                        actionForm.type = 'text';
+
+                        const approveButton = document.createElement('div');
+                        const rejectButton = document.createElement('div');
+                        approveButton.innerHTML = 'Approve';
+                        approveButton.onclick = () => {
+                            if (actionForm.value) {
+                                makePost(`https://landlord.homegames.io/admin/request/${request.request_id}/action`, {
+                                    action: 'approve',
+                                    message: actionForm.value
+                                }, false, true).then(() => {
+                                    console.log("need to update ui");
+                                });
+                            }
+                        };
+
+                        rejectButton.innerHTML = 'Reject';
+                        rejectButton.onclick = () => {
+                            if (actionForm.value) {
+                                makePost(`https://landlord.homegames.io/admin/request/${request.request_id}/action`, {
+                                    action: 'reject',
+                                    message: actionForm.value
+                                }, false, true).then(() => {
+                                    console.log("need to update ui");
+                                });
+                            }
+                        };
+
+
+                        actionCell.appendChild(rejectButton);
+                        actionCell.appendChild(actionForm);
+                        actionCell.appendChild(approveButton);
+                        
+                        row.appendChild(actionCell);
+                        tableContainer.appendChild(row);
+                        // container.appendChild(requestContainer);
+                    }
+
+                    container.appendChild(tableContainer);
+                });
+                
+            }
+            resolve(container);
+
+        }),
+        childOf: 'default'
     }
 };
 
@@ -1303,15 +1497,8 @@ const doSort = (data, sort) => {
 };
 
 
-const getRows = (data, sortState, cb, stylers) => {
+const getRows = (data, fields, sortState, cb, stylers) => {
     const _data = doSort(data, sortState); 
-    const _fields = new Set();
-
-    for (const key in _data) {
-        for (const field in _data[key]) {
-            _fields.add(field);
-        }
-    }
 
     let _rows = [];
 
@@ -1322,7 +1509,7 @@ const getRows = (data, sortState, cb, stylers) => {
             stylers.rowStyler(row);
         }
 
-        for (const field of _fields) {
+        for (const field of fields) {
             const obj = _data[key];
             const val = obj[field];
             
@@ -1340,7 +1527,16 @@ const getRows = (data, sortState, cb, stylers) => {
                 cb && cb(key, field);
             };
 
-            cell.appendChild(simpleDiv(val));
+            if (field  === 'thumbnail') {
+                const imageEl = document.createElement('img');
+                imageEl.setAttribute('src', val);
+                imageEl.setAttribute('width', 200);
+                const div = simpleDiv();
+                div.appendChild(imageEl);
+                cell.appendChild(div);
+            } else {
+                cell.appendChild(simpleDiv(val));
+            }
             row.appendChild(cell);
         }
 
@@ -1357,21 +1553,21 @@ const sortableTable = (data, defaultSort, cb, stylers) => {
 
     let sortState = Object.assign({}, defaultSort);
 
-    const fields = new Set();
+    const _fields = new Set();
     for (const key in data) {
         for (const field in data[key]) {
-            fields.add(field);
+            _fields.add(field);
         }
     }
 
     const header = document.createElement('tr');
 
-    const _fields = Array.from(fields);
+    const fields = Array.from(_fields);
 
-    let rows = getRows(data, sortState, cb, stylers);
+    let rows = getRows(data, fields, sortState, cb, stylers);
 
-    for (const i in _fields) {
-        const field = _fields[i];
+    for (const i in fields) {
+        const field = fields[i];
         const headerCell = document.createElement('th');
         headerCell.className = 'clickable';
         
@@ -1384,7 +1580,7 @@ const sortableTable = (data, defaultSort, cb, stylers) => {
                     order: 'asc'
                 };
             }
-            const newRows = getRows(data, sortState, cb, stylers);
+            const newRows = getRows(data, fields, sortState, cb, stylers);
 
             for (const i in rows) {
                 const rowEl = rows[i];
@@ -1431,6 +1627,18 @@ const goHome = () => {
     window.location.replace(`${location.protocol}//${location.hostname}:${location.port}`);
 };
 
+const navigateToCatalog = () => {
+    window.location.assign('/catalog');
+};
+
+const navigateToPicodegio = () => {
+    window.location.assign('http://picodeg.io');
+};
+
+const navigateToDeveloperResources = () => {
+    window.location.assign('/developers');
+};
+
 const handleDownload = (stable) => {
     const path = stable ? '/latest/stable' : '/latest';
     showModal('download', path);
@@ -1445,7 +1653,6 @@ const confirmSignup = (username, code) => new Promise((resolve, reject) => {
 });
 
 const listGames = (limit = 10, offset = 0) => new Promise((resolve, reject) => { 
-    //'http://landlord.homegames.io/games').then((_games) => {
     const gameUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games`;
     makeGet(gameUrl).then((_games) => {
         resolve(JSON.parse(_games));
@@ -1491,7 +1698,6 @@ const renderTags = (tags) => {
             };
 
             _div.appendChild(tagName);
-            // _div.style = "width: 10vw; margin-left: 1vw; margin-right: 1vw;  display: inline-block; height: 10vh; border: 2px solid black; border-radius: 5px; text-align: center; line-height: 10vh;";
             tagsContent.appendChild(_div);
         });
     } else {
@@ -1517,7 +1723,6 @@ const renderGames = (games) => {
 
             _div.appendChild(gameName);
             _div.appendChild(gameAuthor);
-            // _div.style = "width: 30vw; margin-left: .5vw; margin-right: .5vw;  display: inline-block; height: 20vh; border: 2px solid black; border-radius: 5px; text-align: center; line-height: 10vh;";
             gamesContent.appendChild(_div);
         });
     } else {
@@ -1525,6 +1730,11 @@ const renderGames = (games) => {
     }
 };
 
-//listGames().then(renderGames);
-//listTags().then(renderTags);
+const getAllGames = (page) => new Promise((resolve, reject) => {
+    const gamesUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games?page=${page || 1}`;
+    makeGet(gamesUrl).then((games) => {
+        resolve(JSON.parse(games));
+    });
+});
+
 
