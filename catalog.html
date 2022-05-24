@@ -1,0 +1,129 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Homegames</title>
+        <link rel="stylesheet" href="app.css">
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+        <link rel="manifest" href="/site.webmanifest">
+    </head>
+
+    <body>
+        <div id="modal" class="fade-in" hidden>
+            <div id="modal-content">
+                <div class="close clickable" onclick="hideModal()">X</div>
+                <div class="back"></div>
+                <div class="content"></div>
+            </div>
+        </div>
+        <div id="main">
+            <div id="page-container">
+                <div id="header">
+                    <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
+                </div>
+                <div id="content">
+
+                </div>
+                <div id="footer" onclick="showModal('support')" class="clickable">
+                    <h1>
+                        Contact
+                    </h1>
+                </div>
+            </div>
+        </div>
+    </body>
+    <script src="client.js"></script>
+    <script>
+        const contentDiv = document.getElementById('content');
+
+        const searchParams = new URLSearchParams(window.location.search);
+        const page = searchParams ? searchParams.get('page') : 1;
+
+        const renderCatalogGames = (data, _page = 1) => {
+            const games = data.games;
+            const pageCount = data.pageCount;
+
+            clearChildren(contentDiv);
+
+            const container = document.createElement('div');
+            container.id = 'catalog-container';
+            games.forEach(game => {
+                const gameEl = document.createElement('div');
+                gameEl.onclick = () => {
+                    showModal('catalog-game-detail', game);
+                };
+
+                // gameEl.style = 'text-align: center; padding: 5%';
+                gameEl.style = 'min-height: 50%; max-height: 50%; text-align: center;';
+
+                const titleEl = document.createElement('h1');
+                titleEl.innerHTML = game.name;
+
+                const authorEl = document.createElement('h3');
+                authorEl.innerHTML = game.createdBy;
+
+                const thumbnailEl = document.createElement('div');
+                const imageContainer = document.createElement('img');
+                imageContainer.style = 'max-width: 80%; max-height: 50%; min-height: 50%;';
+                // thumbnailEl.style = 'max-height: 80%; min-height: 80%; display: flex;';
+
+                imageContainer.setAttribute('src', game.thumbnail);
+                // thumbnailEl.appendChild(imageContainer);
+
+                // gameEl.appendChild(thumbnailEl);
+                gameEl.appendChild(imageContainer);
+                gameEl.appendChild(titleEl);
+                gameEl.appendChild(authorEl);
+
+                container.appendChild(gameEl);
+            });
+            contentDiv.appendChild(container);
+
+            const buttonContainer = document.createElement('div');
+            buttonContainer.style = 'height: 10%;';
+            console.log('opage ' + _page);
+            if (_page > 1) {
+                console.log('rendering left');
+                const leftButton = document.createElement('div');
+                leftButton.innerHTML = String.fromCodePoint(8592);
+                leftButton.onclick = () => {
+                    const newPage = _page ? _page - 1 : 1;
+                    getAllGames(newPage).then((_data) => {
+                        renderCatalogGames(_data, newPage);
+                    });
+                };
+                buttonContainer.appendChild(leftButton);
+            }
+
+            console.log('page ' + _page);
+            if ((_page || 1) < pageCount) {
+                console.log('rendering right');
+                const rightButton = document.createElement('div');
+                rightButton.innerHTML = String.fromCodePoint(8594);
+
+                rightButton.onclick = () => {
+                    console.log('right to page ' + (_page ? _page + 1 : 2));
+                    const newPage = _page ? _page + 1 : 2;
+                    getAllGames(newPage).then((_data) => {
+                        renderCatalogGames(_data, newPage);
+                    });
+                };
+                buttonContainer.appendChild(rightButton);
+            }
+
+            contentDiv.appendChild(buttonContainer);
+        };
+
+        getAllGames(page).then((data) => {
+            renderCatalogGames(data, page);
+        });
+    </script>
+    <script>
+
+    </script>
+    <style>
+        #content input {height: 40px; line-height: 40px; width: 20%; padding: 5px; margin-left: 2%; margin-right: 78%; margin-top: 1%}
+        #submit-button {margin-top: 1%; margin-left: 2%; text-decoration: underline;}
+    </style>
+
+</html>
