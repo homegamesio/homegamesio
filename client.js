@@ -77,16 +77,11 @@ const createGame = (name, description, thumbnail) => new Promise((resolve, rejec
     formData.append('name', name);
     formData.append('description', description);
     request.open("POST", `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games`);
-    //"http://localhost:8000/games");
-    //landlord.homegames.io/games");
 
     request.setRequestHeader('hg-username', window.hgUserInfo.username);
     request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
-//    request.setRequestHeader("Content-Type", "multipart/form-data");
 
     request.onreadystatechange = (e) => {
-        console.log('eeeee');
-        console.log(e);
         if (request.readyState === XMLHttpRequest.DONE) {
             if (request.status === 200) {
                 resolve(JSON.parse(request.response));
@@ -101,7 +96,6 @@ const createGame = (name, description, thumbnail) => new Promise((resolve, rejec
         description
     };
 
-//    request.send(JSON.stringify(payload));
     request.send(formData);
 });
 
@@ -1351,8 +1345,7 @@ const dashboards = {
                     tableHeaderRow.appendChild(actionHeader);
 
                     tableContainer.appendChild(tableHeaderRow);
-                    console.log('sdfkjdsfds');
-                    console.log(_publishRequests);
+
                     const publishRequests = JSON.parse(_publishRequests);
                     for (const index in publishRequests.requests) {
                         const request = publishRequests.requests[index];
@@ -1507,9 +1500,6 @@ const doSort = (data, sort) => {
 const getRows = (data, fields, sortState, cb, stylers) => {
     const _data = doSort(data, sortState); 
 
-    console.log(_data);
-    console.log(data);
-
     let _rows = [];
 
     for (const key in _data) {
@@ -1536,12 +1526,6 @@ const getRows = (data, fields, sortState, cb, stylers) => {
             cell.onclick = () => {
                 cb && cb(key, field);
             };
-
-            console.log('whjat the fiuck');
-            console.log(obj);
-            console.log(val);
-            console.log(field);
-            console.log(key);
 
             if (field  === 'thumbnail') {
                 const imageEl = document.createElement('img');
@@ -1651,6 +1635,10 @@ const navigateToPicodegio = () => {
     window.location.assign('http://picodeg.io');
 };
 
+const navigateToDeveloperResources = () => {
+    window.location.assign('/developers');
+};
+
 const handleDownload = (stable) => {
     const path = stable ? '/latest/stable' : '/latest';
     showModal('download', path);
@@ -1665,7 +1653,6 @@ const confirmSignup = (username, code) => new Promise((resolve, reject) => {
 });
 
 const listGames = (limit = 10, offset = 0) => new Promise((resolve, reject) => { 
-    //'http://landlord.homegames.io/games').then((_games) => {
     const gameUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games`;
     makeGet(gameUrl).then((_games) => {
         resolve(JSON.parse(_games));
@@ -1711,7 +1698,6 @@ const renderTags = (tags) => {
             };
 
             _div.appendChild(tagName);
-            // _div.style = "width: 10vw; margin-left: 1vw; margin-right: 1vw;  display: inline-block; height: 10vh; border: 2px solid black; border-radius: 5px; text-align: center; line-height: 10vh;";
             tagsContent.appendChild(_div);
         });
     } else {
@@ -1737,7 +1723,6 @@ const renderGames = (games) => {
 
             _div.appendChild(gameName);
             _div.appendChild(gameAuthor);
-            // _div.style = "width: 30vw; margin-left: .5vw; margin-right: .5vw;  display: inline-block; height: 20vh; border: 2px solid black; border-radius: 5px; text-align: center; line-height: 10vh;";
             gamesContent.appendChild(_div);
         });
     } else {
@@ -1752,6 +1737,4 @@ const getAllGames = (page) => new Promise((resolve, reject) => {
     });
 });
 
-//listGames().then(renderGames);
-//listTags().then(renderTags);
 
