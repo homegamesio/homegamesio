@@ -905,8 +905,8 @@ const modals = {
             signupPasswordForm2.type = 'password';
             signupPasswordForm2.setAttribute('placeholder', 'Password (again)');
             passwordForm2Div.appendChild(signupPasswordForm2);
-            // signupPasswordForm2.style = 'margin-bottom: 1vh';
 
+            let boxChecked = false;
             const signupButton = simpleDiv('Sign up');
             // signupButton.style = 'width: 10vw';
             signupButton.className = 'hg-button clickable';
@@ -915,34 +915,55 @@ const modals = {
             const signupMessageDiv = document.createElement('div');
 
             signupButton.onclick = () => {
-                const signupEmail = signupEmailForm.value;
+                if (boxChecked) {
+                    const signupEmail = signupEmailForm.value;
 
-                const signupUsername = signupUsernameForm.value;
-
-                if (signupEmail && signupUsername && signupPasswordForm1.value === signupPasswordForm2.value) {
                     const signupUsername = signupUsernameForm.value;
-                    clearChildren(signupMessageDiv);
-                    const _loader = loader();
-                    signupMessageDiv.appendChild(_loader);
-                    signup(signupEmailForm.value, signupUsernameForm.value, signupPasswordForm1.value).then((userData) => {
-                        if (userData.username && userData.username == signupUsername) {
-                            const successMessage = simpleDiv('Success! Logging in...');
-                            signupMessageDiv.appendChild(successMessage);
-                            login(userData.username, signupPasswordForm1.value).then((_res) => {
-                                hideModal();
-                                handleLogin(_res);
-                            });
-                        } else {
-                            const supportMessage = simpleDiv('Contact support for assistance');
-                            signupMessageDiv.appendChild(supportMessage);
-                        }
-                    }).catch(err => {
-                        signupMessageDiv.removeChild(_loader);
-                        const errorMessage = simpleDiv(err);
-                        signupMessageDiv.appendChild(errorMessage);
-                    });
+
+                    if (signupEmail && signupUsername && signupPasswordForm1.value === signupPasswordForm2.value) {
+                        const signupUsername = signupUsernameForm.value;
+                        clearChildren(signupMessageDiv);
+                        const _loader = loader();
+                        signupMessageDiv.appendChild(_loader);
+                        signup(signupEmailForm.value, signupUsernameForm.value, signupPasswordForm1.value).then((userData) => {
+                            if (userData.username && userData.username == signupUsername) {
+                                const successMessage = simpleDiv('Success! Logging in...');
+                                signupMessageDiv.appendChild(successMessage);
+                                login(userData.username, signupPasswordForm1.value).then((_res) => {
+                                    hideModal();
+                                    handleLogin(_res);
+                                });
+                            } else {
+                                const supportMessage = simpleDiv('Contact support for assistance');
+                                signupMessageDiv.appendChild(supportMessage);
+                            }
+                        }).catch(err => {
+                            signupMessageDiv.removeChild(_loader);
+                            const errorMessage = simpleDiv(err);
+                            signupMessageDiv.appendChild(errorMessage);
+                        });
+                    }
                 }
             };
+
+            const tosConfirm = document.createElement('div');
+            tosConfirm.style = 'display: grid; grid-template-columns: 1fr 3fr; margin-top: 10px';
+
+            const tosInput = document.createElement('input');
+            tosInput.type = 'checkbox';
+            tosInput.oninput = (e) => {
+                boxChecked = e.target.checked;
+            }
+
+            const tosText = document.createElement('div');
+            const tosLink = document.createElement('a');
+            tosLink.href = '/terms';
+            tosLink.innerHTML = 'By signing up, you are confirming acceptance of our terms of service';
+            tosText.appendChild(tosLink);
+            tosText.style = 'text-align: left';
+
+            tosConfirm.appendChild(tosInput);
+            tosConfirm.appendChild(tosText);
 
             signupSection.appendChild(emailFormDiv);
             signupSection.appendChild(signupUsernameFormDiv);
@@ -950,6 +971,7 @@ const modals = {
             signupSection.appendChild(passwordForm2Div);
             signupSection.appendChild(signupButton);
             signupSection.appendChild(signupMessageDiv);
+            signupSection.appendChild(tosConfirm);
 
             container.appendChild(loginSection);
             container.appendChild(signupSection);
