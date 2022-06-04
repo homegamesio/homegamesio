@@ -959,6 +959,8 @@ const modals = {
             const tosLink = document.createElement('a');
             tosLink.href = '/terms';
             tosLink.innerHTML = 'By signing up, you are confirming acceptance of our terms of service';
+            tosLink.style = 'text-decoration: none; color: white;';
+
             tosText.appendChild(tosLink);
             tosText.style = 'text-align: left';
 
