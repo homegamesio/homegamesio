@@ -1,11 +1,12 @@
 .headlines {
     text-align: center;
-    margin-top: 2.5%;
-    margin-bottom: 2.5%;
+    margin-top: 30px;
+    margin-bottom: 30px;
 }
 
 .headlines h1 {
-    margin: 0;
+    margin-bottom: 30px;
+    margin-top: 0;
 }
 
 #catalog-container {
