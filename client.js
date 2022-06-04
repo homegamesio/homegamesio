@@ -419,7 +419,7 @@ const modals = {
 
             const imageContainer = document.createElement('div');
             const imageEl = document.createElement('img');
-            imageEl.setAttribute('src', game.thumbnail);
+            imageEl.setAttribute('src', 'https://assets.homegames.io/' + game.thumbnail);
             imageContainer.appendChild(imageEl);
 
             const descriptionContainer = document.createElement('div');
@@ -582,7 +582,23 @@ const modals = {
                         };
                         showEvents(_clickedReq);
                     };
-                    const _table = sortableTable(tableData, null, _onCellClick);
+                    const _table = sortableTable(tableData, null, _onCellClick, undefined, (requestData) => {
+                        if (requestData.status === 'CONFIRMED') {
+                                        const container = simpleDiv();
+                                        container.innerHTML = 'Submit for publishing';
+                                        console.log('kety sdf');
+                                        console.log(requestData);
+                                        container.onClick = makePost(`https://landlord.homegames.io/public_publish`, {
+                                            requestId: requestData.request_id
+                                        }, false, true).then(() => {
+                                            console.log("need to update ui");
+                                        });
+                      
+                                        return container;
+                                        }
+                                        return simpleDiv();
+                                    });
+ 
                     requestSection.appendChild(_table);
                 });
  
@@ -1497,7 +1513,7 @@ const doSort = (data, sort) => {
 };
 
 
-const getRows = (data, fields, sortState, cb, stylers) => {
+const getRows = (data, fields, sortState, cb, stylers, rowEndContent = null) => {
     const _data = doSort(data, sortState); 
 
     let _rows = [];
@@ -1529,7 +1545,7 @@ const getRows = (data, fields, sortState, cb, stylers) => {
 
             if (field  === 'thumbnail') {
                 const imageEl = document.createElement('img');
-                imageEl.setAttribute('src', val);
+                imageEl.setAttribute('src', 'https://assets.homegames.io/' + val);
                 imageEl.setAttribute('width', 200);
                 const div = simpleDiv();
                 div.appendChild(imageEl);
@@ -1540,13 +1556,16 @@ const getRows = (data, fields, sortState, cb, stylers) => {
             row.appendChild(cell);
         }
 
+        if (rowEndContent) {
+            row.appendChild(rowEndContent(_data[key]));
+        }
         _rows.push(row);
     }
 
     return _rows;
 }
 
-const sortableTable = (data, defaultSort, cb, stylers) => {
+const sortableTable = (data, defaultSort, cb, stylers, rowEndContent = null) => {
     const tableEl = document.createElement('table');
     const tHead = document.createElement('thead');
     const tBody = document.createElement('tbody');
@@ -1564,7 +1583,7 @@ const sortableTable = (data, defaultSort, cb, stylers) => {
 
     const fields = Array.from(_fields);
 
-    let rows = getRows(data, fields, sortState, cb, stylers);
+    let rows = getRows(data, fields, sortState, cb, stylers, rowEndContent);
 
     for (const i in fields) {
         const field = fields[i];
@@ -1580,7 +1599,7 @@ const sortableTable = (data, defaultSort, cb, stylers) => {
                     order: 'asc'
                 };
             }
-            const newRows = getRows(data, fields, sortState, cb, stylers);
+            const newRows = getRows(data, fields, sortState, cb, stylers, rowEndContent);
 
             for (const i in rows) {
                 const rowEl = rows[i];
