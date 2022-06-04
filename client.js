@@ -588,7 +588,7 @@ const modals = {
                                         container.innerHTML = 'Submit for publishing';
                                         console.log('kety sdf');
                                         console.log(requestData);
-                                        container.onClick = makePost(`https://landlord.homegames.io/public_publish`, {
+                                        container.onClick = () => makePost(`https://landlord.homegames.io/public_publish`, {
                                             requestId: requestData.request_id
                                         }, false, true).then(() => {
                                             console.log("need to update ui");
