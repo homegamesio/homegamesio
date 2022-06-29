@@ -54,27 +54,13 @@
     color: white;
 }
 
-#main {
-    position:  absolute;
-    display: flex;
-    height: 100%;
-    width: 100%;
-    flex-direction: row;
-    border: 0;
-    margin: 0;
-    padding: 0;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
-}
-
 #page-container {
     background: #fbfff2;
-    display: flex;
-    flex-direction: column;
-    flex-wrap: wrap;
-    flex: 1; 
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 8fr 1fr;
+    height: 100vh;
+    width: 100vw;
 }
 
 .clickable:hover {
@@ -83,18 +69,16 @@
 
 #header {
     background: rgba(241, 112, 111, 255);
-    /*height: 10%;*/
+    min-height: 10vh;
+    max-height: 10vh;
     width: 100%;
-    /*padding:  .5%;*/
-    /*height: 15%;*/
-    height: 10%;
-    line-height: 80px;
 }
 
 #settings {
     width: 50%;
     float: left;
     height: 100%;
+    line-height: 10vh;
 }
 
 #settings h2 {
@@ -108,17 +92,17 @@
 
 #content {
     background: #fbfff2;
-    height: 80%;
     width: 100%;
     overflow-y: scroll;
 }
 
 #footer {
-    height: 10%;
     width: 100%;
     background: rgba(148, 210, 229, 255);
     text-align: center;
-    line-height: 80px;
+    line-height: 10vh;
+    min-height: 10vh;
+    max-height: 10vh;
 }
 
 #footer:hover {
