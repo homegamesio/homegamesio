@@ -166,7 +166,7 @@ const login = (username, password) => new Promise((resolve, reject) => {
             resolve({
                 username,
                 confirmed: true,
-                created: new Date(loginData.created),
+                created: `${new Date(buildInfo.datePublished).toDateString()} ${new Date(buildInfo.datePublished).toTimeString()}`,
                 tokens: {
                     accessToken: loginData.accessToken,
                     idToken: loginData.idToken,
@@ -284,8 +284,8 @@ const modals = {
     
             gameTitle.innerHTML = game.name;
             gameAuthor.innerHTML = game.author;
-            gameCreated.innerHTML = new Date(game.created);
-             
+            gameCreated.innerHTML = `${new Date(buildInfo.datePublished).toDateString()} ${new Date(buildInfo.datePublished).toTimeString()}`;
+
             container.appendChild(gameTitle);
             container.appendChild(gameAuthor);
             container.appendChild(demoButton);
@@ -351,21 +351,31 @@ const modals = {
                 container.removeChild(_loader);
                 const buildInfo = JSON.parse(_buildInfo);
 
-                const publishedInfoDiv = simpleDiv(`Date published: ${new Date(buildInfo.datePublished)}`);
-                const commitAuthorDiv = simpleDiv(`Author: ${buildInfo.commitInfo.author}`);
+                const downloadHeader = document.createElement('h1');
+                downloadHeader.innerHTML = 'Download';
+                downloadHeader.style = 'text-align: center';
 
-                const commitMessageDiv = simpleDiv(`Commit message:<br />${buildInfo.commitInfo.message}`);
+                const publishedInfoDiv = document.createElement('h4');
+                publishedInfoDiv.innerHTML = `Latest stable version published ${new Date(buildInfo.datePublished).toDateString()} ${new Date(buildInfo.datePublished).toTimeString()}`;
+                publishedInfoDiv.style = 'text-align: center;';
+                // const commitAuthorDiv = simpleDiv(`Author: ${buildInfo.commitInfo.author}`);
 
-                const commitHashDiv = simpleDiv(`Commit hash: ${buildInfo.commitInfo.commitHash}`);
+                // const commitMessageDiv = simpleDiv(`Commit message:<br />${buildInfo.commitInfo.message}`);
 
+                // const commitHashDiv = simpleDiv(`Commit hash: ${buildInfo.commitInfo.commitHash}`);
+
+                container.appendChild(downloadHeader);
                 container.appendChild(publishedInfoDiv);
-                container.appendChild(commitAuthorDiv);
-                container.appendChild(commitHashDiv);
-                container.appendChild(commitMessageDiv);
+                // container.appendChild(commitAuthorDiv);
+                // container.appendChild(commitHashDiv);
+                // container.appendChild(commitMessageDiv);
+
+                const buttonContainer = document.createElement('div');
+                buttonContainer.id = 'download-button-container';
 
                 const winDiv = document.createElement('div');
                 winDiv.className = 'hg-button';
-                winDiv.style = 'width: 20%; border: 1px solid white; margin: 2%; border-radius: 5px; height: 40px; text-align: center; line-height: 40px;';
+                winDiv.style = 'width: 50%; margin: auto; border: 1px solid white; border-radius: 5px; height: 40px; text-align: center; line-height: 40px;';
                 const winLink = document.createElement('a');
                 winLink.style = 'color: white; text-decoration: none;';
                 winLink.download = `homegames-win`;
@@ -375,7 +385,7 @@ const modals = {
 
                 const macDiv = document.createElement('div');
                 macDiv.className = 'hg-button';
-                macDiv.style = 'width: 20%; border: 1px solid white; margin: 2%; border-radius: 5px; height: 40px; text-align: center; line-height: 40px;';
+                macDiv.style = 'width: 50%; margin: auto; border: 1px solid white; border-radius: 5px; height: 40px; text-align: center; line-height: 40px;';
                 const macLink = document.createElement('a');
                 macLink.style = 'color: white; text-decoration: none;';
                 macLink.download = `homegames-mac`;
@@ -385,7 +395,7 @@ const modals = {
 
                 const linuxDiv = document.createElement('div');
                 linuxDiv.className = 'hg-button';
-                linuxDiv.style = 'width: 20%; border: 1px solid white; margin: 2%; border-radius: 5px; height: 40px; text-align: center; line-height: 40px;';
+                linuxDiv.style = 'width: 50%; margin: auto; border: 1px solid white; border-radius: 5px; height: 40px; text-align: center; line-height: 40px;';
                 const linuxLink = document.createElement('a');
                 linuxLink.style = 'color: white; text-decoration: none;';
                 linuxLink.download = `homegames-linux`;
@@ -393,11 +403,16 @@ const modals = {
                 linuxLink.innerHTML = 'Linux';
                 linuxDiv.appendChild(linuxLink);
 
-                container.appendChild(winDiv);
-                container.appendChild(macDiv);
-                container.appendChild(linuxDiv);
+                buttonContainer.appendChild(winDiv);
+                buttonContainer.appendChild(macDiv);
+                buttonContainer.appendChild(linuxDiv);
 
-                const instructions = simpleDiv('Run the homegames executable and navigate to homegames.link in your browser to play games');
+                container.appendChild(buttonContainer);
+
+                const instructions = document.createElement('h3');
+                instructions.innerHTML = 'Run the homegames executable and navigate to homegames.link in your browser to play games';
+                instructions.style = 'text-align: center;';
+
                 container.appendChild(instructions);
             });
             
@@ -415,7 +430,7 @@ const modals = {
             authorContainer.innerHTML = game.createdBy || 'Unknown author';
 
             const createdContainer = document.createElement('div');
-            createdContainer.innerHTML = `Created ${new Date(game.createdAt)}`;
+            createdContainer.innerHTML = `Created ${new Date(buildInfo.datePublished).toDateString()} ${new Date(buildInfo.datePublished).toTimeString()}`;
 
             const imageContainer = document.createElement('div');
             const imageEl = document.createElement('img');
@@ -786,16 +801,17 @@ const modals = {
             container.id = 'support-container';
             // container.style = 'height: 100%';
 
-            const emailText = document.createElement('h2');
-            emailText.innerHTML = 'Send us questions, feedback, or pretty much whatever';
+            const emailText = document.createElement('h1');
+            emailText.innerHTML = 'Send us questions, feedback, or whatever you want';
             // emailText.style = 'font-size: 1.4em';
 
             const emailForm = document.createElement('input');
             emailForm.type = 'email';
             emailForm.setAttribute('placeHolder', 'If you want a response, enter your email address here');
-            // emailForm.style = 'width: 50%; margin-top: 3%; margin-bottom: 3%;';
+            emailForm.style = 'width: 100%; height: 60px; line-height: 60px;';
 
             const messageForm = document.createElement('textarea');
+            messageForm.placeholder = 'Homegames is pretty good'
             // messageForm.style = 'width: 100%; height: 50%; margin-bottom: 3%;';
 
             messageForm.oninput = () => {
@@ -823,6 +839,7 @@ const modals = {
                     message: messageForm.value
                 }).then((res) => {
                     if (res.success) { 
+                        container.style = 'text-align: center; font-size: xx-large';
                         container.innerHTML = 'Success! Your message has been sent.';
                     } else {
                         container.innerHTML = 'Could not send your message. Please email support@homegames.io';
