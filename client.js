@@ -639,6 +639,24 @@ const modals = {
                 commitForm.type = 'text';
                 commitForm.setAttribute('placeholder', 'GitHub repo commit (eg. 265ce105af20a721e62dbf93646197f2c2d33ac1)');
 
+                const squishVersionLabel = document.createElement('label');
+                squishVersionLabel.innerHTML = 'Squish version';
+
+                const squishVersionInput = document.createElement('select');
+
+                const squishVersionOptions = ['0756'];
+
+                for (let i = 0; i < squishVersionOptions.length; i++) {
+                    const squishVersionOption = squishVersionOptions[i];
+                    const optionEl = document.createElement('option');
+                    optionEl.value = squishVersionOption;
+                    optionEl.innerHTML = squishVersionOption;
+                    squishVersionInput.appendChild(optionEl);
+                }
+
+                squishVersionInput.value = squishVersionOptions[0];
+
+
                 publishButton.onclick = () => {
                     const request = new XMLHttpRequest();
                     request.open("POST", "https://landlord.homegames.io/games/" + game.id + "/publish");
@@ -660,7 +678,8 @@ const modals = {
                     const payload = {
                         owner: repoOwnerForm.value, 
                         repo: repoNameForm.value,
-                        commit: commitForm.value
+                        commit: commitForm.value,
+                        squishVersion: squishVersionInput.value
                     };
                 
                     request.send(JSON.stringify(payload));
@@ -670,6 +689,8 @@ const modals = {
                 publishSection.appendChild(repoOwnerForm);
                 publishSection.appendChild(repoNameForm);
                 publishSection.appendChild(commitForm);
+                publishSection.appendChild(squishVersionLabel);
+                publishSection.appendChild(squishVersionInput);
                 publishSection.appendChild(publishButton);
 
                 versionContainer.appendChild(publishSection);
@@ -765,7 +786,7 @@ const modals = {
             container.id = 'support-container';
             // container.style = 'height: 100%';
 
-            const emailText = document.createElement('h3');
+            const emailText = document.createElement('h2');
             emailText.innerHTML = 'Send us questions, feedback, or pretty much whatever';
             // emailText.style = 'font-size: 1.4em';
 
