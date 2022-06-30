@@ -166,7 +166,7 @@ const login = (username, password) => new Promise((resolve, reject) => {
             resolve({
                 username,
                 confirmed: true,
-                created: `${new Date(buildInfo.datePublished).toDateString()} ${new Date(buildInfo.datePublished).toTimeString()}`,
+                created: `${new Date(loginData.created).toDateString()} ${new Date(loginData.created).toTimeString()}`,
                 tokens: {
                     accessToken: loginData.accessToken,
                     idToken: loginData.idToken,
@@ -284,7 +284,7 @@ const modals = {
     
             gameTitle.innerHTML = game.name;
             gameAuthor.innerHTML = game.author;
-            gameCreated.innerHTML = `${new Date(buildInfo.datePublished).toDateString()} ${new Date(buildInfo.datePublished).toTimeString()}`;
+            gameCreated.innerHTML = `${new Date(game.created).toDateString()} ${new Date(game.created).toTimeString()}`;
 
             container.appendChild(gameTitle);
             container.appendChild(gameAuthor);
@@ -427,10 +427,10 @@ const modals = {
             titleContainer.innerHTML = game.name || 'Unnamed game';
 
             const authorContainer = document.createElement('div');
-            authorContainer.innerHTML = game.createdBy || 'Unknown author';
+            authorContainer.innerHTML = `by ${game.createdBy || 'Unknown author'}`;
 
             const createdContainer = document.createElement('div');
-            createdContainer.innerHTML = `Created ${new Date(buildInfo.datePublished).toDateString()} ${new Date(buildInfo.datePublished).toTimeString()}`;
+            createdContainer.innerHTML = `Created ${new Date(game.createdAt).toDateString()} ${new Date(game.createdAt).toTimeString()}`;
 
             const imageContainer = document.createElement('div');
             const imageEl = document.createElement('img');
@@ -444,9 +444,7 @@ const modals = {
             const versionDetailContainer = document.createElement('div');
 
             makeGet(`https://landlord.homegames.io/games/${game.id}`).then(_gameDetails => {
-                console.log('got game details');
                 const gameDetails = JSON.parse(_gameDetails);
-                console.log(gameDetails);
                 if (!gameDetails.versions || gameDetails.versions.length < 1) {
                     const noVersionsContainer = document.createElement('div');
                     noVersionsContainer.innerHTML = 'No published versions';
@@ -471,8 +469,6 @@ const modals = {
 
             let editingDescription = false;
 
-            console.log("GAME");
-            console.log(game);
             const gameHeader = document.createElement('h1');
             const idSubHeader = document.createElement('h3');
             gameHeader.innerHTML = game.name;
@@ -573,7 +569,6 @@ const modals = {
                         const _clickedReq = publishRequests.requests[index];
                         const showEvents = (request) => {
                             if (!request.request_id) {
-                                console.log(request);
                                 return;
                             }
                             if (detailState[request.request_id]) {
@@ -1111,54 +1106,21 @@ const dashboards = {
                 resolve(requiresConfirmationEl);
             } else {
                 const memberSinceVal = window.hgUserInfo ? window.hgUserInfo.created : 'Not Available';
-                const meLabel = document.createElement('h2');
+                const meLabel = document.createElement('h1');
                 meLabel.id = 'me-label';
+                meLabel.style = 'text-align: center';
                 meLabel.innerHTML = window.hgUserInfo?.username || 'Unknown';
 
-                const meSection = document.createElement('div');
-                meSection.id = 'me-section';
+                const memberSince = document.createElement('h3');
+                memberSince.innerHTML = `Member since ${memberSinceVal}`;
+                memberSince.style = 'text-align: center';
 
-                const usernameSection = document.createElement('h4');
-                usernameSection.innerHTML = window.hgUserInfo?.username || 'Unknown';
-
-                const memberSince = document.createElement('h4');
-                memberSince.innerHTML = `Member since: ${memberSinceVal}`;
-
-                const certStatus = document.createElement('h4');
-
-                getCertInfo().then((certResponse) => {
-                    const statusDiv = simpleDiv('Cert status: ' + certResponse?.status || 'Unavailable');
-                    certStatus.appendChild(statusDiv);
-
-                    if (!certResponse.status || certResponse.status !== 'VALID') {
-                        const requestCertButton = document.createElement('div');
-                        requestCertButton.innerHTML = 'Request certificate';
-                        requestCertButton.className = 'clickable';
-                        requestCertButton.onclick = () => {
-                            makePost('https://certifier.homegames.io/request-cert', {
-                                message: 'hmmm'
-                            }, false, true).then((__res) => {
-                                console.log('sent request');
-                                console.log(__res);
-                                certStatus.removeChild(requestCertButton);
-                            });
-                        };
-                        certStatus.appendChild(requestCertButton);
-                    }
-                });
-
-        
-                const changeEmail = document.createElement('h4');
-                changeEmail.innerHTML = 'Change email: Coming soon';
-
-                const changePassword = document.createElement('h4');
-                changePassword.innerHTML = 'Change password: Coming soon';
-
-                // meSection.appendChild(usernameSection);
-                meSection.appendChild(memberSince);
-                meSection.appendChild(certStatus);
-                meSection.appendChild(changeEmail);
-                meSection.appendChild(changePassword);
+                const buttonContainer = document.createElement('div');
+                if (window.hgUserInfo.isAdmin) {
+                    buttonContainer.style = 'display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 50px';
+                } else {
+                    buttonContainer.style = 'display: grid; grid-template-columns: 1fr 1fr; margin-top: 50px';
+                }
 
                 const gamesButton = simpleDiv('My Games');
                 gamesButton.id = 'my-games-button';
@@ -1181,10 +1143,16 @@ const dashboards = {
                 const el = document.createElement('div');
     
                 el.appendChild(meLabel);
-                el.appendChild(meSection);
-                el.appendChild(gamesButton);
-                el.appendChild(assetsButton);
-                el.appendChild(adminButton);
+                el.appendChild(memberSince);
+
+                buttonContainer.appendChild(gamesButton);
+                buttonContainer.appendChild(assetsButton);
+                
+                if (window.hgUserInfo.isAdmin) {
+                    buttonContainer.appendChild(adminButton);
+                }
+
+                el.appendChild(buttonContainer);
     
                 resolve(el);
             }
@@ -1232,8 +1200,6 @@ const dashboards = {
                 let uploadedFile;
 
                 thumbnailForm.oninput = (e) => {
-                    console.log('jsdfgdfg');
-                    console.log(thumbnailForm.files);
                     if (thumbnailForm.files && thumbnailForm.files.length > 0) {
                         const file = thumbnailForm.files[0];
                         if (file.size < 2000000) {
