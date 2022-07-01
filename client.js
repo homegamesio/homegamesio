@@ -425,20 +425,26 @@ const modals = {
 
             const titleContainer = document.createElement('h1');
             titleContainer.innerHTML = game.name || 'Unnamed game';
+            titleContainer.style = 'text-align: center; font-size: xxx-large';
 
             const authorContainer = document.createElement('div');
             authorContainer.innerHTML = `by ${game.createdBy || 'Unknown author'}`;
+            authorContainer.style = 'text-align: center; font-size: x-large;';
 
             const createdContainer = document.createElement('div');
             createdContainer.innerHTML = `Created ${new Date(game.createdAt).toDateString()} ${new Date(game.createdAt).toTimeString()}`;
+            createdContainer.style = 'text-align: center';
 
             const imageContainer = document.createElement('div');
+            imageContainer.style = 'text-align: center; margin-top: 36px; margin-bottom: 36px;';
             const imageEl = document.createElement('img');
             imageEl.setAttribute('src', 'https://assets.homegames.io/' + game.thumbnail);
             imageContainer.appendChild(imageEl);
+            imageEl.setAttribute('width', '250px');
 
             const descriptionContainer = document.createElement('div');
             descriptionContainer.innerHTML = game.description || 'No description available';
+            descriptionContainer.style = 'text-align: center; font-size: large';
 
             const versionSelectorContainer = document.createElement('div');
             const versionDetailContainer = document.createElement('div');
@@ -1167,6 +1173,8 @@ const dashboards = {
                 resolve(container);
             } else {
                 const createSection = document.createElement('div');
+                createSection.style = 'margin-bottom: 48px';
+
                 const createHeader = document.createElement('h2');
                 createHeader.innerHTML = 'Create a game';
 
@@ -1191,6 +1199,7 @@ const dashboards = {
                 thumbnailDiv.appendChild(thumbnailLabel);
 
                 const thumbnailFormDiv = document.createElement('div');
+                thumbnailFormDiv.style = 'grid-template-columns: 1fr 11fr; display: grid; margin: 12px; margin-left: 0;';
                 const thumbnailForm = document.createElement('input');
                 thumbnailForm.type = 'file';
                 thumbnailForm.setAttribute('accept', 'image/png, image/jpeg');
@@ -1238,6 +1247,7 @@ const dashboards = {
                 myGamesHeader.innerHTML = 'My Games';
 
                 container.appendChild(myGamesHeader);
+                container.style = 'margin-bottom: 24px;'
 
                 const _loader = loaderBlack();
                 container.appendChild(_loader);

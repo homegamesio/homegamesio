@@ -414,7 +414,7 @@ body {
 
 #new-game-name-form {
     height: 50px;
-    width: 20%;
+    width: 40%;
     padding: 5px;
 }
 
@@ -449,4 +449,10 @@ body {
 #download-button-container {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
+}
+
+td {
+    max-width: 80px;
+    overflow: scroll;
+    padding: 40px;
 }
