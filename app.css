@@ -449,6 +449,9 @@ body {
 #download-button-container {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
+    height: 120px;
+    margin-top: 60px;
+    margin-bottom: 60px;
 }
 
 td {
