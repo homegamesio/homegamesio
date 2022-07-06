@@ -375,9 +375,9 @@ const modals = {
 
                 const winDiv = document.createElement('div');
                 winDiv.className = 'hg-button';
-                winDiv.style = 'width: 50%; margin: auto; border: 1px solid white; border-radius: 5px; height: 40px; text-align: center; line-height: 40px;';
+                winDiv.style = 'width: 160px; margin: auto; border: 1px solid white; border-radius: 5px; height: 90px; text-align: center; line-height: 90px; background: #fbfff2';
                 const winLink = document.createElement('a');
-                winLink.style = 'color: white; text-decoration: none;';
+                winLink.style = 'text-decoration: none;';
                 winLink.download = `homegames-win`;
                 winLink.href = buildInfo.windowsUrl;
                 winLink.innerHTML = 'Windows';
@@ -385,9 +385,9 @@ const modals = {
 
                 const macDiv = document.createElement('div');
                 macDiv.className = 'hg-button';
-                macDiv.style = 'width: 50%; margin: auto; border: 1px solid white; border-radius: 5px; height: 40px; text-align: center; line-height: 40px;';
+                macDiv.style = 'width: 160px; margin: auto; border: 1px solid white; border-radius: 5px; height: 90px; text-align: center; line-height: 90px; background: #fbfff2';
                 const macLink = document.createElement('a');
-                macLink.style = 'color: white; text-decoration: none;';
+                macLink.style = 'text-decoration: none;';
                 macLink.download = `homegames-mac`;
                 macLink.href = buildInfo.macUrl;
                 macLink.innerHTML = 'Mac';
@@ -395,9 +395,9 @@ const modals = {
 
                 const linuxDiv = document.createElement('div');
                 linuxDiv.className = 'hg-button';
-                linuxDiv.style = 'width: 50%; margin: auto; border: 1px solid white; border-radius: 5px; height: 40px; text-align: center; line-height: 40px;';
+                linuxDiv.style = 'width: 160px; margin: auto; border: 1px solid white; border-radius: 5px; height: 90px; text-align: center; line-height: 90px; background: #fbfff2';
                 const linuxLink = document.createElement('a');
-                linuxLink.style = 'color: white; text-decoration: none;';
+                linuxLink.style = 'text-decoration: none;';
                 linuxLink.download = `homegames-linux`;
                 linuxLink.href = buildInfo.linuxUrl;
                 linuxLink.innerHTML = 'Linux';
@@ -410,7 +410,7 @@ const modals = {
                 container.appendChild(buttonContainer);
 
                 const instructions = document.createElement('h3');
-                instructions.innerHTML = 'Run the homegames executable and navigate to homegames.link in your browser to play games';
+                instructions.innerHTML = 'Run the homegames server package and navigate to homegames.link in any browser on your local network to play games';
                 instructions.style = 'text-align: center;';
 
                 container.appendChild(instructions);
@@ -802,7 +802,7 @@ const modals = {
             container.id = 'support-container';
             // container.style = 'height: 100%';
 
-            const emailText = document.createElement('h1');
+            const emailText = document.createElement('h2');
             emailText.innerHTML = 'Send us questions, feedback, or whatever you want';
             // emailText.style = 'font-size: 1.4em';
 

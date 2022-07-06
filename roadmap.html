@@ -22,46 +22,46 @@
                     <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
                 </div>
                 <div id="content">
-                    <h1>WIP: lol this is super old now and we've done almost none of it. Updates coming soon</h1>
-                    <p>This roadmap is a rough outline of the project goals we currently have in mind. Some of these may change or not happen at all. The dates are estimates - we aren't promising we will hit them. If you have any feedback on this roadmap, let us know using the contact button at the buttom of the page.</p>
+                    <h1 style="font-size: xx-large; text-align: center">2022 Roadmap</h1>
+                    <p style="font-size: x-large">Roadmap is current as of July 2022. We may make updates to the timelime or add/remove things in the fututre. Dates are estimates.
 
-                    <p>Click on a roadmap item to get an explanation for why we want to do it</p>
+                    <p style="font-size: x-large">Click on a roadmap item for more details</p>
                     <ul>
                         <li onclick="showOrHide('sub-a')">
                             <div class="clickable">
-                                <strong>October 2021</strong>: Rewritten core components in Typescript
+                                <strong>Developer Profiles</strong>: August 2022
                             </div>
                             <div hidden id="sub-a">
-                                Over the course of the development of the core guts of Homegames, we created a lot of technical debt that makes it difficult for people to understand the code. It also makes it difficult for us to add features, since the codebase has become fragile and stuff tends to break when we make changes. All of this is to say we need to fully rewrite a lot of our code. There are many benefits to using Typescript that don't necessarily need to be described here, but basically it's good and we want to use it.  
+                                We have the ability to publish games, but no way to show users the games published by specific developers. The goal of this feature is to have a section on the Homegames website that displays all publicly available games published by a specific developer, as well as a short (200 characters max) "about" section. This will give developers the ability to add whatever text they want, including links to their social media, donation links, etc.
                             </div>
                         </li>
                         <li onclick="showOrHide('sub-b')">
                             <div class="clickable">
-                                <strong>November 2021</strong>: Basic documentation for core components
+                                <strong>Gamepad Support</strong>: October 2022
                             </div>
                             <div hidden id="sub-b">
-                                We've tried to document pieces here and there throughout development, but never committed much time to it because the pieces themselves were changing so fast. Now that we have a solid model of how all of this works, we're in a better position to document it.
+                                In my opinion (this is Joseph by the way), a game isn't real if you can't play it with a gamepad. We have a skeleton of gamepad support in our current implementation of Homegames web, but I'd like to expand that to support different gamepad types and a clean interface to interact with them.
                             </div>
                         </li>
                         <li onclick="showOrHide('sub-c')">
                             <div class="clickable">
-                                <strong>December 2021</strong>: Developer guide for building games
+                                <strong>Offline Mode</strong>: November 2022
                             </div>
                             <div hidden id="sub-c">
-                                Documenting core components is one thing, but giving developers good resources to build stuff is another. We don't think we can really call this "done" at any point because we will need to update guides as we add features, but we want to have an initial version of this done by the end of 2021.
+                                Searching for new games will always require an internet connection, but much of our platform can be made available offline. This entry is basically "add download buttons to games and assets to make them available when a public Internet connection is not available."
                             </div>
                         </li>
                         <li onclick="showOrHide('sub-e')">
                             <div class="clickable">
-                                <strong>January 2022</strong>: Homegames locker service completion
+                                <strong>Remote Play</strong>: Maybe end of 2022
                             </div>
                             <div hidden id="sub-e">
-                                The idea behind the locker service is that the Homegames server will need to access information that we (the Homegames team) should not be able to access. For example, if someone makes a game that integrates with Twitter, then that game will need access a Twitter API key. Homegames does not currently have any integrations with Twitter. So let's say the game needs to use the user's (the person running the Homegames server) Twitter API key. The locker will be a service where a user can store an encrypted version of their Twitter API key that can later be accessed by their Homegames server when running games.
+                                It would be cool if anyone in the world could join/spectate your game session. The plan here is to optionally allow sessions to be available at something like `sessions.homegames.io/sessionId` and allow users to access the server from the Internet. This would also solve the HTTPS issue, where the certificates would be handled by the Homegames server and users wouldn't need to store any certs/keys on their personal machines.
                             </div>
                         </li> 
                         <li onclick="showOrHide('sub-f')">
                             <div class="clickable">
-                                <strong>February 2022</strong>: Signed binaries
+                                <strong>Signed Binaries</strong>: Maybe end of 2022
                             </div>
                             <div hidden id="sub-f">
                                 As of August 2021, our download process feels pretty sketchy. We use <a href="https://github.com/vercel/pkg" target="_blank">pkg</a> to build binaries which are then pushed to S3 and linked to from the Homegames build service. These binaries are not signed, so when you download them on Windows or MacOS (shout out to Linux), you get a warning telling you the thing you just downloaded is from an unidentified developer. This turns people off of the whole thing, so we need to make that process smoother. We've looked into this and apparently it just costs money? Anyway we'll figure it out.
@@ -69,49 +69,9 @@
                         </li>
                         <li onclick="showOrHide('sub-g')">
                             <div class="clickable">
-                                <strong>April 2022</strong>: Client integration with social APIs
+                                <strong>WebGL</strong>: Maybe one day
                             </div>
                             <div hidden id="sub-g">
-                                We imagine something developers would want to do is build games that integrate with players' social media profiles. For example, let's say someone wants to build a game that loads all of someone's Facebook photos and lets them view them as a slideshow. Doesn't sound like a great game, but it's something we want to make possible. Integrating with Twitter, Facebook, Instagram, etc. would involve adding dependencies to the core Homegames libraries and would likely have an impact on our terms of service in some way. We need to figure out how all of that would work before we can offer any social media integrations in Homegames.
-                            </div>
-                        </li> 
-                        <li onclick="showOrHide('sub-h')">
-                            <div class="clickable">
-                                <strong>June 2022</strong>: Game catalog service
-                            </div>
-                            <div hidden id="sub-h">
-                                Published games are currently only accessible by ID, meaning the only way someone can share a game with you is by sending you the ID directly. This doesn't really work when the whole point of this thing is to share games with people, so we want to add a "game catalog" section to the Homegames website where people can search for games and try them out via picodeg.io - our public Homegames instance. At some point in the future it'd be nice to access the catalog through the Homegames server itself, but by June 2022 we want to have it available in the website. 
-                            </div>
-                        </li>
-                        <li onclick="showOrHide('sub-i')">
-                            <div class="clickable">
-                                <strong>2023</strong>: Game save / achievement service
-                            </div>
-                            <div hidden id="sub-i">
-                                This is kind of a rough idea as of August 2021, since we're still deciding whether or not we even want to offer any kind of persistence for games in the service. The main pro-game save argument is "people will build things that can't be fully experienced in a short lived multiplayer setting," while the main anti-game save argument is "Homegames was built around short lived multiplayer experiences and that should remain its focus". We're still figuring it out.
-                            </div>
-                        </li>
-                        <li onclick="showOrHide('sub-j')">
-                            <div class="clickable">
-                                <strong>Maybe</strong>: "Homegames premium"
-                            </div>
-                            <div hidden id="sub-j">
-                                This is a very fuzzy idea as of August 2021. Basically, we recognize that downloading a game server to your computer and running it yourself is not something a lot of people want to do. If this project gets a significant user base and we build interesting games that people want to play, then it makes sense to make the games easier to access. To us, that seems like a premium verison of Homegames where we host it for you and provide some nice extra features. We won't seriously consider this until we feel like it's worth paying for, which is not any time soon.  
-                            </div>
-                        </li>
-                        <li onclick="showOrHide('sub-k')">
-                            <div class="clickable">
-                                <strong>Maybe</strong>: Developer Donations
-                            </div>
-                            <div hidden id="sub-k">
-                                Homegames will always be free, but we want to allow developers to get paid for their work. Our current idea is to add a "donate" button to every game in Homegames where people can choose to donate to the developer, with a small portion of each donation going to the Homegames organization and the majority going to the developer. We have no plans to support microtransactions or any method to change game experiences based on donations. 
-                            </div>
-                        </li>
-                        <li onclick="showOrHide('sub-l')">
-                            <div class="clickable">
-                                <strong>Maybe</strong>: Use WebGL on the Homegames client
-                            </div>
-                            <div hidden id="sub-l">
                                 Our web client currently uses the canvas API to render game nodes sent by the game server. We still need to investigate the potential benefits and downsides of using it, but we think it'd be cool to use WebGL to improve performance and enable game developers to get as much functionality as possible from the tools we provide. Once we look into this more, we'll update this roadmap.
                             </div>
                         </li>
@@ -129,7 +89,7 @@
     <style>
         #content p {margin: 2.5%;font-weight: bold;}
         #content ul {list-style-type: none;}
-        #content ul li {margin-bottom: 20px;}
+        #content ul li {margin-bottom: 20px; font-size: large;}
         #content ul li div:first-child {text-decoration: underline;}
         #content ul li div:last-child {margin-top: 10px;}
     </style>

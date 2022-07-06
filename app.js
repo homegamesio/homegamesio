@@ -293,6 +293,11 @@ const server = http.createServer((req, res) => {
                 res.setHeader("Content-Type", 'text/html');
                 const payload = fs.readFileSync(path.join(__dirname, 'roadmap.html'));
                 res.end(payload);
+            } else if (req.url.startsWith('/about')) {
+                res.statusCode = 200;
+                res.setHeader("Content-Type", 'text/html');
+                const payload = fs.readFileSync(path.join(__dirname, 'about.html'));
+                res.end(payload);
             } else if (req.url.startsWith('/reset-password')) {
                 res.statusCode = 200;
                 res.setHeader("Content-Type", 'text/html');

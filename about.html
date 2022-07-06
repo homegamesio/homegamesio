@@ -1,0 +1,59 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Homegames</title>
+        <link rel="stylesheet" href="app.css">
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+        <link rel="manifest" href="/site.webmanifest">
+    </head>
+
+    <body>
+        <div id="modal" class="fade-in" hidden>
+            <div id="modal-content">
+                <div class="close clickable" onclick="hideModal()">X</div>
+                <div class="back"></div>
+                <div class="content"></div>
+            </div>
+        </div>
+        <div id="main">
+            <div id="page-container">
+                <div id="header">
+                    <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
+                </div>
+                <div id="content">
+                    <h1 style="font-size: xxx-large; text-align: center">About Us</h1>
+                    <img src="https://assets.homegames.io/0c027cf0b9a05a85deaa37c1c56bf991" width="40%" style="margin-left: 30%"></img>
+                    <div>
+                        <p style="font-size: large">
+                            Hello! We're Joseph and Yazeed. We've been working on Homegames since Summer 2018, and just recently launched our first "real" build of Homegames in July 2022.
+                        </p>
+                        <p>
+                            We're both professional software developers with full-time jobs, so we work on Homegames in our free time. We just want to make something cool and enable others do the same, and we think Homegames is the best way for us to accomplish that goal.
+                        </p>
+                        <p>
+                            All of our code is availble on <a href="https://github.com/homegamesio" target="_blank">GitHub</a>. A major goal of this project is to help others learn and build stuff, so we want to provide as many resources as possible to our community - including almost every line of code that makes this thing run.
+                        </p>
+                        <p>
+                            At the moment, we don't have any plans to monetize any of this stuff. If the project gets traction and our infrastructure bill moves out of my "acceptable hobby budget" range, we might have to rethink that. 
+                        </p>
+                    </div>
+                </div>
+                <div id="footer" onclick="showModal('support')" class="clickable">
+                    <h1>
+                        Contact
+                    </h1>
+                </div>
+            </div>
+        </div>
+    </body>
+    <script src="client.js"></script>
+    <style>
+        #content p {margin: 2.5%;font-size: large;}
+        #content ul {list-style-type: none;}
+        #content ul li {margin-bottom: 20px; font-size: large;}
+        #content ul li div:first-child {text-decoration: underline;}
+        #content ul li div:last-child {margin-top: 10px;}
+    </style>
+
+</html>
