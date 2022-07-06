@@ -22,32 +22,54 @@
                     <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
                 </div>
                 <div id="content">
-                    <h1>
-                        Work in progress - much more coming soon!
-                    </h1>
-                    <div>
+                    <div style="font-size: large; margin: 24px">
                         <div>
-                            <h4>What is Homegames?</h4>
+                            <h2>High Level Overview</h2>
                             <p>
                                 Homegames is a game platform allowing people to play games built by the Homegames community. Everything we build is free and open source with a GNU GPL v3.0 license, with the exception of our game engine <a href="https://github.com/homegamesio/squish">squish</a> which has an MIT license). Games are JavaScript components that consist of a state that can be translated to a rendered state on a Homegames client using squish. Using the Homegames platform, users can sign up for an account and publish games of their own to share with friends or publish for the world to play.
                             </p>
                             <p>
-                                Squish (our game engine) is a common dependency between Homegames core and Homegames web. It's basically a component that translates a game from "state stored in memory on the server" to "rendered image on the screen". "State stored in memory on the server" is <a href="https://github.com/homegamesio/homegames-core">Homegames core</a>. "Rendered image on the screen" is our official <a href="https://github.com/homegamesio/homegames-web">Homegames web client</a> or any other custom client. 
+                                Squish (our game engine) is a common dependency between Homegames core and Homegames web. It's basically a component that translates a game from "state stored in memory on the server" to "rendered image on the screen". "State stored in memory on the server" is <a href="https://github.com/homegamesio/homegames-core">Homegames core</a>. "Rendered image on the screen" is our official <a href="https://github.com/homegamesio/homegames-web">Homegames web client</a> or any other custom client.
                             </p>
                         </div>
                         <p>
-                            As of July 2022, we don't have very thorough documentation for much of the process of game development or publishing. We have documentation for Squishjs (the Homegames game engine) available at https://github.com/homegamesio/squish which at this point is probably the best documentation we have. More documentation is coming soon, specifically around building games and the different features we support. We're planning on having a full guide on building and publishing your own game by July 30, 2022.
+                            As of July 2022, we don't have very thorough documentation for much of the process of game development or publishing. We have documentation for Squishjs (the Homegames game engine) available <a href="https://github.com/homegamesio/squish">here</a> which at this point is probably the best documentation we have. More documentation is coming soon, specifically around building games and the different features we support. We're planning on having a full guide on building and publishing your own game by July 30, 2022.
                         </p>
-                        <p>
-                            The TL;DR if you want to poke around is download the binaries available at https://homegames.io or download the main homegames repo at https://github.com/homegamesio/homegames, run `npm install` `npm run` `npm run build` and then go to homegames.link in a browser on any device on the same LAN as you.
+                    </div>
+                    <div style="font-size: large; margin: 24px">
+                        <div>
+                            <h2>A Bit More Technical</h2>
+                            <div style="text-align:center;margin:auto;font-size:large;margin-bottom: 64px;">
+                                <img src="https://assets.homegames.io/cf8f1343b8804370f6d9daccaf21121c" width="60%"></img>
+                                <div>
+                                    <a href="https://assets.homegames.io/dd0c39221baa79047b5fdbd996cd3f4e">PDF Version</a>
+                                </div>
+                                <div style="font-size:large">
+                                    <p>A homegames client is any device with a web browser.<p>
+                                    <p>To connect to a Homegames client server (Homegames web server), a client device makes a GET request to homegames.link, which will redirect the client to the local IP (eg. 192.12.1.2) of the Homegames client server<p>
+                                    <p>Once the device downloads the web client from the client server, the client opens a websocket connection to the Homegames core server, which is responsible for running games available on the machine (in other words, games stored on disk). The core server sends serialized representations of game state over the websocket connection to the client, which then renders the game to the screen. This state serialization is done by our game engine, squish.</p>
+                                    <p>The Homegames core server maintains a websocket connection to homegames.link while running, which lets homegames.link keep track of active Homegames servers and provide mappings to clients when they go to homegames.link in the browser. This is completely optional and can be turned off via config.json (LINK_ENABLED value)</p> 
+                                    <p>The Homegames core server downloads games and assets from S3 via Landlord, a service that keeps track of Homegames data - mostly in DynamoDB. The core server keeps this data on disk and provides it to clients when they need it (eg. a sound asset that plays when the player taps the screen). Landlord is also responsible for handling search queries made by the Homegames dashboard, as well as providing info about how the core server can access the corresponding game code.</p>
+                                </div>
+                            </div>
 
-                        </p>
-                        <p>
-                            If you want old and very outdated info, check out our <a href="https://github.com/homegamesio/homegames-core/wiki/Getting-Started">getting started wiki.</a>
-                        </p>
-                        <p>
-                            We also have some "building stuff" videos in <a href="https://www.youtube.com/playlist?list=PL9BiQ9HyAQCMAZZQ-4FH3oCLYo-8BYYly" target="_blank">this YouTube playlist</a> for more of a "watch & learn" type of content. They are also old and wrong.
-                        </p>
+                            <div style="text-align:center;margin:auto">
+                                <img src="https://assets.homegames.io/1d311d44c60cceda32c44a99c4a53795" width="60%"></img>
+                                <div>
+                                    <a href="https://assets.homegames.io/b54e1a134cd85fdbcdfacef7448a2f79">PDF Version</a>
+                                </div>
+                                <div>
+                                    <p>Both homegames-core and homegames-web depend on multiple versions of squishjs. They both have config files called "squish maps" that point from a verison key (eg. '0750') to the corresponding version of squish from NPM.</p>
+                                    <p>This allows games to depend on specific versions by version key which is used by Homegames core at runtime to provide the correct environment variable for SQUISH_PATH based on the version specified when submitting a game for publishing. It also allows us to maintain backwards compatibilty with games that depend on older/deprecated versions of the engine as we release new versions.</p> 
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="font-size: large; margin: 24px">
+                        <div>
+                            <h2>Quick Start Guide</h2>
+                            <p>Coming this week!</p>
+                        </div>
                     </div>
                 </div>
                 <div id="footer" onclick="showModal('support')" class="clickable">
