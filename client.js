@@ -827,7 +827,7 @@ const modals = {
 
                 container.appendChild(loader());
 
-                makePost('/contact', {
+                makePost(`${API_URL}/contact`, {
                     email: emailForm.value,
                     message: messageForm.value
                 }).then((res) => {
@@ -1681,7 +1681,7 @@ const goHome = () => {
 };
 
 const navigateToCatalog = () => {
-    window.location.assign('/catalog');
+    window.location.assign('/catalog.html');
 };
 
 const navigateToPicodegio = () => {
