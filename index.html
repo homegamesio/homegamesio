@@ -7,7 +7,11 @@
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
         <link rel="manifest" href="/site.webmanifest">
     </head>
-
+    <style>
+        #content h1, #content h2 {
+            font-weight: lighter;
+        }
+    </style>
     <body>
         <div id="modal" class="fade-in" hidden>
             <div id="modal-content">
@@ -20,12 +24,12 @@
                 <div id="header" class="clickable">
                     <div onclick="showContent('home')" class="hg-button" id="logo"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
                     <div onclick="showModal('login')" class="hg-button" id="settings">
-                        <h2>Log in</h2>
+                        <h1>Log in</h1>
                     </div>
                 </div>
-                <div id="content">
+                <div id="content" style="font-weight: lighter;">
                     <div id="info-content">
-                        <img src="https://assets.homegames.io/31b81479f187d9ab6aa6845e0794b4be" style="width: 40%; margin-left: 30%; margin-top: 12px; margin-bottom: 12px;"/>
+                        <img src="https://assets.homegames.io/31b81479f187d9ab6aa6845e0794b4be" style="width: 20%; margin-left: 40%; margin-top: 12px; margin-bottom: 12px;"/>
                         <div class='headlines'>
                             <h1>Homegames is a free and open-source game platform</h1>
                             <h2>Play games built by the Homegames community or build your own</h2>
@@ -43,22 +47,13 @@
                             </div>
                         </div> 
                         <div id="links">
-                            <h1>Links</h1>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr;">
+                            <div style="display: grid; grid-template-columns: 1fr; text-align: center;">
                                 <ul>
                                     <li><a href="/roadmap">Roadmap</a></li>
-                                    <li><a href="/podcast">Podcast</a></li>
                                     <li><a href="/about">About Us</a></li>
-                                </ul>
-                                <ul>
                                     <li><a href="https://github.com/homegamesio" target="_blank">GitHub</a></li>
-                                    <li><a href="https://www.youtube.com/watch?v=8awg-HRAWBc" target="_blank">Demo Video</a></li>
-                                    <li><a href="/terms">Terms of Service</a></li>
-                                </ul>
-                                <ul>
                                     <li><a href="https://twitter.com/homegamesio" target="_blank">Twitter</a></li>
-                                    <li><a href="https://discord.gg/h8VBmyGhBm" target="_blank">Discord</a></li>
-                                    <li><a href="https://reddit.com/r/homegames" target="_blank">Reddit</a></li>
+                                    <li><a href="/terms">Terms of Service</a></li>
                                 </ul>
                             </div>
                         </div>

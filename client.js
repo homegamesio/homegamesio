@@ -1,12 +1,16 @@
+const API_PROTOCOL = window.origin && window.origin.startsWith('https') ? 'https' : 'http';
+const API_HOST = window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
+
+const ASSET_API_ENDPOINT = '/asset';
+
+const ASSET_URL = 'https://assets.homegames.io';
+const API_URL = `${API_PROTOCOL}://${API_HOST}`
+
 const clearChildren = (el) => {
     while (el.firstChild) {
         el.removeChild(el.firstChild);
     }
 };
-
-const LANDLORD_PROTOCOL = 'https';
-const LANDLORD_HOST = 'landlord.homegames.io';
-//localhost:8000';
 
 const makeGet = (endpoint, headers, isBlob) => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -76,7 +80,7 @@ const createGame = (name, description, thumbnail) => new Promise((resolve, rejec
     formData.append('thumbnail', thumbnail);
     formData.append('name', name);
     formData.append('description', description);
-    request.open("POST", `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games`);
+    request.open("POST", `${API_PROTOCOL}://${API_HOST}/games`);
 
     request.setRequestHeader('hg-username', window.hgUserInfo.username);
     request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
@@ -105,7 +109,7 @@ const uploadAsset = (asset, cb) => new Promise((resolve, reject) => {
 
     const request = new XMLHttpRequest();
 
-    request.open("POST", "https://landlord.homegames.io/asset"); 
+    request.open("POST", `${API_PROTOCOL}://${API_HOST}/${ASSET_API_ENDPOINT}`); 
 
     request.setRequestHeader('hg-username', window.hgUserInfo.username);
     request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
@@ -215,7 +219,7 @@ const handleLogin = (userInfo) => {
         showContent('dashboard');
     };
 
-    const dashboardButton = document.createElement('h2');
+    const dashboardButton = document.createElement('h1');
     dashboardButton.innerHTML = "Dashboard";
 
     settingsButton.appendChild(dashboardButton);
@@ -247,31 +251,14 @@ const loaderBlack = () => {
     return el;
 };
 
+const listAssets = () => new Promise((req, res) => {
+    makeGet(`${API_PROTOCOL}://${API_HOST}/${ASSET_API_ENDPOINT}`, {
+        'hg-username': window.hgUserInfo.username,
+        'hg-token': window.hgUserInfo.tokens.accessToken
+    }).then(resolve);
+});
+
 const modals = {
-    'tag': {
-        render: (tag) => {
-            const container = document.createElement('div');
-
-            const tagHeader = document.createElement('h2');
-            tagHeader.innerHTML = "Games tagged with " + tag;
-
-            container.appendChild(tagHeader);
-
-            makeGet('https://landlord.homegames.io/games?tags=' + tag).then(_games => {
-                const games = JSON.parse(_games);
-                const gameEls = games.games.map(game => {
-                    const _el = simpleDiv(game.name);
-                    _el.onclick = () => showModal('game-preview', game);
-                    return _el;
-                });
-
-                gameEls.forEach(el => {
-                    container.appendChild(el);
-                });
-            });
-            return container;
-        }
-    },
     'game-preview': {
         render: (game) => {
             const container = document.createElement('div');
@@ -292,49 +279,6 @@ const modals = {
             container.appendChild(gameCreated);
             container.appendChild(gameDescription);
 
-            if (window.hgUserInfo) {
-
-                const tagForm = document.createElement('input');
-                tagForm.type = 'text';
-
-                const tagConfirm = simpleDiv('Click to tag');
-                tagConfirm.onclick = () => {
-                    const tagValue = tagForm.value;
-                    makePost('https://landlord.homegames.io/tags', {
-                        game_id: game.id,
-                        tag: tagValue
-                    }, true, true).then((res) => {
-                        setTimeout(() => {
-                            showModal('game-preview', game);
-                        }, 500);
-                    });
-                };
-
-                container.appendChild(tagForm);
-                container.appendChild(tagConfirm);
-            } else {
-                container.appendChild(simpleDiv('Log in to tag'));
-            }
-
-            makeGet('https://landlord.homegames.io/games/' + game.id).then(_gameData => {
-                const gameData = JSON.parse(_gameData);
-                const tagsHeader = document.createElement('h4');
-                tagsHeader.innerHTML = "Tags";
-
-                container.appendChild(tagsHeader);
-                if (gameData.tags) {
-                    const tagEls = gameData.tags.map(tag => {
-                        const _el = simpleDiv(tag);
-                        _el.onclick = () => showModal('tag', tag);
-                        return _el;
-                    });
-
-                    tagEls.forEach(el => {
-                        container.appendChild(el);
-                    });
-                }
-            });
-
             return container;
         }
     },
@@ -345,19 +289,20 @@ const modals = {
             container.style = 'margin: 2%';
 
             const _loader = loader();
-            container.appendChild(_loader);
+            // container.appendChild(_loader);
 
-            makeGet(`https://builds.homegames.io${path}`).then((_buildInfo) => {
-                container.removeChild(_loader);
-                const buildInfo = JSON.parse(_buildInfo);
+            console.log('path ' + path);
+            // makeGet(`https://builds.homegames.io${path}`).then((_buildInfo) => {
+                // container.removeChild(_loader);
+                // const buildInfo = JSON.parse(_buildInfo);
 
                 const downloadHeader = document.createElement('h1');
                 downloadHeader.innerHTML = 'Download';
                 downloadHeader.style = 'text-align: center';
 
-                const publishedInfoDiv = document.createElement('h4');
-                publishedInfoDiv.innerHTML = `Latest stable version published ${new Date(buildInfo.datePublished).toDateString()} ${new Date(buildInfo.datePublished).toTimeString()}`;
-                publishedInfoDiv.style = 'text-align: center;';
+                // const publishedInfoDiv = document.createElement('h4');
+                // publishedInfoDiv.innerHTML = `Latest stable version published ${new Date(buildInfo.datePublished).toDateString()} ${new Date(buildInfo.datePublished).toTimeString()}`;
+                // publishedInfoDiv.style = 'text-align: center;';
                 // const commitAuthorDiv = simpleDiv(`Author: ${buildInfo.commitInfo.author}`);
 
                 // const commitMessageDiv = simpleDiv(`Commit message:<br />${buildInfo.commitInfo.message}`);
@@ -365,56 +310,103 @@ const modals = {
                 // const commitHashDiv = simpleDiv(`Commit hash: ${buildInfo.commitInfo.commitHash}`);
 
                 container.appendChild(downloadHeader);
-                container.appendChild(publishedInfoDiv);
+
+
+                const latestDiv = document.createElement('div');
+
+                const stableDiv = document.createElement('div');
+
+                const latestWindows = document.createElement('a');
+                latestWindows.innerHTML = 'Windows';
+                latestWindows.href = 'https://builds.homegames.io/latest/homegames-win.exe';
+
+                const latestLinux = document.createElement('a');
+                latestLinux.innerHTML = 'Linux';
+                latestLinux.href = 'https://builds.homegames.io/latest/homegames-linux';
+
+                const latestMac = document.createElement('a');
+                latestMac.innerHTML = 'macOS';
+                latestMac.href = 'https://builds.homegames.io/latest/homegames.dmg';
+
+                const latestHeader = document.createElement('h2');
+                latestHeader.innerHTML = 'Latest';
+
+                latestDiv.appendChild(latestHeader);
+                latestDiv.appendChild(latestWindows);
+                latestDiv.appendChild(latestMac);
+                latestDiv.appendChild(latestLinux);
+
+                const stableWindows = document.createElement('a');
+                stableWindows.innerHTML = 'Windows';
+                stableWindows.href = 'https://builds.homegames.io/stable/homegames-win.exe';
+
+                const stableLinux = document.createElement('a');
+                stableLinux.innerHTML = 'Linux';
+                stableLinux.href = 'https://builds.homegames.io/stable/homegames-linux';
+
+                const stableMac = document.createElement('a');
+                stableMac.innerHTML = 'macOS';
+                stableMac.href = 'https://builds.homegames.io/stable/homegames.dmg';
+
+                const stableHeader = document.createElement('h2');
+                stableHeader.innerHTML = 'Stable';
+
+                stableDiv.appendChild(stableHeader);
+                stableDiv.appendChild(stableWindows);
+                stableDiv.appendChild(stableMac);
+                stableDiv.appendChild(stableLinux);
+
+                // container.appendChild(publishedInfoDiv);
                 // container.appendChild(commitAuthorDiv);
                 // container.appendChild(commitHashDiv);
                 // container.appendChild(commitMessageDiv);
 
-                const buttonContainer = document.createElement('div');
-                buttonContainer.id = 'download-button-container';
+                // const buttonContainer = document.createElement('div');
+                // buttonContainer.id = 'download-button-container';
 
-                const winDiv = document.createElement('div');
-                winDiv.className = 'hg-button';
-                winDiv.style = 'width: 160px; margin: auto; border: 1px solid white; border-radius: 5px; height: 90px; text-align: center; line-height: 90px; background: #fbfff2';
-                const winLink = document.createElement('a');
-                winLink.style = 'text-decoration: none;';
-                winLink.download = `homegames-win`;
-                winLink.href = buildInfo.windowsUrl;
-                winLink.innerHTML = 'Windows';
-                winDiv.appendChild(winLink);
+                // const winDiv = document.createElement('div');
+                // winDiv.className = 'hg-button';
+                // winDiv.style = 'width: 160px; margin: auto; border: 1px solid white; border-radius: 5px; height: 90px; text-align: center; line-height: 90px; background: #fbfff2';
+                // const winLink = document.createElement('a');
+                // winLink.style = 'text-decoration: none;';
+                // winLink.download = `homegames-win`;
+                // winLink.href = buildInfo.windowsUrl;
+                // winLink.innerHTML = 'Windows';
+                // winDiv.appendChild(winLink);
 
-                const macDiv = document.createElement('div');
-                macDiv.className = 'hg-button';
-                macDiv.style = 'width: 160px; margin: auto; border: 1px solid white; border-radius: 5px; height: 90px; text-align: center; line-height: 90px; background: #fbfff2';
-                const macLink = document.createElement('a');
-                macLink.style = 'text-decoration: none;';
-                macLink.download = `homegames-mac`;
-                macLink.href = buildInfo.macUrl;
-                macLink.innerHTML = 'Mac';
-                macDiv.appendChild(macLink);
+                // const macDiv = document.createElement('div');
+                // macDiv.className = 'hg-button';
+                // macDiv.style = 'width: 160px; margin: auto; border: 1px solid white; border-radius: 5px; height: 90px; text-align: center; line-height: 90px; background: #fbfff2';
+                // const macLink = document.createElement('a');
+                // macLink.style = 'text-decoration: none;';
+                // macLink.download = `homegames-mac`;
+                // macLink.href = buildInfo.macUrl;
+                // macLink.innerHTML = 'Mac';
+                // macDiv.appendChild(macLink);
 
-                const linuxDiv = document.createElement('div');
-                linuxDiv.className = 'hg-button';
-                linuxDiv.style = 'width: 160px; margin: auto; border: 1px solid white; border-radius: 5px; height: 90px; text-align: center; line-height: 90px; background: #fbfff2';
-                const linuxLink = document.createElement('a');
-                linuxLink.style = 'text-decoration: none;';
-                linuxLink.download = `homegames-linux`;
-                linuxLink.href = buildInfo.linuxUrl;
-                linuxLink.innerHTML = 'Linux';
-                linuxDiv.appendChild(linuxLink);
+                // const linuxDiv = document.createElement('div');
+                // linuxDiv.className = 'hg-button';
+                // linuxDiv.style = 'width: 160px; margin: auto; border: 1px solid white; border-radius: 5px; height: 90px; text-align: center; line-height: 90px; background: #fbfff2';
+                // const linuxLink = document.createElement('a');
+                // linuxLink.style = 'text-decoration: none;';
+                // linuxLink.download = `homegames-linux`;
+                // linuxLink.href = buildInfo.linuxUrl;
+                // linuxLink.innerHTML = 'Linux';
+                // linuxDiv.appendChild(linuxLink);
 
-                buttonContainer.appendChild(winDiv);
-                buttonContainer.appendChild(macDiv);
-                buttonContainer.appendChild(linuxDiv);
+                // buttonContainer.appendChild(winDiv);
+                // buttonContainer.appendChild(macDiv);
+                // buttonContainer.appendChild(linuxDiv);
 
-                container.appendChild(buttonContainer);
+                // container.appendChild(buttonContainer);
 
-                const instructions = document.createElement('h3');
-                instructions.innerHTML = 'Run the homegames server package and navigate to homegames.link in any browser on your local network to play games';
-                instructions.style = 'text-align: center;';
+                // const instructions = document.createElement('h3');
+                // instructions.innerHTML = 'Run the homegames server package and navigate to homegames.link in any browser on your local network to play games';
+                // instructions.style = 'text-align: center;';
 
-                container.appendChild(instructions);
-            });
+                container.appendChild(latestDiv);
+                container.appendChild(stableDiv);
+            // });
             
             return container;
         }
@@ -438,7 +430,7 @@ const modals = {
             const imageContainer = document.createElement('div');
             imageContainer.style = 'text-align: center; margin-top: 36px; margin-bottom: 36px;';
             const imageEl = document.createElement('img');
-            imageEl.setAttribute('src', 'https://assets.homegames.io/' + game.thumbnail);
+            imageEl.setAttribute('src', `${ASSET_URL}/${game.thumbnail}`);
             imageContainer.appendChild(imageEl);
             imageEl.setAttribute('width', '250px');
 
@@ -449,7 +441,7 @@ const modals = {
             const versionSelectorContainer = document.createElement('div');
             const versionDetailContainer = document.createElement('div');
 
-            makeGet(`https://landlord.homegames.io/games/${game.id}`).then(_gameDetails => {
+            makeGet(`${API_URL}/games/${game.id}`).then(_gameDetails => {
                 const gameDetails = JSON.parse(_gameDetails);
                 if (!gameDetails.versions || gameDetails.versions.length < 1) {
                     const noVersionsContainer = document.createElement('div');
@@ -522,7 +514,7 @@ const modals = {
                         clearChildren(descriptionSection);
                         descriptionSection.appendChild(_loader);
                         const request = new XMLHttpRequest();
-                        request.open("POST", "https://landlord.homegames.io/games/" + game.id + "/update");
+                        request.open("POST", `${API_URL}/games/${game.id}/update`);
 
                         request.setRequestHeader('hg-username', window.hgUserInfo.username);
                         request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
@@ -562,7 +554,7 @@ const modals = {
                 const _loader = loaderBlack();
 
                 const requestSection = document.createElement('div');
-                makeGet('https://landlord.homegames.io/games/' + game.id + "/publish_requests", {
+                makeGet(`${API_URL}/games/${game.id}/publish_requests`, {
                     'hg-username': window.hgUserInfo.username,
                     'hg-token': window.hgUserInfo.tokens.accessToken
                 }).then((_publishRequests) => {
@@ -581,7 +573,7 @@ const modals = {
                                 detailState[request.request_id].remove();
                                 delete detailState[request.request_id];
                             } else {
-                                makeGet('https://landlord.homegames.io/publish_requests/' + request.request_id + '/events', {
+                                makeGet(`${API_URL}/publish_requests/${request.request_id}/events`, {
                                     'hg-username': window.hgUserInfo.username,
                                     'hg-token': window.hgUserInfo.tokens.accessToken
                                 }).then((_eventData) => {
@@ -604,7 +596,7 @@ const modals = {
                                         const container = simpleDiv();
                                         container.innerHTML = 'Submit for publishing';
                                         container.onclick = () => {
-                                            makePost(`https://landlord.homegames.io/public_publish`, {
+                                            makePost(`${API_URL}/public_publish`, {
                                                 requestId: requestData.request_id
                                             }, false, true).then(() => {
                                                 console.log("need to update ui");
@@ -675,7 +667,7 @@ const modals = {
 
                 publishButton.onclick = () => {
                     const request = new XMLHttpRequest();
-                    request.open("POST", "https://landlord.homegames.io/games/" + game.id + "/publish");
+                    request.open("POST", `${API_URL}/games/${game.id}/publish`);
                 
                     request.setRequestHeader('hg-username', window.hgUserInfo.username);
                     request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
@@ -715,7 +707,7 @@ const modals = {
                 
                 versionContainer.appendChild(_loader);
 
-                makeGet('https://landlord.homegames.io/games/' + game.id, {
+                makeGet(`${API_URL}/games/${game.id}`, {
                     'hg-username': window.hgUserInfo.username,
                     'hg-token': window.hgUserInfo.tokens.accessToken
                 }).then((_versions) => {
@@ -998,7 +990,7 @@ const modals = {
 
             const tosText = document.createElement('div');
             const tosLink = document.createElement('a');
-            tosLink.href = '/terms';
+            tosLink.href = '/terms.html';
             tosLink.innerHTML = 'Check this box to confirm you agree to the terms of service';
             tosLink.style = 'text-decoration: none; color: white;';
 
@@ -1252,8 +1244,7 @@ const dashboards = {
                 const _loader = loaderBlack();
                 container.appendChild(_loader);
                
-                    //'http://localhost:8000/games', {//landlord.homegames.io/games', {
-                makeGet(`${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games?author=${window.hgUserInfo.username}`, {
+                makeGet(`${API_PROTOCOL}://${API_HOST}/games?author=${window.hgUserInfo.username}`, {
                     'hg-username': window.hgUserInfo.username,
                     'hg-token': window.hgUserInfo.tokens.accessToken
                 }).then((_games) => {
@@ -1343,10 +1334,13 @@ const dashboards = {
                 const _loader = loaderBlack();
                 container.appendChild(_loader);
 
-                makeGet('https://landlord.homegames.io/assets', {
-                    'hg-username': window.hgUserInfo.username,
-                    'hg-token': window.hgUserInfo.tokens.accessToken
-                }).then((_assets) => {
+                listAssets().
+                // makeGet('', {
+                //     'hg-username': window.hgUserInfo.username,
+                //     'hg-token': window.hgUserInfo.tokens.accessToken
+                // }).
+                then((_assets) => {
+                    console.log('ayo');
                     container.removeChild(_loader);
                     const assets = JSON.parse(_assets).assets;
                     const table = sortableTable(assets, {key: 'created', order: 'desc'});
@@ -1376,7 +1370,7 @@ const dashboards = {
                 adminHeader.innerHTML = 'Admin';
 
                 container.appendChild(adminHeader);
-                makeGet('https://landlord.homegames.io/admin/publish_requests', {
+                makeGet(`${API_URL}/admin/publish_requests`, {
                     'hg-username': window.hgUserInfo.username,
                     'hg-token': window.hgUserInfo.tokens.accessToken
                 }).then((_publishRequests) => {
@@ -1433,7 +1427,7 @@ const dashboards = {
                         approveButton.innerHTML = 'Approve';
                         approveButton.onclick = () => {
                             if (actionForm.value) {
-                                makePost(`https://landlord.homegames.io/admin/request/${request.request_id}/action`, {
+                                makePost(`${API_URL}/admin/request/${request.request_id}/action`, {
                                     action: 'approve',
                                     message: actionForm.value
                                 }, false, true).then(() => {
@@ -1445,7 +1439,7 @@ const dashboards = {
                         rejectButton.innerHTML = 'Reject';
                         rejectButton.onclick = () => {
                             if (actionForm.value) {
-                                makePost(`https://landlord.homegames.io/admin/request/${request.request_id}/action`, {
+                                makePost(`${API_URL}/admin/request/${request.request_id}/action`, {
                                     action: 'reject',
                                     message: actionForm.value
                                 }, false, true).then(() => {
@@ -1695,7 +1689,7 @@ const navigateToPicodegio = () => {
 };
 
 const navigateToDeveloperResources = () => {
-    window.location.assign('/developers');
+    window.location.assign('/developers.html');
 };
 
 const handleDownload = (stable) => {
@@ -1712,29 +1706,28 @@ const confirmSignup = (username, code) => new Promise((resolve, reject) => {
 });
 
 const listGames = (limit = 10, offset = 0) => new Promise((resolve, reject) => { 
-    const gameUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games`;
+    const gameUrl = `${API_PROTOCOL}://${API_HOST}/games`;
     makeGet(gameUrl).then((_games) => {
         resolve(JSON.parse(_games));
     }); 
 });
 
 const listTags = (limit = 10, offset = 0) => new Promise((resolve, reject) => { 
-    //'http://landlord.homegames.io/games').then((_games) => {
-    const tagUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/tags`;
+    const tagUrl = `${API_PROTOCOL}://${API_HOST}/tags`;
     makeGet(tagUrl).then((_tags) => {
         resolve(JSON.parse(_tags));
     }); 
 });
 
 const searchGames = (query) => new Promise((resolve, reject) => {
-    const gameUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games?query=${query}`;
+    const gameUrl = `${API_PROTOCOL}://${API_HOST}/games?query=${query}`;
     makeGet(gameUrl).then((_games) => {
         resolve(JSON.parse(_games));
     });
 });
 
 const searchTags = (query) => new Promise((resolve, reject) => {
-    const tagUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/tags?query=${query}`;
+    const tagUrl = `${API_PROTOCOL}://${API_HOST}/tags?query=${query}`;
     makeGet(tagUrl).then((_tags) => {
         resolve(JSON.parse(_tags));
     });
@@ -1790,7 +1783,7 @@ const renderGames = (games) => {
 };
 
 const getAllGames = (page) => new Promise((resolve, reject) => {
-    const gamesUrl = `${LANDLORD_PROTOCOL}://${LANDLORD_HOST}/games?page=${page || 1}`;
+    const gamesUrl = `${API_PROTOCOL}://${API_HOST}/games?page=${page || 1}`;
     makeGet(gamesUrl).then((games) => {
         resolve(JSON.parse(games));
     });
