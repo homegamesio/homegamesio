@@ -1,7 +1,7 @@
 const API_PROTOCOL = window.origin && window.origin.startsWith('https') ? 'https' : 'http';
 const API_HOST = window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
 
-const ASSET_API_ENDPOINT = '/asset';
+const ASSET_API_ENDPOINT = '/assets';
 
 const ASSET_URL = 'https://assets.homegames.io';
 const API_URL = `${API_PROTOCOL}://${API_HOST}`
