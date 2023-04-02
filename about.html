@@ -22,20 +22,47 @@
                     <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
                 </div>
                 <div id="content">
-                    <h1 style="font-size: xxx-large; text-align: center">About Us</h1>
-                    <img src="https://assets.homegames.io/ba5ef0800eb38db962b13f71afc3e9c4" width="40%" style="margin-left: 30%"></img>
-                    <div>
-                        <p style="font-size: large">
-                            Hello! We're Joseph and Yazeed. We've been working on Homegames since Summer 2018, and just recently launched our first "real" build of Homegames in July 2022.
+                    <div style="font-size: x-large;">
+                        <div style="text-align: center">
+                            <div>
+                                <img src="https://assets.homegames.io/ba5ef0800eb38db962b13f71afc3e9c4" width="480" style="text-align: center; padding-top: 28px; padding-bottom: 28px"></img>
+                            </div>
+                            <strong>
+                                Hello! We're Joseph and Yazeed. We've been friends since 2009, and we've been building Homegames since 2018. 
+                            </strong>
+                        </div>
+                        <p>
+                            We're both full-time software developers who work on Homegames in our free time. We love games and learning new stuff, and after years of experimenting and figuring out what we were trying to build, we're excited to finally launch Homegames in 2023! 
                         </p>
                         <p>
-                            We're both professional software developers with full-time jobs, so we work on Homegames in our free time. We just want to make something cool and enable others do the same, and we think Homegames is the best way for us to accomplish that goal.
+                            The earliest version of Homegames was as a simple browser-based multiplayer game rendering demo. Over time, it eventually grew into a game engine and publishing platform allowing users to share games with their friends. 
                         </p>
                         <p>
-                            All of our code is availble on <a href="https://github.com/homegamesio" target="_blank">GitHub</a>. A major goal of this project is to help others learn and build stuff, so we want to provide as many resources as possible to our community - including almost every line of code that makes this thing run.
+                            We still have quite a bit we want to do, but as of April 2023, we've built some pretty cool features such as:
+                            <ul>
+                                <li>
+                                    <strong>Multiplayer games over LAN</strong> - anyone on the same wifi network as a Homegames server can play games on any browser by navigating to https://homegames.link
+                                </li>
+
+                                <li>
+                                    <strong>Language agnostic clients</strong> - Homegames servers output game data in binary format over websockets - anything with web socket support can be a Homegames client 
+                                </li>
+
+                                <li>
+                                    <strong>JavaScript-based game engine</strong> - support for custom images, sound assets, 2D layer rendering, device input and user interactions
+                                </li>
+                                
+                                <li>
+                                    <strong>Game publishing</strong> - in addition to the games we build and provide "out of the box," users can make their own games and optionally publish them to our "catalog" making them available to the world
+                                </li>
+
+                                <li>
+                                    <strong>Dashboard</strong> - Users can create or join game sessions from a list of installed games via the Homegames dashboard, or search for new games to download from the catalog
+                                </li>
+                            </ul>
                         </p>
                         <p>
-                            At the moment, we don't have any plans to monetize any of this stuff. If the project gets traction and our infrastructure bill moves out of my "acceptable hobby budget" range, we might have to rethink that. 
+                            We don't have any solid plans to make money from Homegames at the moment. We just wanted to build something cool that enabled others to do the same, and that eventually turned into Homegames. We want to make it easy for others to learn and build stuff they're proud of.
                         </p>
                     </div>
                 </div>
@@ -49,11 +76,8 @@
     </body>
     <script src="client.js"></script>
     <style>
-        #content p {margin: 2.5%;font-size: large;}
-        #content ul {list-style-type: none;}
-        #content ul li {margin-bottom: 20px; font-size: large;}
-        #content ul li div:first-child {text-decoration: underline;}
-        #content ul li div:last-child {margin-top: 10px;}
+        #content p {font-size: x-large; margin: 48px; margin-top: 48px; }
+        #content ul li {margin:48px;}
     </style>
 
 </html>
