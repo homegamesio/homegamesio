@@ -455,7 +455,6 @@ body {
 }
 
 td {
-    max-width: 80px;
     overflow: scroll;
     padding: 40px;
 }

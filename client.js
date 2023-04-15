@@ -1,5 +1,5 @@
-const API_PROTOCOL = window.origin && window.origin.startsWith('https') ? 'https' : 'http';
-const API_HOST = window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
+const API_PROTOCOL = 'https';//window.origin && window.origin.startsWith('https') ? 'https' : 'http';
+const API_HOST = 'api.homegames.io';//window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
 
 const ASSET_API_ENDPOINT = '/assets';
 
@@ -251,7 +251,7 @@ const loaderBlack = () => {
     return el;
 };
 
-const listAssets = () => new Promise((req, res) => {
+const listAssets = () => new Promise((resolve, reject) => {
     makeGet(`${API_PROTOCOL}://${API_HOST}/${ASSET_API_ENDPOINT}`, {
         'hg-username': window.hgUserInfo.username,
         'hg-token': window.hgUserInfo.tokens.accessToken
@@ -578,6 +578,8 @@ const modals = {
                                     'hg-token': window.hgUserInfo.tokens.accessToken
                                 }).then((_eventData) => {
                                     const eventData = JSON.parse(_eventData);
+                                    console.log("EVENT DATA");
+                                    console.log(eventData);
                                     const eventTable = sortableTable(eventData.events);
                                     eventsContainer.appendChild(eventTable);
                                 });
@@ -591,7 +593,19 @@ const modals = {
                         };
                         showEvents(_clickedReq);
                     };
-                    const _table = sortableTable(tableData, null, _onCellClick, undefined, (requestData) => {
+
+                    console.log('tbabebeale da');
+                    console.log(tableData);
+
+                    const publishRequestTableData = tableData.map(d => {
+                        return {
+                            'adminMessage': d.adminMessage,
+                            'created': d.created,
+                            'request_id': d.request_id,
+                            'status': d.status
+                        };
+                    });
+                    const _table = sortableTable(publishRequestTableData, null, _onCellClick, undefined, (requestData) => {
                         if (requestData.status === 'CONFIRMED') {
                                         const container = simpleDiv();
                                         container.innerHTML = 'Submit for publishing';
@@ -652,7 +666,7 @@ const modals = {
 
                 const squishVersionInput = document.createElement('select');
 
-                const squishVersionOptions = ['0756'];
+                const squishVersionOptions = ['0756', '0766'];
 
                 for (let i = 0; i < squishVersionOptions.length; i++) {
                     const squishVersionOption = squishVersionOptions[i];
@@ -719,7 +733,17 @@ const modals = {
                         const noVersions = simpleDiv('No published versions');
                         versionContainer.appendChild(noVersions);
                     } else {
-                        const versionTable = sortableTable(versions);
+                        console.log("VEREIRIERI");
+                        console.log(versions);
+                        const versionTableData = versions.map(v => {
+                            return {
+                                'version': v.version,
+                                'versionId': v.versionId,
+                                'published': v.publishedAt,
+                                'download': `<a href="${v.location}">link</a>`
+                            };
+                        })
+                        const versionTable = sortableTable(versionTableData);
                         versionContainer.appendChild(versionTable);
                     }
                 });
@@ -1164,8 +1188,33 @@ const dashboards = {
                 container.innerHTML = 'Log in to manage games';
                 resolve(container);
             } else {
+                const mainCreateSection = document.createElement('div');
+                mainCreateSection.style = 'margin-bottom: 48px';
+
+                const mainCreateButton = document.createElement('div');
+                mainCreateButton.style = 'background: #A0EB5D; width: 200px;text-align: center;height: 50px;line-height: 50px;border: 1px solid black;border-radius: 5px;';
+                mainCreateButton.innerHTML = 'Create a new game';
+                mainCreateButton.className = 'clickable';
+
+                mainCreateSection.appendChild(mainCreateButton);
+
                 const createSection = document.createElement('div');
                 createSection.style = 'margin-bottom: 48px';
+                createSection.setAttribute('hidden', '');
+
+                mainCreateButton.onclick = () => {
+                    if (createSection.hasAttribute('hidden')) {
+                        createSection.removeAttribute('hidden');   
+                        mainCreateButton.style.background = 'rgba(241, 112, 111, 255)';
+                        mainCreateButton.innerHTML = 'Cancel';
+                    } else {
+                        createSection.setAttribute('hidden', '');
+                        mainCreateButton.style.background = '#A0EB5D';
+                        mainCreateButton.innerHTML = 'Create a new game';
+                    }
+                }
+
+                mainCreateSection.appendChild(createSection);
 
                 const createHeader = document.createElement('h2');
                 createHeader.innerHTML = 'Create a game';
@@ -1232,10 +1281,10 @@ const dashboards = {
                 createSection.appendChild(thumbnailFormDiv);
                 createSection.appendChild(createButton);
 
-                container.appendChild(createSection);
+                container.appendChild(mainCreateSection);
 
                 const myGamesHeader = document.createElement('h1');
-                // myGamesHeader.style = 'margin-top: 10vh';
+                myGamesHeader.style = 'text-align: center';
                 myGamesHeader.innerHTML = 'My Games';
 
                 container.appendChild(myGamesHeader);
@@ -1251,15 +1300,9 @@ const dashboards = {
                     container.removeChild(_loader);
                     const games = JSON.parse(_games).games;
 
-                    // todo: make this a function
-                    const fields = new Set();
-                    for (const key in games) {
-                        for (const field in games[key]) {
-                            fields.add(field);
-                        }
-                    }
+                    const fields = ['id', 'name', 'createdAt'];
 
-                    const cellWidth = 100 / fields.size;
+                    const cellWidth = 100 / fields.length;
 
                     const onCellClick = (index, field) => {
                         const clickedGame = games[index];
@@ -1277,7 +1320,18 @@ const dashboards = {
                         // cellEl.style = styleString;
                     };
  
-                    const table = sortableTable(games, {key: 'created', order: 'desc'}, onCellClick, {rowStyler, cellStyler});
+                    const gameDataToRender = [];
+                    for (let key in games) {
+                        const gameData = {};
+
+                        for (let i in fields) {
+                            gameData[fields[i]] = games[key][fields[i]] 
+                        }
+
+                        gameDataToRender.push(gameData);
+                    }
+
+                    const table = sortableTable(gameDataToRender, {key: 'createdAt', order: 'desc'}, onCellClick, {rowStyler, cellStyler});
                     container.appendChild(table);
                 });
 
