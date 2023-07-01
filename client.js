@@ -1127,22 +1127,16 @@ const dashboards = {
 
                 resolve(requiresConfirmationEl);
             } else {
-                const memberSinceVal = window.hgUserInfo ? window.hgUserInfo.created : 'Not Available';
-                const meLabel = document.createElement('h1');
-                meLabel.id = 'me-label';
-                meLabel.style = 'text-align: center';
-                meLabel.innerHTML = window.hgUserInfo?.username || 'Unknown';
-
-                const memberSince = document.createElement('h3');
-                memberSince.innerHTML = `Member since ${memberSinceVal}`;
-                memberSince.style = 'text-align: center';
-
                 const buttonContainer = document.createElement('div');
                 if (window.hgUserInfo.isAdmin) {
                     buttonContainer.style = 'display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 50px';
                 } else {
                     buttonContainer.style = 'display: grid; grid-template-columns: 1fr 1fr; margin-top: 50px';
                 }
+
+                const meButton = simpleDiv('Me');
+                meButton.id = 'me-button';
+                meButton.className = 'hg-button clickable content-button';
 
                 const gamesButton = simpleDiv('My Games');
                 gamesButton.id = 'my-games-button';
@@ -1158,15 +1152,14 @@ const dashboards = {
                 adminButton.id = 'admin-button';
                 adminButton.className = 'hg-button clickable content-button';
                 
+                meButton.onclick = () => updateDashboardContent('me');
                 gamesButton.onclick = () => updateDashboardContent('games');
                 assetsButton.onclick = () => updateDashboardContent('assets');
                 adminButton.onclick = () => updateDashboardContent('admin');
     
                 const el = document.createElement('div');
-    
-                el.appendChild(meLabel);
-                el.appendChild(memberSince);
 
+                buttonContainer.appendChild(meButton);
                 buttonContainer.appendChild(gamesButton);
                 buttonContainer.appendChild(assetsButton);
                 
@@ -1299,13 +1292,19 @@ const dashboards = {
                 }).then((_games) => {
                     container.removeChild(_loader);
                     const games = JSON.parse(_games).games;
+                    const gameDataToRender = [];
 
                     const fields = ['id', 'name', 'createdAt'];
 
                     const cellWidth = 100 / fields.length;
 
                     const onCellClick = (index, field) => {
-                        const clickedGame = games[index];
+                        const clickedGameData = gameDataToRender[index];
+                        const clickedGame = Object.values(games).filter(g => g.id === clickedGameData.id)[0];
+                        console.log("INDEX?");
+                        console.log(index);
+                        console.log(field);
+                        console.log(games);
                         showModal('game-detail', clickedGame);
                     };
 
@@ -1320,7 +1319,6 @@ const dashboards = {
                         // cellEl.style = styleString;
                     };
  
-                    const gameDataToRender = [];
                     for (let key in games) {
                         const gameData = {};
 
@@ -1330,6 +1328,10 @@ const dashboards = {
 
                         gameDataToRender.push(gameData);
                     }
+
+                    console.log("AYO!");
+                    console.log(gameDataToRender);
+                    console.log(games);
 
                     const table = sortableTable(gameDataToRender, {key: 'createdAt', order: 'desc'}, onCellClick, {rowStyler, cellStyler});
                     container.appendChild(table);
@@ -1408,9 +1410,32 @@ const dashboards = {
         childOf: 'default'
     },
     'me': {
-        render: () => {
-            return simpleDiv('meeee');
-        },
+        render: () => new Promise((resolve, reject) => {
+            const container = document.createElement('div');
+
+            const memberSinceVal = window.hgUserInfo ? window.hgUserInfo.created : 'Not Available';
+            const meLabel = document.createElement('h1');
+            meLabel.id = 'me-label';
+            meLabel.style = 'text-align: center';
+            meLabel.innerHTML = window.hgUserInfo?.username || 'Unknown';
+
+            const memberSince = document.createElement('h3');
+            memberSince.innerHTML = `Member since ${memberSinceVal}`;
+            memberSince.style = 'text-align: center';
+
+            container.appendChild(meLabel);
+            container.appendChild(memberSince);
+
+            makeGet(`${API_URL}/cert_status`, {
+                'hg-username': window.hgUserInfo.username,
+                'hg-token': window.hgUserInfo.tokens.accessToken
+            }).then(certStatus => {
+                console.log('got cert status!');
+                console.log(certStatus);
+            });
+
+            resolve(container);
+        }),
         childOf: 'default'
     },
     'admin': {
