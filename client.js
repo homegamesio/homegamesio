@@ -460,8 +460,8 @@ const modals = {
                 // instructions.innerHTML = 'Run the homegames server package and navigate to homegames.link in any browser on your local network to play games';
                 // instructions.style = 'text-align: center;';
 
-                container.appendChild(latestDiv);
                 container.appendChild(stableDiv);
+                container.appendChild(latestDiv);
             // });
             
             return container;
