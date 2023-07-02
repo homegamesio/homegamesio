@@ -22,48 +22,51 @@
                     <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
                 </div>
                 <div id="content">
-                    <div style="font-size: x-large;">
-                        <div style="text-align: center">
-                            <div>
-                                <img src="https://assets.homegames.io/ba5ef0800eb38db962b13f71afc3e9c4" width="480" style="text-align: center; padding-top: 28px; padding-bottom: 28px"></img>
-                            </div>
-                            <strong>
-                                Hello! We're Joseph and Yazeed. We've been friends since 2009, and we've been building Homegames since 2018. 
-                            </strong>
-                        </div>
-                        <p>
-                            We're both full-time software developers who work on Homegames in our free time. We love games and learning new stuff, and after years of experimenting and figuring out what we were trying to build, we're excited to finally launch Homegames in 2023! 
-                        </p>
-                        <p>
-                            The earliest version of Homegames was as a simple browser-based multiplayer game rendering demo. Over time, it eventually grew into a game engine and publishing platform allowing users to share games with their friends. 
-                        </p>
-                        <p>
-                            We still have quite a bit we want to do, but as of April 2023, we've built some pretty cool features such as:
-                            <ul>
-                                <li>
-                                    <strong>Multiplayer games over LAN</strong> - anyone on the same wifi network as a Homegames server can play games on any browser by navigating to https://homegames.link
-                                </li>
+                    <div>
+                        <h2>What is Homegames?</h2>
+                        <p>Homegames is a free, open-source game platform.</p>
+                        <p>Games are 100% community made using the Homegames game engine (SquishJS) and published via the Homegames website.</p>
+                        <p>You host your own Homegames server, allowing you to play using any device on your network with a web browser.</p>
 
-                                <li>
-                                    <strong>Language agnostic clients</strong> - Homegames servers output game data in binary format over websockets - anything with web socket support can be a Homegames client 
-                                </li>
+                        <h2>How do I play a game?</h2>
+                        <p>Install and run the Homegames software bundle on a PC running MacOS, Linux or Windows.</p>
+                        <p>On any device on the same network as your server, navigate to homegames.link in a web browser.</p>
 
-                                <li>
-                                    <strong>JavaScript-based game engine</strong> - support for custom images, sound assets, 2D layer rendering, device input and user interactions
-                                </li>
-                                
-                                <li>
-                                    <strong>Game publishing</strong> - in addition to the games we build and provide "out of the box," users can make their own games and optionally publish them to our "catalog" making them available to the world
-                                </li>
+                        <h2>Do I need a computer to play games?</h2>
+                        <p>At the moment, yes.</p>
+                        <p>However, it is also possible to host your own instance via a cloud provider like EC2. That's what we did for our demo site - picodeg.io.</p>
+                        
+                        <h2>Do I need to make an account?</h2>
+                        <p>Not unless you want to publish a game on our website.</p>
 
-                                <li>
-                                    <strong>Dashboard</strong> - Users can create or join game sessions from a list of installed games via the Homegames dashboard, or search for new games to download from the catalog
-                                </li>
-                            </ul>
-                        </p>
-                        <p>
-                            We don't have any solid plans to make money from Homegames at the moment. We just wanted to build something cool that enabled others to do the same, and that eventually turned into Homegames. We want to make it easy for others to learn and build stuff they're proud of.
-                        </p>
+                        <h2>How do I make a game?</h2>
+                        <p>We have some basic setup and high level info available on our developer page</p>
+                        <p>We are working on some more robust documentation, but at the moment the best way is to follow our basic local setup instructions and mess around.</p>
+                        <p>You can copy an existing game from the `games` directory or modify them directly to see what breaks.</p>
+
+                        <h2>How does the publishing process work?</h2>
+                        <p>After you've created your Homegames account and pushed your code to a public GitHub repo, submit a build request on the Homegames website containing info about the game you want to share.</p>
+                        <p>After passing a set of automated tests, your game will be privately shareable to other people but will not be publicly listed in the Homegames catalog.</p>
+                        <p>If you want to publish your game publicly, you can submit a request to have your game reviewed for publishing.</p>
+                        <p>After your game is approved, Homegames players can find your game in the catalog.</p>
+
+                        <h2>I want to make a game but I don't want to publish it.</h2>
+                        <p>That's totally cool with us. You can setup your development environment, build your game locally, and keep it to yourself forever.</p>
+                        <p>If it's good, you should share it with us. But it's cool.</p>
+
+                        <h2>I want to make a game but I don't know how to get started.</h2>
+                        <p>If you've taken a look at our getting started guide and you're still feeling stuck, please don't hesitate to reach out to the <a href="https://twitter.com/i/communities/1675343570289713153" target="_blank">Homegames Twitter community</a> or send us an email.</p>
+                        <p>If you feel that something is missing or unclear in our documentation, please let us know - we'd appreciate the feedback.</p>
+
+                        <h2>How do you make money?</h2>
+                        <p>At the moment, we do not.</p>
+                        <p>We have some very loose ideas of how we'd monetize stuff someday, but right now we're just trying to build a community and make the service better.</p>
+
+                        <h2>I want to contribute</h2>
+                        <p>That would be great! Feel free to open a GitHub issue or pull request. If your change is big or if you're not sure about what you're building, you might want to reach out to us via our <a href="https://twitter.com/i/communities/1675343570289713153" target="_blank">Twitter community</a> before opening a pull request.</p>
+
+                        <h2>I have feedback</h2>
+                        <p>Feel free to leave any feedback - positive or negative, using our contact form at the bottom of the page.</p>
                     </div>
                 </div>
                 <div id="footer" onclick="showModal('support')" class="clickable">
@@ -76,8 +79,9 @@
     </body>
     <script src="client.js"></script>
     <style>
-        #content p {font-size: x-large; margin: 48px; margin-top: 48px; }
+        #content p {margin: 24px; }
         #content ul li {margin:48px;}
+        #content {margin: 48px;}
     </style>
 
 </html>

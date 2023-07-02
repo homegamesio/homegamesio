@@ -68,6 +68,62 @@ const makePost = (endpoint, payload, notJson, useAuth)  => new Promise((resolve,
     xhr.send(JSON.stringify(payload));
 });
 
+const loadPodcasts = () => {
+    const podcastContentDiv = document.getElementById('podcast-content');
+    const podcastLeftButtonDiv = document.getElementById('podcast-left-button');
+    const podcastRightButtonDiv = document.getElementById('podcast-right-button');
+
+    const renderPodcasts = (data) => {
+        clearChildren(podcastContentDiv);
+        const list = document.createElement('ul');
+        for (let i in data) {
+            const ep = data[i];
+            const el = document.createElement('li');
+            const textEl = document.createElement('span');
+            textEl.innerHTML = 'Ep.' + ep.episode + ' - ';
+
+            el.appendChild(textEl);
+
+            if (ep.audio) {
+                const audioLink = document.createElement('a');
+                audioLink.href = '' + ep.audio;
+                audioLink.innerHTML = ' MP3 ';
+                el.appendChild(audioLink);
+            }
+
+            if (ep.video) {
+                const videoLink = document.createElement('a');
+                videoLink.href = '' + ep.video;
+                videoLink.innerHTML = ' MP4 ';
+                el.appendChild(videoLink);
+            }
+
+            // console.log("eppdfg");
+            // console.log(ep);
+            list.appendChild(el);
+        }
+        podcastContentDiv.appendChild(list);
+    }
+
+    makeGet(`https://api.homegames.io/podcast?limit=10&offset=${(window.podcastPage - 1) * 10}`).then(_data => {
+        const data = JSON.parse(_data);
+        clearChildren(podcastContentDiv);
+        if (window.podcastPage < 2) {
+            podcastLeftButtonDiv.setAttribute('hidden', '');
+        } else {
+            podcastLeftButtonDiv.removeAttribute('hidden');
+        }
+
+        const last = data[data.length - 1];
+        if (last && last.episode === 0) {
+            podcastRightButtonDiv.setAttribute('hidden', '');
+        } else {
+            podcastRightButtonDiv.removeAttribute('hidden');            
+        }
+
+        renderPodcasts(data);
+    });
+}
 
 const formatDate = (date) => {
 

@@ -44,8 +44,9 @@
                     </div>
                     <div style="text-align: center" id="podcast-downloads">
                         <h1 style="text-align: center">Downloads</h1>
-                        <h2>Coming soon!</h2>
-                        <div>At some point in the future, this will be a list of the raw MP3 & MP4 podcast files we upload to streaming services.</div>
+                        <div id="podcast-content"></div>
+                        <div id="podcast-left-button" class="clickable" hidden>Previous page</div>
+                        <div id="podcast-right-button" class="clickable" hidden>Next page</div>
                     </div>
                 </div>
                 <div id="footer" onclick="showModal('support')" class="clickable">
@@ -57,10 +58,18 @@
         </div>
     </body>
     <script src="client.js"></script>
+    <script>
+        document.getElementById('podcast-left-button').onclick = () => {window.podcastPage--; loadPodcasts()}
+        document.getElementById('podcast-right-button').onclick = () => {window.podcastPage++; loadPodcasts()}
+        window.podcastPage = 1;
+        loadPodcasts();
+    </script>
     <script type='text/javascript' charset='utf-8' src='https://www.buzzsprout.com/685979.js?container_id=buzzsprout-large-player-685979&player=large'></script>
     <style>
         #content input {height: 40px; line-height: 40px; width: 20%; padding: 5px; margin-left: 2%; margin-right: 78%; margin-top: 1%}
         #submit-button {margin-top: 1%; margin-left: 2%; text-decoration: underline;}
+        #podcast-content {height: 250px;}
+        #podcast-content ul {text-align: left; list-style-type: none;}
     </style>
 
 </html>
