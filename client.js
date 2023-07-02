@@ -342,7 +342,7 @@ const modals = {
         elementId: 'download-modal',
         render: (path) => {
             const container = document.createElement('div');
-            container.style = 'margin: 2%';
+            // container.style = 'margin: 2%';
 
             const _loader = loader();
             // container.appendChild(_loader);
@@ -369,6 +369,7 @@ const modals = {
 
 
                 const latestDiv = document.createElement('div');
+                latestDiv.style = 'margin-top: 48px';
 
                 const stableDiv = document.createElement('div');
 
@@ -384,8 +385,9 @@ const modals = {
                 latestMac.innerHTML = 'macOS';
                 latestMac.href = 'https://builds.homegames.io/latest/homegames.dmg';
 
-                const latestHeader = document.createElement('h2');
+                const latestHeader = document.createElement('h3');
                 latestHeader.innerHTML = 'Latest';
+                latestHeader.style = "text-align: center";
 
                 latestDiv.appendChild(latestHeader);
                 latestDiv.appendChild(latestWindows);
@@ -404,9 +406,10 @@ const modals = {
                 stableMac.innerHTML = 'macOS';
                 stableMac.href = 'https://builds.homegames.io/stable/homegames.dmg';
 
-                const stableHeader = document.createElement('h2');
+                const stableHeader = document.createElement('h3');
                 stableHeader.innerHTML = 'Stable';
-
+                stableHeader.style = "text-align: center";
+                
                 stableDiv.appendChild(stableHeader);
                 stableDiv.appendChild(stableWindows);
                 stableDiv.appendChild(stableMac);
@@ -1215,7 +1218,7 @@ const dashboards = {
     
                 const el = document.createElement('div');
 
-                buttonContainer.appendChild(meButton);
+                // buttonContainer.appendChild(meButton);
                 buttonContainer.appendChild(gamesButton);
                 buttonContainer.appendChild(assetsButton);
                 
