@@ -373,47 +373,81 @@ const modals = {
 
                 const stableDiv = document.createElement('div');
 
+                const latestWindowsArm = document.createElement('a');
+                latestWindowsArm.innerHTML = 'Windows (ARM)';
+                latestWindowsArm.href = 'https://builds.homegames.io/latest/homegames-win-arm64.exe';
+
                 const latestWindows = document.createElement('a');
-                latestWindows.innerHTML = 'Windows';
-                latestWindows.href = 'https://builds.homegames.io/latest/homegames-win.exe';
+                latestWindows.innerHTML = 'Windows (x86)';
+                latestWindows.href = 'https://builds.homegames.io/latest/homegames-win-x64.exe';
 
                 const latestLinux = document.createElement('a');
-                latestLinux.innerHTML = 'Linux';
-                latestLinux.href = 'https://builds.homegames.io/latest/homegames-linux';
+                latestLinux.innerHTML = 'Linux (x86)';
+                latestLinux.href = 'https://builds.homegames.io/latest/homegames-linux-x64';
+
+                const latestLinuxArm = document.createElement('a');
+                latestLinuxArm.innerHTML = 'Linux (ARM)';
+                latestLinuxArm.href = 'https://builds.homegames.io/latest/homegames-linux-arm64';
 
                 const latestMac = document.createElement('a');
-                latestMac.innerHTML = 'macOS';
-                latestMac.href = 'https://builds.homegames.io/latest/homegames.dmg';
+                latestMac.innerHTML = 'macOS (x86)';
+                latestMac.href = 'https://builds.homegames.io/latest/hg-mac-x64.zip';
+
+                const latestMacArm = document.createElement('a');
+                latestMacArm.innerHTML = 'macOS (ARM)';
+                latestMacArm.href = 'https://builds.homegames.io/latest/hg-mac-arm64.zip';
 
                 const latestHeader = document.createElement('h3');
                 latestHeader.innerHTML = 'Latest';
                 latestHeader.style = "text-align: center";
 
                 latestDiv.appendChild(latestHeader);
+                
+
                 latestDiv.appendChild(latestWindows);
                 latestDiv.appendChild(latestMac);
                 latestDiv.appendChild(latestLinux);
 
+                latestDiv.appendChild(latestWindowsArm);
+                latestDiv.appendChild(latestMacArm);
+                latestDiv.appendChild(latestLinuxArm);
+
                 const stableWindows = document.createElement('a');
-                stableWindows.innerHTML = 'Windows';
-                stableWindows.href = 'https://builds.homegames.io/stable/homegames-win.exe';
+                stableWindows.innerHTML = 'Windows (x86)';
+                stableWindows.href = 'https://builds.homegames.io/stable/homegames-win-x64.exe';
 
                 const stableLinux = document.createElement('a');
-                stableLinux.innerHTML = 'Linux';
-                stableLinux.href = 'https://builds.homegames.io/stable/homegames-linux';
+                stableLinux.innerHTML = 'Linux (x86)';
+                stableLinux.href = 'https://builds.homegames.io/stable/homegames-linux-x64';
 
                 const stableMac = document.createElement('a');
-                stableMac.innerHTML = 'macOS';
-                stableMac.href = 'https://builds.homegames.io/stable/homegames.dmg';
+                stableMac.innerHTML = 'macOS (x86)';
+                stableMac.href = 'https://builds.homegames.io/stable/hg-mac-x64.zip';
+
+                const stableWindowsArm = document.createElement('a');
+                stableWindowsArm.innerHTML = 'Windows (ARM)';
+                stableWindowsArm.href = 'https://builds.homegames.io/stable/homegames-win-arm64.exe';
+
+                const stableLinuxArm = document.createElement('a');
+                stableLinuxArm.innerHTML = 'Linux (ARM)';
+                stableLinuxArm.href = 'https://builds.homegames.io/stable/homegames-linux-arm64';
+
+                const stableMacArm = document.createElement('a');
+                stableMacArm.innerHTML = 'macOS (ARM)';
+                stableMacArm.href = 'https://builds.homegames.io/stable/hg-mac-arm64.zip';
 
                 const stableHeader = document.createElement('h3');
                 stableHeader.innerHTML = 'Stable';
                 stableHeader.style = "text-align: center";
-                
+
                 stableDiv.appendChild(stableHeader);
                 stableDiv.appendChild(stableWindows);
                 stableDiv.appendChild(stableMac);
                 stableDiv.appendChild(stableLinux);
+
+                stableDiv.appendChild(stableWindowsArm);
+                stableDiv.appendChild(stableMacArm);
+                stableDiv.appendChild(stableLinuxArm);
 
                 // container.appendChild(publishedInfoDiv);
                 // container.appendChild(commitAuthorDiv);
