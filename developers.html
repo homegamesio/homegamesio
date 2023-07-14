@@ -24,55 +24,59 @@
                 <div id="content">
                     <div style="font-size: large; margin: 24px">
                         <div>
-                            <h1>TL;DR</h1>
-                            <p>
-                                <strong>At its core, Homegames is a server side application (<a href="https://github.com/homegamesio/homegames-core">homegames-core</a>) responsible for serving game data to clients.<br /><br />Any client connected to a Homegames game server can play games alone or with other players connected to the same server.<br /><br />Our web client (homegames-web) is our only client at the moment, but anyone can build their own client in whatever language they want for whatever device they want.<br /><br />All games are written in JavaScript using our custom game engine (<a href="https://github.com/homegamesio/squish">squish</a>).
-                            </p>
-                            <h1>High Level Overview</h1>
-                            <p>
-                                Homegames is a game platform allowing people to play games built by the Homegames community. Everything we build is free and open source with a GNU GPL v3.0 license, with the exception of our game engine <a href="https://github.com/homegamesio/squish">squish</a> which has an MIT license). Games are JavaScript components that consist of a state that can be translated to a rendered state on a Homegames client using squish. Using the Homegames platform, users can sign up for an account and publish games of their own to share with friends or publish for the world to play.
-                            </p>
-                            <p>
-                                Squish (our game engine) is a common dependency between Homegames core and Homegames web. It's basically a component that translates a game from "state stored in memory on the server" to "rendered image on the screen". "State stored in memory on the server" is <a href="https://github.com/homegamesio/homegames-core">Homegames core</a>. "Rendered image on the screen" is our official <a href="https://github.com/homegamesio/homegames-web">Homegames web client</a> or any other custom client.
-                            </p>
-                        </div>
-                        <p>
-                            As of July 2022, we don't have very thorough documentation for much of the process of game development or publishing. We have documentation for Squishjs (the Homegames game engine) available <a href="https://github.com/homegamesio/squish">here</a> which at this point is probably the best documentation we have. More documentation is coming soon, specifically around building games and the different features we support. We're planning on having a full guide on building and publishing your own game by July 30, 2022.
-                        </p>
-                    </div>
-                    <div style="font-size: large; margin: 24px">
-                        <div>
-                            <h2>A Bit More Technical</h2>
-                            <div style="text-align:center;margin:auto;font-size:large;margin-bottom: 64px;">
-                                <img src="https://assets.homegames.io/cf8f1343b8804370f6d9daccaf21121c" width="60%"></img>
-                                <div>
-                                    <a href="https://assets.homegames.io/dd0c39221baa79047b5fdbd996cd3f4e">PDF Version</a>
-                                </div>
-                                <div style="font-size:large">
-                                    <p>A homegames client is any device with a web browser.<p>
-                                    <p>To connect to a Homegames client server (Homegames web server), a client device makes a GET request to homegames.link, which will redirect the client to the local IP (eg. 192.12.1.2) of the Homegames client server<p>
-                                    <p>Once the device downloads the web client from the client server, the client opens a websocket connection to the Homegames core server, which is responsible for running games available on the machine (in other words, games stored on disk). The core server sends serialized representations of game state over the websocket connection to the client, which then renders the game to the screen. This state serialization is done by our game engine, squish.</p>
-                                    <p>The Homegames core server maintains a websocket connection to homegames.link while running, which lets homegames.link keep track of active Homegames servers and provide mappings to clients when they go to homegames.link in the browser. This is completely optional and can be turned off via config.json (LINK_ENABLED value)</p> 
-                                    <p>The Homegames core server downloads games and assets from S3 via Landlord, a service that keeps track of Homegames data - mostly in DynamoDB. The core server keeps this data on disk and provides it to clients when they need it (eg. a sound asset that plays when the player taps the screen). Landlord is also responsible for handling search queries made by the Homegames dashboard, as well as providing info about how the core server can access the corresponding game code.</p>
-                                </div>
-                            </div>
-
-                            <div style="text-align:center;margin:auto">
-                                <img src="https://assets.homegames.io/1d311d44c60cceda32c44a99c4a53795" width="60%"></img>
-                                <div>
-                                    <a href="https://assets.homegames.io/b54e1a134cd85fdbcdfacef7448a2f79">PDF Version</a>
-                                </div>
-                                <div>
-                                    <p>Both homegames-core and homegames-web depend on multiple versions of squishjs. They both have config files called "squish maps" that point from a verison key (eg. '0750') to the corresponding version of squish from NPM.</p>
-                                    <p>This allows games to depend on specific versions by version key which is used by Homegames core at runtime to provide the correct environment variable for SQUISH_PATH based on the version specified when submitting a game for publishing. It also allows us to maintain backwards compatibilty with games that depend on older/deprecated versions of the engine as we release new versions.</p> 
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div style="font-size: large; margin: 24px">
-                        <div>
-                            <h1>Quick Start Guide</h1>
+                            <h2>Quick Start Guide</h2>
                             <p>To get up and running as quickly as possible with your own Homegames application, check out our <a href="https://github.com/homegamesio/hello-world-example">Hello World example on GitHub.</a></p>
+
+                            <h2>How it works</h2>
+                            <p>As opposed to more traditional game systems, Homegames runs on a webserver that broadcasts game data to clients over a network.</p>
+                            <p>Game data is generated on the server and sent to clients, which then render the state of the game on the screen.</p>
+                            <p>Client inputs are sent back to the game server, which then updates game state and broadcasts changes to all connected clients.</p>
+
+                            <h2>A bit more technical</h2>
+                            <p>The Homegames game server broadcasts game data to clients connected via WebSocket in a binary format generated by Squish.</p>
+                            <p>Homegames is written entirely in JavaScript. The webservers use Node.js and Squish is written in vanilla JavaScript.</p>
+                            <p>We support multiple game instances on the same machine by spawning new web servers from a kind of "main" server that starts when you run Homegames. In other words, moving between game sessions is actually moving between servers, all of which are running on the host machine.</p>
+                            <p>Our browser-based client is the only one that we know of at the moment, but we technically support any client that can receive and render the data. If you're interested in building your own client, let us know using the contact form at the bottom of the page because that sounds nuts.</p>
+
+                            <h2>Why JavaScript?</h2>
+                            <strong>We like JavaScript.</strong>
+                            <p>In addition to that and it being incredibly popular, JavaScript was the clear choice for a few key reasons:</p>
+
+                            <p>
+                                <strong>Shared code between server and client</strong><br/>
+                                Writing the server and our initial client in JS allowed us to share libraries between the two. Having our servers, libraries, and infrastructure scripts written in JS also means someone only needs to know one language to have an understanding of how our entire system works.
+                            </p>
+                            <p>
+                                <strong>Websocket support</strong><br/>
+                                Websockets are natively supported in modern browsers and there's a great websocket library for Node.
+                            </p>
+                            <p>
+                                <strong>Learnability</strong><br/>
+                                A primary goal of Homegames is to help other people build cool stuff, even if they don't know where to start. 
+                            </p>
+                            <p>
+                                <strong>We just need one thread</strong><br/>
+                                The design of Homegames hinges on the idea that a game's state should only live in one place at one time.<br/>
+                                Clients can get a view of the game state and send inputs to update it, but the game's true state is always on the server.<br/>
+                                We needed something that could process user input and manage game state while making sure clients don't get of of sync with eachother.<br/>Node's single-threaded event loop works pretty well for this, since we don't need multiple threads updating and reading from game state at the same time - we just need one thread repeating these steps as fast as it can:
+                                <ol>
+                                    <li>Read input from a client</li>
+                                    <li>Update game state (if applicable)</li>
+                                    <li>Tell clients about new state (if applicable)</li>
+                                </ol>
+                            </p>
+
+                            <h2>Supported features</h2>
+                            <ul>
+                                <li><strong>Layers</strong> - We support multiple game "layers" with a simple 2D grid system to represent the overall visual state of the game</li>
+                                <li><strong>Images</strong> - Upload your image files (PNG, JPG) to the Homegames website as assets and use them in your game</li>
+                                <li><strong>Audio</strong> - Upload MP3 files as assets and use them in your games to add music & sound effects</li>
+                                <li><strong>Physics</strong> - Simple geometry & collision detection</li>
+                                <li><strong>Gamepad support</strong> - Add gamepad support to your game with Homepad</li>
+                                <li><strong>Multiplayer</strong> - Designed with multiplayer in mind for out-of-the-box multiplayer support</li>
+                                <li><strong>Spectators</strong> - Players can drop in & out of spectator mode at any time</li>
+                                <li><strong>Public games</strong> - In addition to playing games with people on your network, play games over the Internet via room codes on public.homegames.link</li>
+                            </ul>
                         </div>
                     </div>
                 </div>

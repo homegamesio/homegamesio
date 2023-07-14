@@ -96,6 +96,10 @@ const PATH_MAP = {
         path: "client.js",
         contentType: "text/javascript"
     },
+    "/client.js": {
+        path: "client.js",
+        contentType: "text/javascript"
+    },
     "/app.css": {
         path: "app.css",
         contentType: "text/css"
@@ -287,6 +291,11 @@ const server = http.createServer((req, res) => {
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'text/html');
                 const payload = fs.readFileSync(path.join(__dirname, 'terms.html'));
+                res.end(payload);
+            } else if (req.url.startsWith('/privacy')) {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/html');
+                const payload = fs.readFileSync(path.join(__dirname, 'privacy.html'));
                 res.end(payload);
             } else if (req.url.startsWith('/roadmap')) {
                 res.statusCode = 200;

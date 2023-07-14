@@ -22,21 +22,55 @@
                     <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
                 </div>
                 <div id="content">
-                    <h1 style="font-size: xxx-large; text-align: center">About Us</h1>
-                    <img src="https://assets.homegames.io/ba5ef0800eb38db962b13f71afc3e9c4" width="40%" style="margin-left: 30%"></img>
                     <div>
-                        <p style="font-size: large">
-                            Hello! We're Joseph and Yazeed. We've been working on Homegames since Summer 2018, and just recently launched our first "real" build of Homegames in July 2022.
-                        </p>
-                        <p>
-                            We're both professional software developers with full-time jobs, so we work on Homegames in our free time. We just want to make something cool and enable others do the same, and we think Homegames is the best way for us to accomplish that goal.
-                        </p>
-                        <p>
-                            All of our code is availble on <a href="https://github.com/homegamesio" target="_blank">GitHub</a>. A major goal of this project is to help others learn and build stuff, so we want to provide as many resources as possible to our community - including almost every line of code that makes this thing run.
-                        </p>
-                        <p>
-                            At the moment, we don't have any plans to monetize any of this stuff. If the project gets traction and our infrastructure bill moves out of my "acceptable hobby budget" range, we might have to rethink that. 
-                        </p>
+                        <h2>What is Homegames?</h2>
+                        <p>Homegames is a free, self-hosted, open-source game platform.</p>
+                        <p>Games are 100% community made using the Homegames game engine (SquishJS) and published via the Homegames website.</p>
+                        <p>You host your own Homegames server, allowing you to play using any device on your network with a web browser.</p>
+
+                        <h2>How do I play a game?</h2>
+                        <p>Install and run the Homegames software bundle on a PC running MacOS, Linux or Windows.</p>
+                        <p>On any device on the same network as your server, navigate to homegames.link in a web browser.</p>
+
+                        <h2>Do I need a computer to play games?</h2>
+                        <p>At the moment, yes.</p>
+                        <p>However, it is also possible to host your own instance via a cloud provider like EC2. That's what we did for our <a href="https://picodeg.io" target="_blank">demo site</a></p>
+                        
+                        <h2>Do I need to make an account?</h2>
+                        <p>Not unless you want to publish a game on our website.</p>
+
+                        <h2>Do I need an Internet connection to play?</h2>
+                        <p>Technically, no.</p>
+                        <p>Games require an Internet connection on first run to download game assets, but once assets are downloaded locally you can play on your local network without access to the public Internet.</p>
+                        <p>homegames.link functionality requires an Internet connection as well, so you'll have to connect to the Homegames server directly via IP address. Not the best offline experience but it should work.</p>
+
+                        <h2>How do I make a game?</h2>
+                        <p>We have some basic setup and high level info available on our developer page</p>
+                        <p>We are working on some more robust documentation, but at the moment the best way is to follow our basic local setup instructions and mess around.</p>
+                        <p>You can copy an existing game from the `games` directory or modify them directly to see what breaks.</p>
+
+                        <h2>How does the publishing process work?</h2>
+                        <p>After you've created your Homegames account and pushed your code to a public GitHub repo, submit a build request on the Homegames website containing info about the game you want to share.</p>
+                        <p>After passing a set of automated tests, your game will be privately shareable to other people but will not be publicly listed in the Homegames catalog.</p>
+                        <p>If you want to publish your game publicly, you can submit a request to have your game reviewed for publishing.</p>
+                        <p>After your game is approved, Homegames players can find your game in the catalog.</p>
+
+                        <h2>I want to make a game but I don't want to publish it on the Homegames website.</h2>
+                        <p>That's cool with us. You can make your game and upload it wherever you want. Or you can just keep it to yourself forever.</p>
+
+                        <h2>I want to make a game but I don't know how to get started.</h2>
+                        <p>If you've taken a look at our getting started guide and you're still feeling stuck, please don't hesitate to reach out to the <a href="https://twitter.com/i/communities/1675343570289713153" target="_blank">Homegames Twitter community</a> or send us an email. We'd be happy to help!</p>
+                        <p>If you feel that something is missing or unclear in our documentation, please let us know - we'd appreciate the feedback.</p>
+
+                        <h2>How do you make money?</h2>
+                        <p>At the moment, we do not.</p>
+                        <p>We might sell t-shirts or something like that some day, but right now we're just trying to build a community and make the service better.</p>
+
+                        <h2>I want to contribute</h2>
+                        <p>That would be great! Feel free to open a GitHub issue or pull request. If your change is big or if you're not sure about what you're building, you might want to reach out to us via our <a href="https://twitter.com/i/communities/1675343570289713153" target="_blank">Twitter community</a> before opening a pull request. We'd love to help!</p>
+
+                        <h2>I have feedback</h2>
+                        <p>Feel free to leave any feedback - positive or negative, using our contact form at the bottom of the page.</p>
                     </div>
                 </div>
                 <div id="footer" onclick="showModal('support')" class="clickable">
@@ -49,11 +83,9 @@
     </body>
     <script src="client.js"></script>
     <style>
-        #content p {margin: 2.5%;font-size: large;}
-        #content ul {list-style-type: none;}
-        #content ul li {margin-bottom: 20px; font-size: large;}
-        #content ul li div:first-child {text-decoration: underline;}
-        #content ul li div:last-child {margin-top: 10px;}
+        #content p {margin: 24px; }
+        #content ul li {margin:48px;}
+        #content {margin-left: 48px; margin-right: 48px;}
     </style>
 
 </html>

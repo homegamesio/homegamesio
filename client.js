@@ -1,7 +1,7 @@
-const API_PROTOCOL = window.origin && window.origin.startsWith('https') ? 'https' : 'http';
-const API_HOST = window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
+const API_PROTOCOL = 'https';//window.origin && window.origin.startsWith('https') ? 'https' : 'http';
+const API_HOST = 'api.homegames.io';//window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
 
-const ASSET_API_ENDPOINT = '/asset';
+const ASSET_API_ENDPOINT = '/assets';
 
 const ASSET_URL = 'https://assets.homegames.io';
 const API_URL = `${API_PROTOCOL}://${API_HOST}`
@@ -68,6 +68,62 @@ const makePost = (endpoint, payload, notJson, useAuth)  => new Promise((resolve,
     xhr.send(JSON.stringify(payload));
 });
 
+const loadPodcasts = () => {
+    const podcastContentDiv = document.getElementById('podcast-content');
+    const podcastLeftButtonDiv = document.getElementById('podcast-left-button');
+    const podcastRightButtonDiv = document.getElementById('podcast-right-button');
+
+    const renderPodcasts = (data) => {
+        clearChildren(podcastContentDiv);
+        const list = document.createElement('ul');
+        for (let i in data) {
+            const ep = data[i];
+            const el = document.createElement('li');
+            const textEl = document.createElement('span');
+            textEl.innerHTML = 'Ep.' + ep.episode + ' - ';
+
+            el.appendChild(textEl);
+
+            if (ep.audio) {
+                const audioLink = document.createElement('a');
+                audioLink.href = '' + ep.audio;
+                audioLink.innerHTML = ' MP3 ';
+                el.appendChild(audioLink);
+            }
+
+            if (ep.video) {
+                const videoLink = document.createElement('a');
+                videoLink.href = '' + ep.video;
+                videoLink.innerHTML = ' MP4 ';
+                el.appendChild(videoLink);
+            }
+
+            // console.log("eppdfg");
+            // console.log(ep);
+            list.appendChild(el);
+        }
+        podcastContentDiv.appendChild(list);
+    }
+
+    makeGet(`https://api.homegames.io/podcast?limit=10&offset=${(window.podcastPage - 1) * 10}`).then(_data => {
+        const data = JSON.parse(_data);
+        clearChildren(podcastContentDiv);
+        if (window.podcastPage < 2) {
+            podcastLeftButtonDiv.setAttribute('hidden', '');
+        } else {
+            podcastLeftButtonDiv.removeAttribute('hidden');
+        }
+
+        const last = data[data.length - 1];
+        if (last && last.episode === 0) {
+            podcastRightButtonDiv.setAttribute('hidden', '');
+        } else {
+            podcastRightButtonDiv.removeAttribute('hidden');            
+        }
+
+        renderPodcasts(data);
+    });
+}
 
 const formatDate = (date) => {
 
@@ -251,7 +307,7 @@ const loaderBlack = () => {
     return el;
 };
 
-const listAssets = () => new Promise((req, res) => {
+const listAssets = () => new Promise((resolve, reject) => {
     makeGet(`${API_PROTOCOL}://${API_HOST}/${ASSET_API_ENDPOINT}`, {
         'hg-username': window.hgUserInfo.username,
         'hg-token': window.hgUserInfo.tokens.accessToken
@@ -286,7 +342,7 @@ const modals = {
         elementId: 'download-modal',
         render: (path) => {
             const container = document.createElement('div');
-            container.style = 'margin: 2%';
+            // container.style = 'margin: 2%';
 
             const _loader = loader();
             // container.appendChild(_loader);
@@ -313,48 +369,85 @@ const modals = {
 
 
                 const latestDiv = document.createElement('div');
+                latestDiv.style = 'margin-top: 48px';
 
                 const stableDiv = document.createElement('div');
 
+                const latestWindowsArm = document.createElement('a');
+                latestWindowsArm.innerHTML = 'Windows (ARM)';
+                latestWindowsArm.href = 'https://builds.homegames.io/latest/homegames-win-arm64.exe';
+
                 const latestWindows = document.createElement('a');
-                latestWindows.innerHTML = 'Windows';
-                latestWindows.href = 'https://builds.homegames.io/latest/homegames-win.exe';
+                latestWindows.innerHTML = 'Windows (x86)';
+                latestWindows.href = 'https://builds.homegames.io/latest/homegames-win-x64.exe';
 
                 const latestLinux = document.createElement('a');
-                latestLinux.innerHTML = 'Linux';
-                latestLinux.href = 'https://builds.homegames.io/latest/homegames-linux';
+                latestLinux.innerHTML = 'Linux (x86)';
+                latestLinux.href = 'https://builds.homegames.io/latest/homegames-linux-x64';
+
+                const latestLinuxArm = document.createElement('a');
+                latestLinuxArm.innerHTML = 'Linux (ARM)';
+                latestLinuxArm.href = 'https://builds.homegames.io/latest/homegames-linux-arm64';
 
                 const latestMac = document.createElement('a');
-                latestMac.innerHTML = 'macOS';
-                latestMac.href = 'https://builds.homegames.io/latest/homegames.dmg';
+                latestMac.innerHTML = 'macOS (x86)';
+                latestMac.href = 'https://builds.homegames.io/latest/hg-mac-x64.zip';
 
-                const latestHeader = document.createElement('h2');
+                const latestMacArm = document.createElement('a');
+                latestMacArm.innerHTML = 'macOS (ARM)';
+                latestMacArm.href = 'https://builds.homegames.io/latest/hg-mac-arm64.zip';
+
+                const latestHeader = document.createElement('h3');
                 latestHeader.innerHTML = 'Latest';
+                latestHeader.style = "text-align: center";
 
                 latestDiv.appendChild(latestHeader);
+                
+
                 latestDiv.appendChild(latestWindows);
                 latestDiv.appendChild(latestMac);
                 latestDiv.appendChild(latestLinux);
 
+                latestDiv.appendChild(latestWindowsArm);
+                latestDiv.appendChild(latestMacArm);
+                latestDiv.appendChild(latestLinuxArm);
+
                 const stableWindows = document.createElement('a');
-                stableWindows.innerHTML = 'Windows';
-                stableWindows.href = 'https://builds.homegames.io/stable/homegames-win.exe';
+                stableWindows.innerHTML = 'Windows (x86)';
+                stableWindows.href = 'https://builds.homegames.io/stable/homegames-win-x64.exe';
 
                 const stableLinux = document.createElement('a');
-                stableLinux.innerHTML = 'Linux';
-                stableLinux.href = 'https://builds.homegames.io/stable/homegames-linux';
+                stableLinux.innerHTML = 'Linux (x86)';
+                stableLinux.href = 'https://builds.homegames.io/stable/homegames-linux-x64';
 
                 const stableMac = document.createElement('a');
-                stableMac.innerHTML = 'macOS';
-                stableMac.href = 'https://builds.homegames.io/stable/homegames.dmg';
+                stableMac.innerHTML = 'macOS (x86)';
+                stableMac.href = 'https://builds.homegames.io/stable/hg-mac-x64.zip';
 
-                const stableHeader = document.createElement('h2');
+                const stableWindowsArm = document.createElement('a');
+                stableWindowsArm.innerHTML = 'Windows (ARM)';
+                stableWindowsArm.href = 'https://builds.homegames.io/stable/homegames-win-arm64.exe';
+
+                const stableLinuxArm = document.createElement('a');
+                stableLinuxArm.innerHTML = 'Linux (ARM)';
+                stableLinuxArm.href = 'https://builds.homegames.io/stable/homegames-linux-arm64';
+
+                const stableMacArm = document.createElement('a');
+                stableMacArm.innerHTML = 'macOS (ARM)';
+                stableMacArm.href = 'https://builds.homegames.io/stable/hg-mac-arm64.zip';
+
+                const stableHeader = document.createElement('h3');
                 stableHeader.innerHTML = 'Stable';
+                stableHeader.style = "text-align: center";
 
                 stableDiv.appendChild(stableHeader);
                 stableDiv.appendChild(stableWindows);
                 stableDiv.appendChild(stableMac);
                 stableDiv.appendChild(stableLinux);
+
+                stableDiv.appendChild(stableWindowsArm);
+                stableDiv.appendChild(stableMacArm);
+                stableDiv.appendChild(stableLinuxArm);
 
                 // container.appendChild(publishedInfoDiv);
                 // container.appendChild(commitAuthorDiv);
@@ -404,8 +497,8 @@ const modals = {
                 // instructions.innerHTML = 'Run the homegames server package and navigate to homegames.link in any browser on your local network to play games';
                 // instructions.style = 'text-align: center;';
 
-                container.appendChild(latestDiv);
                 container.appendChild(stableDiv);
+                container.appendChild(latestDiv);
             // });
             
             return container;
@@ -578,6 +671,8 @@ const modals = {
                                     'hg-token': window.hgUserInfo.tokens.accessToken
                                 }).then((_eventData) => {
                                     const eventData = JSON.parse(_eventData);
+                                    console.log("EVENT DATA");
+                                    console.log(eventData);
                                     const eventTable = sortableTable(eventData.events);
                                     eventsContainer.appendChild(eventTable);
                                 });
@@ -591,7 +686,19 @@ const modals = {
                         };
                         showEvents(_clickedReq);
                     };
-                    const _table = sortableTable(tableData, null, _onCellClick, undefined, (requestData) => {
+
+                    console.log('tbabebeale da');
+                    console.log(tableData);
+
+                    const publishRequestTableData = tableData.map(d => {
+                        return {
+                            'adminMessage': d.adminMessage,
+                            'created': d.created,
+                            'request_id': d.request_id,
+                            'status': d.status
+                        };
+                    });
+                    const _table = sortableTable(publishRequestTableData, null, _onCellClick, undefined, (requestData) => {
                         if (requestData.status === 'CONFIRMED') {
                                         const container = simpleDiv();
                                         container.innerHTML = 'Submit for publishing';
@@ -652,7 +759,7 @@ const modals = {
 
                 const squishVersionInput = document.createElement('select');
 
-                const squishVersionOptions = ['0756'];
+                const squishVersionOptions = ['0756', '0766'];
 
                 for (let i = 0; i < squishVersionOptions.length; i++) {
                     const squishVersionOption = squishVersionOptions[i];
@@ -719,7 +826,17 @@ const modals = {
                         const noVersions = simpleDiv('No published versions');
                         versionContainer.appendChild(noVersions);
                     } else {
-                        const versionTable = sortableTable(versions);
+                        console.log("VEREIRIERI");
+                        console.log(versions);
+                        const versionTableData = versions.map(v => {
+                            return {
+                                'version': v.version,
+                                'versionId': v.versionId,
+                                'published': v.publishedAt,
+                                'download': `<a href="${v.location}">link</a>`
+                            };
+                        })
+                        const versionTable = sortableTable(versionTableData);
                         versionContainer.appendChild(versionTable);
                     }
                 });
@@ -1103,22 +1220,16 @@ const dashboards = {
 
                 resolve(requiresConfirmationEl);
             } else {
-                const memberSinceVal = window.hgUserInfo ? window.hgUserInfo.created : 'Not Available';
-                const meLabel = document.createElement('h1');
-                meLabel.id = 'me-label';
-                meLabel.style = 'text-align: center';
-                meLabel.innerHTML = window.hgUserInfo?.username || 'Unknown';
-
-                const memberSince = document.createElement('h3');
-                memberSince.innerHTML = `Member since ${memberSinceVal}`;
-                memberSince.style = 'text-align: center';
-
                 const buttonContainer = document.createElement('div');
                 if (window.hgUserInfo.isAdmin) {
                     buttonContainer.style = 'display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 50px';
                 } else {
                     buttonContainer.style = 'display: grid; grid-template-columns: 1fr 1fr; margin-top: 50px';
                 }
+
+                const meButton = simpleDiv('Me');
+                meButton.id = 'me-button';
+                meButton.className = 'hg-button clickable content-button';
 
                 const gamesButton = simpleDiv('My Games');
                 gamesButton.id = 'my-games-button';
@@ -1134,15 +1245,14 @@ const dashboards = {
                 adminButton.id = 'admin-button';
                 adminButton.className = 'hg-button clickable content-button';
                 
+                meButton.onclick = () => updateDashboardContent('me');
                 gamesButton.onclick = () => updateDashboardContent('games');
                 assetsButton.onclick = () => updateDashboardContent('assets');
                 adminButton.onclick = () => updateDashboardContent('admin');
     
                 const el = document.createElement('div');
-    
-                el.appendChild(meLabel);
-                el.appendChild(memberSince);
 
+                // buttonContainer.appendChild(meButton);
                 buttonContainer.appendChild(gamesButton);
                 buttonContainer.appendChild(assetsButton);
                 
@@ -1164,8 +1274,33 @@ const dashboards = {
                 container.innerHTML = 'Log in to manage games';
                 resolve(container);
             } else {
+                const mainCreateSection = document.createElement('div');
+                mainCreateSection.style = 'margin-bottom: 48px';
+
+                const mainCreateButton = document.createElement('div');
+                mainCreateButton.style = 'background: #A0EB5D; width: 200px;text-align: center;height: 50px;line-height: 50px;border: 1px solid black;border-radius: 5px;';
+                mainCreateButton.innerHTML = 'Create a new game';
+                mainCreateButton.className = 'clickable';
+
+                mainCreateSection.appendChild(mainCreateButton);
+
                 const createSection = document.createElement('div');
                 createSection.style = 'margin-bottom: 48px';
+                createSection.setAttribute('hidden', '');
+
+                mainCreateButton.onclick = () => {
+                    if (createSection.hasAttribute('hidden')) {
+                        createSection.removeAttribute('hidden');   
+                        mainCreateButton.style.background = 'rgba(241, 112, 111, 255)';
+                        mainCreateButton.innerHTML = 'Cancel';
+                    } else {
+                        createSection.setAttribute('hidden', '');
+                        mainCreateButton.style.background = '#A0EB5D';
+                        mainCreateButton.innerHTML = 'Create a new game';
+                    }
+                }
+
+                mainCreateSection.appendChild(createSection);
 
                 const createHeader = document.createElement('h2');
                 createHeader.innerHTML = 'Create a game';
@@ -1232,10 +1367,10 @@ const dashboards = {
                 createSection.appendChild(thumbnailFormDiv);
                 createSection.appendChild(createButton);
 
-                container.appendChild(createSection);
+                container.appendChild(mainCreateSection);
 
                 const myGamesHeader = document.createElement('h1');
-                // myGamesHeader.style = 'margin-top: 10vh';
+                myGamesHeader.style = 'text-align: center';
                 myGamesHeader.innerHTML = 'My Games';
 
                 container.appendChild(myGamesHeader);
@@ -1250,19 +1385,19 @@ const dashboards = {
                 }).then((_games) => {
                     container.removeChild(_loader);
                     const games = JSON.parse(_games).games;
+                    const gameDataToRender = [];
 
-                    // todo: make this a function
-                    const fields = new Set();
-                    for (const key in games) {
-                        for (const field in games[key]) {
-                            fields.add(field);
-                        }
-                    }
+                    const fields = ['id', 'name', 'createdAt'];
 
-                    const cellWidth = 100 / fields.size;
+                    const cellWidth = 100 / fields.length;
 
                     const onCellClick = (index, field) => {
-                        const clickedGame = games[index];
+                        const clickedGameData = gameDataToRender[index];
+                        const clickedGame = Object.values(games).filter(g => g.id === clickedGameData.id)[0];
+                        console.log("INDEX?");
+                        console.log(index);
+                        console.log(field);
+                        console.log(games);
                         showModal('game-detail', clickedGame);
                     };
 
@@ -1277,7 +1412,21 @@ const dashboards = {
                         // cellEl.style = styleString;
                     };
  
-                    const table = sortableTable(games, {key: 'created', order: 'desc'}, onCellClick, {rowStyler, cellStyler});
+                    for (let key in games) {
+                        const gameData = {};
+
+                        for (let i in fields) {
+                            gameData[fields[i]] = games[key][fields[i]] 
+                        }
+
+                        gameDataToRender.push(gameData);
+                    }
+
+                    console.log("AYO!");
+                    console.log(gameDataToRender);
+                    console.log(games);
+
+                    const table = sortableTable(gameDataToRender, {key: 'createdAt', order: 'desc'}, onCellClick, {rowStyler, cellStyler});
                     container.appendChild(table);
                 });
 
@@ -1354,9 +1503,32 @@ const dashboards = {
         childOf: 'default'
     },
     'me': {
-        render: () => {
-            return simpleDiv('meeee');
-        },
+        render: () => new Promise((resolve, reject) => {
+            const container = document.createElement('div');
+
+            const memberSinceVal = window.hgUserInfo ? window.hgUserInfo.created : 'Not Available';
+            const meLabel = document.createElement('h1');
+            meLabel.id = 'me-label';
+            meLabel.style = 'text-align: center';
+            meLabel.innerHTML = window.hgUserInfo?.username || 'Unknown';
+
+            const memberSince = document.createElement('h3');
+            memberSince.innerHTML = `Member since ${memberSinceVal}`;
+            memberSince.style = 'text-align: center';
+
+            container.appendChild(meLabel);
+            container.appendChild(memberSince);
+
+            makeGet(`${API_URL}/cert_status`, {
+                'hg-username': window.hgUserInfo.username,
+                'hg-token': window.hgUserInfo.tokens.accessToken
+            }).then(certStatus => {
+                console.log('got cert status!');
+                console.log(certStatus);
+            });
+
+            resolve(container);
+        }),
         childOf: 'default'
     },
     'admin': {
