@@ -24,6 +24,10 @@
                 <div id="content">
 
                 </div>
+
+                <div style="text-align: center;">
+                    <h4>The catalog contains games that have been published by the Homegames community. Search for them using the Homegames dashboard to play.</h4>
+                </div>
                 <div id="footer" onclick="showModal('support')" class="clickable">
                     <h1>
                         Contact
@@ -81,9 +85,7 @@
 
             const buttonContainer = document.createElement('div');
             buttonContainer.style = 'height: 10%;';
-            console.log('opage ' + _page);
             if (_page > 1) {
-                console.log('rendering left');
                 const leftButton = document.createElement('div');
                 leftButton.innerHTML = String.fromCodePoint(8592);
                 leftButton.onclick = () => {
@@ -95,7 +97,6 @@
                 buttonContainer.appendChild(leftButton);
             }
 
-            console.log('page ' + _page);
             if ((_page || 1) < pageCount) {
                 console.log('rendering right');
                 const rightButton = document.createElement('div');
