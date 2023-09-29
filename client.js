@@ -366,109 +366,116 @@ const modals = {
 
                 container.appendChild(downloadHeader);
 
-                const setupGuide = document.createElement('div');
-                const setupGuideLink = document.createElement('a');
-                setupGuideLink.href = 'https://youtu.be/UdW-FH3QQhA';
-                setupGuideLink.target = '_blank';
-                setupGuideLink.innerHTML = 'Setup Guide';
-                setupGuide.style = 'text-align: center; color: white;';
-                setupGuideLink.style = 'color: white; text-decoration: none'
+//                const setupGuide = document.createElement('div');
+//                const setupGuideLink = document.createElement('a');
+//                setupGuideLink.href = 'https://youtu.be/UdW-FH3QQhA';
+//                setupGuideLink.target = '_blank';
+//                setupGuideLink.innerHTML = 'Setup Guide';
+//                setupGuide.style = 'text-align: center; color: white;';
+//                setupGuideLink.style = 'color: white; text-decoration: none'
 
-                setupGuide.appendChild(setupGuideLink);
+//                setupGuide.appendChild(setupGuideLink);
 
-                const latestDiv = document.createElement('div');
-                latestDiv.style = 'margin-top: 48px';
+//                const latestDiv = document.createElement('div');
+//                latestDiv.style = 'margin-top: 48px';
 
                 const stableDiv = document.createElement('div');
 
-                const latestWindowsArm = document.createElement('a');
-                latestWindowsArm.className = 'downloadLink';
-                latestWindowsArm.innerHTML = 'Windows (ARM)';
-                latestWindowsArm.href = 'https://builds.homegames.io/latest/homegames-win-arm64.exe';
-
-                const latestWindows = document.createElement('a');
-                latestWindows.className = 'downloadLink';
-                latestWindows.innerHTML = 'Windows (x86)';
-                latestWindows.href = 'https://builds.homegames.io/latest/homegames-win-x64.exe';
-
-                const latestLinux = document.createElement('a');
-                latestLinux.className = 'downloadLink';
-                latestLinux.innerHTML = 'Linux (x86)';
-                latestLinux.href = 'https://builds.homegames.io/latest/homegames-linux-x64';
-
-                const latestLinuxArm = document.createElement('a');
-                latestLinuxArm.className = 'downloadLink';
-                latestLinuxArm.innerHTML = 'Linux (ARM)';
-                latestLinuxArm.href = 'https://builds.homegames.io/latest/homegames-linux-arm64';
-
-                const latestMac = document.createElement('a');
-                latestMac.className = 'downloadLink';
-                latestMac.innerHTML = 'macOS (x86)';
-                latestMac.href = 'https://builds.homegames.io/latest/hg-mac-x64.zip';
-
-                const latestMacArm = document.createElement('a');
-                latestMacArm.className = 'downloadLink';
-                latestMacArm.innerHTML = 'macOS (ARM)';
-                latestMacArm.href = 'https://builds.homegames.io/latest/hg-mac-arm64.zip';
-
-                const latestHeader = document.createElement('h3');
-                latestHeader.innerHTML = 'Latest';
-                latestHeader.style = "text-align: center";
-
-                latestDiv.appendChild(latestHeader);
-                
-
-                latestDiv.appendChild(latestWindows);
-                latestDiv.appendChild(latestMac);
-                latestDiv.appendChild(latestLinux);
-
-                latestDiv.appendChild(latestWindowsArm);
-                latestDiv.appendChild(latestMacArm);
-                latestDiv.appendChild(latestLinuxArm);
+//                const latestWindowsArm = document.createElement('a');
+//                latestWindowsArm.className = 'downloadLink';
+//                latestWindowsArm.innerHTML = 'Windows (ARM)';
+//                latestWindowsArm.href = 'https://builds.homegames.io/latest/homegames-win-arm64.exe';
+//
+//                const latestWindows = document.createElement('a');
+//                latestWindows.className = 'downloadLink';
+//                latestWindows.innerHTML = 'Windows (x86)';
+//                latestWindows.href = 'https://builds.homegames.io/latest/homegames-win-x64.exe';
+//
+//                const latestLinux = document.createElement('a');
+//                latestLinux.className = 'downloadLink';
+//                latestLinux.innerHTML = 'Linux (x86)';
+//                latestLinux.href = 'https://builds.homegames.io/latest/homegames-linux-x64';
+//
+//                const latestLinuxArm = document.createElement('a');
+//                latestLinuxArm.className = 'downloadLink';
+//                latestLinuxArm.innerHTML = 'Linux (ARM)';
+//                latestLinuxArm.href = 'https://builds.homegames.io/latest/homegames-linux-arm64';
+//
+//                const latestMac = document.createElement('a');
+//                latestMac.className = 'downloadLink';
+//                latestMac.innerHTML = 'macOS (x86)';
+//                latestMac.href = 'https://builds.homegames.io/latest/hg-mac-x64.zip';
+//
+//                const latestMacArm = document.createElement('a');
+//                latestMacArm.className = 'downloadLink';
+//                latestMacArm.innerHTML = 'macOS (ARM)';
+//                latestMacArm.href = 'https://builds.homegames.io/latest/hg-mac-arm64.zip';
+//
+//                const latestHeader = document.createElement('h3');
+//                latestHeader.innerHTML = 'Latest';
+//                latestHeader.style = "text-align: center";
+//
+//                latestDiv.appendChild(latestHeader);
+//                
+//
+//                latestDiv.appendChild(latestWindows);
+//                latestDiv.appendChild(latestMac);
+//                latestDiv.appendChild(latestLinux);
+//
+//                latestDiv.appendChild(latestWindowsArm);
+//                latestDiv.appendChild(latestMacArm);
+//                latestDiv.appendChild(latestLinuxArm);
 
                 const stableWindows = document.createElement('a');
                 stableWindows.className = 'downloadLink';
-                stableWindows.innerHTML = 'Windows (x86)';
-                stableWindows.href = 'https://builds.homegames.io/stable/homegames-win-x64.exe';
+                stableWindows.innerHTML = 'Windows (x64)';
+                stableWindows.href = 'https://builds.homegames.io/stable/homegames-setup-x64.exe';
 
                 const stableLinux = document.createElement('a');
                 stableLinux.className = 'downloadLink';
-                stableLinux.innerHTML = 'Linux (x86)';
-                stableLinux.href = 'https://builds.homegames.io/stable/homegames-linux-x64';
+                stableLinux.innerHTML = 'Linux (snap)';
+                stableLinux.href = 'https://builds.homegames.io/stable/homegames-x64.snap';
+
+                const stableLinuxAppImage = document.createElement('a');
+                stableLinuxAppImage.className = 'downloadLink';
+                stableLinuxAppImage.innerHTML = 'Linux (AppImage)';
+                stableLinuxAppImage.href = 'https://builds.homegames.io/stable/homegames-x64.AppImage';
 
                 const stableMac = document.createElement('a');
                 stableMac.className = 'downloadLink';
-                stableMac.innerHTML = 'macOS (x86)';
-                stableMac.href = 'https://builds.homegames.io/stable/hg-mac-x64.zip';
+                stableMac.innerHTML = 'macOS (x64)';
+                stableMac.href = 'https://builds.homegames.io/stable/homegames-x64.dmg';
 
-                const stableWindowsArm = document.createElement('a');
-                stableWindowsArm.className = 'downloadLink';
-                stableWindowsArm.innerHTML = 'Windows (ARM)';
-                stableWindowsArm.href = 'https://builds.homegames.io/stable/homegames-win-arm64.exe';
+//                const stableWindowsArm = document.createElement('a');
+//                stableWindowsArm.className = 'downloadLink';
+//                stableWindowsArm.innerHTML = 'Windows (ARM)';
+//                stableWindowsArm.href = 'https://builds.homegames.io/stable/homegames-win-arm64.exe';
 
-                const stableLinuxArm = document.createElement('a');
-                stableLinuxArm.className = 'downloadLink';
-                stableLinuxArm.innerHTML = 'Linux (ARM)';
-                stableLinuxArm.href = 'https://builds.homegames.io/stable/homegames-linux-arm64';
+//                const stableLinuxArm = document.createElement('a');
+//                stableLinuxArm.className = 'downloadLink';
+//                stableLinuxArm.innerHTML = 'Linux (ARM)';
+//                stableLinuxArm.href = 'https://builds.homegames.io/stable/homegames-linux-arm64';
 
                 const stableMacArm = document.createElement('a');
                 stableMacArm.className = 'downloadLink';
                 stableMacArm.innerHTML = 'macOS (ARM)';
-                stableMacArm.href = 'https://builds.homegames.io/stable/hg-mac-arm64.zip';
+                stableMacArm.href = 'https://builds.homegames.io/stable/homegames-arm64.dmg';
 
-                const stableHeader = document.createElement('h3');
-                latestWindows.className = 'downloadLink';
-                stableHeader.innerHTML = 'Stable';
-                stableHeader.style = "text-align: center";
+//                const stableHeader = document.createElement('h3');
+//                latestWindows.className = 'downloadLink';
+//                stableHeader.innerHTML = 'Stable';
+//                stableHeader.style = "text-align: center";
 
-                stableDiv.appendChild(stableHeader);
+//                stableDiv.appendChild(stableHeader);
                 stableDiv.appendChild(stableWindows);
                 stableDiv.appendChild(stableMac);
-                stableDiv.appendChild(stableLinux);
-
-                stableDiv.appendChild(stableWindowsArm);
                 stableDiv.appendChild(stableMacArm);
-                stableDiv.appendChild(stableLinuxArm);
+                stableDiv.appendChild(stableLinux);
+                stableDiv.appendChild(stableLinuxAppImage);
+
+//                stableDiv.appendChild(stableWindowsArm);
+//                stableDiv.appendChild(stableMacArm);
+//                stableDiv.appendChild(stableLinuxArm);
 
                 // container.appendChild(publishedInfoDiv);
                 // container.appendChild(commitAuthorDiv);
@@ -518,9 +525,9 @@ const modals = {
                 // instructions.innerHTML = 'Run the homegames server package and navigate to homegames.link in any browser on your local network to play games';
                 // instructions.style = 'text-align: center;';
 
-                container.appendChild(setupGuide);
+//                container.appendChild(setupGuide);
                 container.appendChild(stableDiv);
-                container.appendChild(latestDiv);
+//                container.appendChild(latestDiv);
             // });
             
             return container;
