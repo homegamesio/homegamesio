@@ -29,8 +29,6 @@ const makeGet = (endpoint, headers, isBlob) => new Promise((resolve, reject) => 
             if (xhr.status === 200) {
                 resolve(xhr.response);
             } else {
-                console.log("uh oh");
-                console.log(xhr);
                 reject(xhr.response)
             }
         }
@@ -98,8 +96,6 @@ const loadPodcasts = () => {
                 el.appendChild(videoLink);
             }
 
-            // console.log("eppdfg");
-            // console.log(ep);
             list.appendChild(el);
         }
         podcastContentDiv.appendChild(list);
@@ -684,9 +680,8 @@ const modals = {
                     const publishRequests = JSON.parse(_publishRequests);
                     const tableData = publishRequests && publishRequests.requests || [];
                     const detailState = {};
-                    const _onCellClick = (index) => {
-
-                        const _clickedReq = publishRequests.requests[index];
+                    const _onCellClick = (index, field, val) => {
+                        const _clickedReq = val;//publishRequests.requests[index];
                         const showEvents = (request) => {
                             if (!request.request_id) {
                                 return;
@@ -700,9 +695,8 @@ const modals = {
                                     'hg-token': window.hgUserInfo.tokens.accessToken
                                 }).then((_eventData) => {
                                     const eventData = JSON.parse(_eventData);
-                                    console.log("EVENT DATA");
-                                    console.log(eventData);
-                                    const eventTable = sortableTable(eventData.events);
+                                    const eventTable = sortableTable(eventData.events, { key: 'event_date', order: 'desc' });
+                                   // , { key: 'created', order: 'desc' });
                                     eventsContainer.appendChild(eventTable);
                                 });
                                 const eventsHeader = document.createElement('h4');
@@ -716,9 +710,6 @@ const modals = {
                         showEvents(_clickedReq);
                     };
 
-                    console.log('tbabebeale da');
-                    console.log(tableData);
-
                     const publishRequestTableData = tableData.map(d => {
                         return {
                             'adminMessage': d.adminMessage,
@@ -727,7 +718,7 @@ const modals = {
                             'status': d.status
                         };
                     });
-                    const _table = sortableTable(publishRequestTableData, null, _onCellClick, undefined, (requestData) => {
+                    const _table = sortableTable(publishRequestTableData, { key: 'created', order: 'desc' }, _onCellClick, undefined, (requestData) => {
                         if (requestData.status === 'CONFIRMED') {
                                         const container = simpleDiv();
                                         container.innerHTML = 'Submit for publishing';
@@ -743,8 +734,13 @@ const modals = {
                                         }
                       
                                         return simpleDiv();
+                                    }, (key, field) => {
+                                        if (field === 'created' ) {
+                                            return new Date(publishRequestTableData[key][field]).toDateString();
+                                        }
+
+                                        return publishRequestTableData[key][field];
                                     });
- 
                     requestSection.appendChild(_table);
                 });
  
@@ -783,22 +779,22 @@ const modals = {
                 commitForm.type = 'text';
                 commitForm.setAttribute('placeholder', 'GitHub repo commit (eg. 265ce105af20a721e62dbf93646197f2c2d33ac1)');
 
-                const squishVersionLabel = document.createElement('label');
-                squishVersionLabel.innerHTML = 'Squish version';
+//                const squishVersionLabel = document.createElement('label');
+//                squishVersionLabel.innerHTML = 'Squish version';
 
-                const squishVersionInput = document.createElement('select');
+//                const squishVersionInput = document.createElement('select');
 
-                const squishVersionOptions = ['0756', '0766'];
+//                const squishVersionOptions = ['0756', '0766'];
 
-                for (let i = 0; i < squishVersionOptions.length; i++) {
-                    const squishVersionOption = squishVersionOptions[i];
-                    const optionEl = document.createElement('option');
-                    optionEl.value = squishVersionOption;
-                    optionEl.innerHTML = squishVersionOption;
-                    squishVersionInput.appendChild(optionEl);
-                }
+//                for (let i = 0; i < squishVersionOptions.length; i++) {
+//                    const squishVersionOption = squishVersionOptions[i];
+//                    const optionEl = document.createElement('option');
+//                    optionEl.value = squishVersionOption;
+//                    optionEl.innerHTML = squishVersionOption;
+//                    squishVersionInput.appendChild(optionEl);
+//                }
 
-                squishVersionInput.value = squishVersionOptions[0];
+//                squishVersionInput.value = squishVersionOptions[0];
 
 
                 publishButton.onclick = () => {
@@ -823,7 +819,7 @@ const modals = {
                         owner: repoOwnerForm.value, 
                         repo: repoNameForm.value,
                         commit: commitForm.value,
-                        squishVersion: squishVersionInput.value
+//                        squishVersion: squishVersionInput.value
                     };
                 
                     request.send(JSON.stringify(payload));
@@ -833,8 +829,8 @@ const modals = {
                 publishSection.appendChild(repoOwnerForm);
                 publishSection.appendChild(repoNameForm);
                 publishSection.appendChild(commitForm);
-                publishSection.appendChild(squishVersionLabel);
-                publishSection.appendChild(squishVersionInput);
+//                publishSection.appendChild(squishVersionLabel);
+//                publishSection.appendChild(squishVersionInput);
                 publishSection.appendChild(publishButton);
 
                 versionContainer.appendChild(publishSection);
@@ -855,8 +851,6 @@ const modals = {
                         const noVersions = simpleDiv('No published versions');
                         versionContainer.appendChild(noVersions);
                     } else {
-                        console.log("VEREIRIERI");
-                        console.log(versions);
                         const versionTableData = versions.map(v => {
                             return {
                                 'version': v.version,
@@ -865,7 +859,13 @@ const modals = {
                                 'download': `<a href="${v.location}">link</a>`
                             };
                         })
-                        const versionTable = sortableTable(versionTableData);
+                        const versionTable = sortableTable(versionTableData, { key: 'version', order: 'desc' }, null, null, null, (key, val, data) => {
+                            if (val === 'published') {
+                                return new Date(data[val]).toDateString();
+                            } 
+
+                            return data[val];
+                        });
                         versionContainer.appendChild(versionTable);
                     }
                 });
@@ -1423,10 +1423,6 @@ const dashboards = {
                     const onCellClick = (index, field) => {
                         const clickedGameData = gameDataToRender[index];
                         const clickedGame = Object.values(games).filter(g => g.id === clickedGameData.id)[0];
-                        console.log("INDEX?");
-                        console.log(index);
-                        console.log(field);
-                        console.log(games);
                         showModal('game-detail', clickedGame);
                     };
 
@@ -1451,11 +1447,7 @@ const dashboards = {
                         gameDataToRender.push(gameData);
                     }
 
-                    console.log("AYO!");
-                    console.log(gameDataToRender);
-                    console.log(games);
-
-                    const table = sortableTable(gameDataToRender, {key: 'createdAt', order: 'desc'}, onCellClick, {rowStyler, cellStyler});
+                    const table = sortableTable(gameDataToRender, { key: 'createdAt', order: 'desc' }, onCellClick, {rowStyler, cellStyler});
                     container.appendChild(table);
                 });
 
@@ -1518,10 +1510,9 @@ const dashboards = {
                 //     'hg-token': window.hgUserInfo.tokens.accessToken
                 // }).
                 then((_assets) => {
-                    console.log('ayo');
                     container.removeChild(_loader);
                     const assets = JSON.parse(_assets).assets;
-                    const table = sortableTable(assets, {key: 'created', order: 'desc'});
+                    const table = sortableTable(assets, { key: 'created', order: 'desc' });
                     container.appendChild(assetsHeader);
                     container.appendChild(table);
                 });
@@ -1552,8 +1543,6 @@ const dashboards = {
                 'hg-username': window.hgUserInfo.username,
                 'hg-token': window.hgUserInfo.tokens.accessToken
             }).then(certStatus => {
-                console.log('got cert status!');
-                console.log(certStatus);
             });
 
             resolve(container);
@@ -1748,7 +1737,7 @@ const doSort = (data, sort) => {
 };
 
 
-const getRows = (data, fields, sortState, cb, stylers, rowEndContent = null) => {
+const getRows = (data, fields, sortState, cb, stylers, rowEndContent = null, renderer = null) => {
     const _data = doSort(data, sortState); 
 
     let _rows = [];
@@ -1759,10 +1748,10 @@ const getRows = (data, fields, sortState, cb, stylers, rowEndContent = null) => 
         if (stylers && stylers.rowStyler) {
             stylers.rowStyler(row);
         }
-
+        
         for (const field of fields) {
             const obj = _data[key];
-            const val = obj[field];
+            const val = renderer ? renderer(key, field, obj) : obj[field];
             
             const cell = document.createElement('td');
 
@@ -1775,7 +1764,7 @@ const getRows = (data, fields, sortState, cb, stylers, rowEndContent = null) => 
             }
 
             cell.onclick = () => {
-                cb && cb(key, field);
+                cb && cb(key, field, obj);
             };
 
             if (field  === 'thumbnail') {
@@ -1800,7 +1789,7 @@ const getRows = (data, fields, sortState, cb, stylers, rowEndContent = null) => 
     return _rows;
 }
 
-const sortableTable = (data, defaultSort, cb, stylers, rowEndContent = null) => {
+const sortableTable = (data, defaultSort, cb, stylers, rowEndContent = null, renderer = null) => {
     const tableEl = document.createElement('table');
     const tHead = document.createElement('thead');
     const tBody = document.createElement('tbody');
@@ -1818,7 +1807,7 @@ const sortableTable = (data, defaultSort, cb, stylers, rowEndContent = null) => 
 
     const fields = Array.from(_fields);
 
-    let rows = getRows(data, fields, sortState, cb, stylers, rowEndContent);
+    let rows = getRows(data, fields, sortState, cb, stylers, rowEndContent, renderer);
 
     for (const i in fields) {
         const field = fields[i];
@@ -1834,6 +1823,7 @@ const sortableTable = (data, defaultSort, cb, stylers, rowEndContent = null) => 
                     order: 'asc'
                 };
             }
+
             const newRows = getRows(data, fields, sortState, cb, stylers, rowEndContent);
 
             for (const i in rows) {
