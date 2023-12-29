@@ -779,10 +779,15 @@ const modals = {
                 commitForm.type = 'text';
                 commitForm.setAttribute('placeholder', 'GitHub repo commit (eg. 265ce105af20a721e62dbf93646197f2c2d33ac1)');
 
+                const squishVersionDiv = document.createElement('div');
+
                 const squishVersionLabel = document.createElement('label');
                 squishVersionLabel.innerHTML = 'Squish version';
 
                 const squishVersionInput = document.createElement('select');
+
+                squishVersionDiv.appendChild(squishVersionLabel);
+                squishVersionDiv.appendChild(squishVersionInput);
 
                 const squishVersionOptions = ['1005'];
 
@@ -829,8 +834,7 @@ const modals = {
                 publishSection.appendChild(repoOwnerForm);
                 publishSection.appendChild(repoNameForm);
                 publishSection.appendChild(commitForm);
-                publishSection.appendChild(squishVersionLabel);
-                publishSection.appendChild(squishVersionInput);
+                publishSection.appendChild(squishVersionDiv);
                 publishSection.appendChild(publishButton);
 
                 versionContainer.appendChild(publishSection);
@@ -1564,91 +1568,131 @@ const dashboards = {
                     'hg-username': window.hgUserInfo.username,
                     'hg-token': window.hgUserInfo.tokens.accessToken
                 }).then((_publishRequests) => {
-                    const tableContainer = document.createElement('table');
-                    const tableHeaderRow = document.createElement('tr');
+                    makeGet(`${API_URL}/admin/publish_requests/failed`, {
+                        'hg-username': window.hgUserInfo.username,
+                        'hg-token': window.hgUserInfo.tokens.accessToken
+                    }).then((failedPublishRequests) => {
+                        const retryForm = document.createElement('div');
 
-                    const requestIdHeader = document.createElement('th');
-                    requestIdHeader.innerHTML = 'Request ID';
+                        const retryFormGameIdLabel = document.createElement('label');
+                        retryFormGameIdLabel.innerHTML = 'Game ID';
 
-                    const requesterHeader = document.createElement('th');
-                    requesterHeader.innerHTML = 'Requester';
+                        const retryFormGameId = document.createElement('input');
+                        retryFormGameId.type = 'text';
 
-                    const codeHeader = document.createElement('th');
-                    codeHeader.innerHTML = 'Code';
+                        const retryFormSourceHashLabel = document.createElement('label');
+                        retryFormSourceHashLabel.innerHTML = 'Source hash';
 
-                    const actionHeader = document.createElement('th');
-                    actionHeader.innerHTML = 'Action';
+                        const retryFormSourceHash = document.createElement('input');
+                        retryFormSourceHash.type = 'text';
+                    
+                        const retryText = document.createElement('h1');
+                        retryText.innerHTML = 'Retry request';
 
-                    tableHeaderRow.appendChild(requestIdHeader);
-                    tableHeaderRow.appendChild(requesterHeader);
-                    tableHeaderRow.appendChild(codeHeader);
-                    tableHeaderRow.appendChild(actionHeader);
-
-                    tableContainer.appendChild(tableHeaderRow);
-
-                    const publishRequests = JSON.parse(_publishRequests);
-                    for (const index in publishRequests.requests) {
-                        const request = publishRequests.requests[index];
-
-                        const row = document.createElement('tr');
-
-                        const requestIdCell = document.createElement('td');
-                        const requesterCell = document.createElement('td');
-                        const codeCell = document.createElement('td');
-                        const actionCell = document.createElement('td');
-                        
-                        requestIdCell.innerHTML = request.request_id;
-                        requesterCell.innerHTML = request.requester;
-                        const codeLink = document.createElement('a');
-                        codeLink.target = '_blank';
-                        codeLink.href = `https://github.com/${request.repo_owner}/${request.repo_name}/commit/${request.commit_hash}`;
-                        codeLink.innerHTML = 'Link';
-                        codeCell.appendChild(codeLink);
-
-                        row.appendChild(requestIdCell);
-                        row.appendChild(requesterCell);
-                        row.appendChild(codeCell);
-
-                        const actionForm = document.createElement('input');
-                        actionForm.type = 'text';
-
-                        const approveButton = document.createElement('div');
-                        const rejectButton = document.createElement('div');
-                        approveButton.innerHTML = 'Approve';
-                        approveButton.onclick = () => {
-                            if (actionForm.value) {
-                                makePost(`${API_URL}/admin/request/${request.request_id}/action`, {
-                                    action: 'approve',
-                                    message: actionForm.value
-                                }, false, true).then(() => {
-                                    console.log("need to update ui");
-                                });
-                            }
+                        const retrySubmitButton = document.createElement('div');
+                        retrySubmitButton.onclick = () => {
+                            makePost(`${API_URL}/admin/publish_requests/retry`, {
+                                gameId: retryFormGameId.value,
+                                sourceInfoHash: retryFormSourceHash.value
+                            }, false, true).then(() => {
+                                console.log("retried. need to update ui");
+                            });
                         };
+                        retrySubmitButton.innerHTML = 'Submit';
 
-                        rejectButton.innerHTML = 'Reject';
-                        rejectButton.onclick = () => {
-                            if (actionForm.value) {
-                                makePost(`${API_URL}/admin/request/${request.request_id}/action`, {
-                                    action: 'reject',
-                                    message: actionForm.value
-                                }, false, true).then(() => {
-                                    console.log("need to update ui");
-                                });
-                            }
-                        };
+                        retryForm.appendChild(retryText);
+                        retryForm.appendChild(retryFormGameIdLabel);
+                        retryForm.appendChild(retryFormGameId);
+                        retryForm.appendChild(retryFormSourceHashLabel);
+                        retryForm.appendChild(retryFormSourceHash);
+                        retryForm.appendChild(retrySubmitButton);
+
+                        const tableContainer = document.createElement('table');
+                        const tableHeaderRow = document.createElement('tr');
+
+                        const requestIdHeader = document.createElement('th');
+                        requestIdHeader.innerHTML = 'Request ID';
+
+                        const requesterHeader = document.createElement('th');
+                        requesterHeader.innerHTML = 'Requester';
+
+                        const codeHeader = document.createElement('th');
+                        codeHeader.innerHTML = 'Code';
+
+                        const actionHeader = document.createElement('th');
+                        actionHeader.innerHTML = 'Action';
+
+                        tableHeaderRow.appendChild(requestIdHeader);
+                        tableHeaderRow.appendChild(requesterHeader);
+                        tableHeaderRow.appendChild(codeHeader);
+                        tableHeaderRow.appendChild(actionHeader);
+
+                        tableContainer.appendChild(tableHeaderRow);
+
+                        const publishRequests = JSON.parse(_publishRequests);
+                        for (const index in publishRequests.requests) {
+                            const request = publishRequests.requests[index];
+
+                            const row = document.createElement('tr');
+
+                            const requestIdCell = document.createElement('td');
+                            const requesterCell = document.createElement('td');
+                            const codeCell = document.createElement('td');
+                            const actionCell = document.createElement('td');
+                            
+                            requestIdCell.innerHTML = request.request_id;
+                            requesterCell.innerHTML = request.requester;
+                            const codeLink = document.createElement('a');
+                            codeLink.target = '_blank';
+                            codeLink.href = `https://github.com/${request.repo_owner}/${request.repo_name}/commit/${request.commit_hash}`;
+                            codeLink.innerHTML = 'Link';
+                            codeCell.appendChild(codeLink);
+
+                            row.appendChild(requestIdCell);
+                            row.appendChild(requesterCell);
+                            row.appendChild(codeCell);
+
+                            const actionForm = document.createElement('input');
+                            actionForm.type = 'text';
+
+                            const approveButton = document.createElement('div');
+                            const rejectButton = document.createElement('div');
+                            approveButton.innerHTML = 'Approve';
+                            approveButton.onclick = () => {
+                                if (actionForm.value) {
+                                    makePost(`${API_URL}/admin/request/${request.request_id}/action`, {
+                                        action: 'approve',
+                                        message: actionForm.value
+                                    }, false, true).then(() => {
+                                        console.log("need to update ui");
+                                    });
+                                }
+                            };
+
+                            rejectButton.innerHTML = 'Reject';
+                            rejectButton.onclick = () => {
+                                if (actionForm.value) {
+                                    makePost(`${API_URL}/admin/request/${request.request_id}/action`, {
+                                        action: 'reject',
+                                        message: actionForm.value
+                                    }, false, true).then(() => {
+                                        console.log("need to update ui");
+                                    });
+                                }
+                            };
 
 
-                        actionCell.appendChild(rejectButton);
-                        actionCell.appendChild(actionForm);
-                        actionCell.appendChild(approveButton);
-                        
-                        row.appendChild(actionCell);
-                        tableContainer.appendChild(row);
-                        // container.appendChild(requestContainer);
-                    }
-
-                    container.appendChild(tableContainer);
+                            actionCell.appendChild(rejectButton);
+                            actionCell.appendChild(actionForm);
+                            actionCell.appendChild(approveButton);
+                            
+                            row.appendChild(actionCell);
+                            tableContainer.appendChild(row);
+                            // container.appendChild(requestContainer);
+                        }
+                        container.appendChild(retryForm);
+                        container.appendChild(tableContainer);
+                    });
                 });
                 
             }
