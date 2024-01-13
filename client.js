@@ -779,27 +779,27 @@ const modals = {
                 commitForm.type = 'text';
                 commitForm.setAttribute('placeholder', 'GitHub repo commit (eg. 265ce105af20a721e62dbf93646197f2c2d33ac1)');
 
-                const squishVersionDiv = document.createElement('div');
+//                const squishVersionDiv = document.createElement('div');
 
-                const squishVersionLabel = document.createElement('label');
-                squishVersionLabel.innerHTML = 'Squish version';
+//                const squishVersionLabel = document.createElement('label');
+//                squishVersionLabel.innerHTML = 'Squish version';
 
-                const squishVersionInput = document.createElement('select');
+//                const squishVersionInput = document.createElement('select');
 
-                squishVersionDiv.appendChild(squishVersionLabel);
-                squishVersionDiv.appendChild(squishVersionInput);
+//                squishVersionDiv.appendChild(squishVersionLabel);
+//                squishVersionDiv.appendChild(squishVersionInput);
 
-                const squishVersionOptions = ['1005'];
+//                const squishVersionOptions = ['1005'];
 
-                for (let i = 0; i < squishVersionOptions.length; i++) {
-                    const squishVersionOption = squishVersionOptions[i];
-                    const optionEl = document.createElement('option');
-                    optionEl.value = squishVersionOption;
-                    optionEl.innerHTML = squishVersionOption;
-                    squishVersionInput.appendChild(optionEl);
-                }
-
-                squishVersionInput.value = squishVersionOptions[0];
+//                for (let i = 0; i < squishVersionOptions.length; i++) {
+//                    const squishVersionOption = squishVersionOptions[i];
+//                    const optionEl = document.createElement('option');
+//                    optionEl.value = squishVersionOption;
+//                    optionEl.innerHTML = squishVersionOption;
+//                    squishVersionInput.appendChild(optionEl);
+//                }
+//
+//                squishVersionInput.value = squishVersionOptions[0];
 
 
                 publishButton.onclick = () => {
@@ -824,7 +824,7 @@ const modals = {
                         owner: repoOwnerForm.value, 
                         repo: repoNameForm.value,
                         commit: commitForm.value,
-                        squishVersion: squishVersionInput.value
+                        //squishVersion: squishVersionInput.value
                     };
                 
                     request.send(JSON.stringify(payload));
@@ -834,7 +834,7 @@ const modals = {
                 publishSection.appendChild(repoOwnerForm);
                 publishSection.appendChild(repoNameForm);
                 publishSection.appendChild(commitForm);
-                publishSection.appendChild(squishVersionDiv);
+//                publishSection.appendChild(squishVersionDiv);
                 publishSection.appendChild(publishButton);
 
                 versionContainer.appendChild(publishSection);
