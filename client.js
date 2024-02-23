@@ -127,12 +127,8 @@ const loadPodcasts = () => {
 window.loadPodcasts = loadPodcasts;
 
 const formatDate = (date) => {
-    console.log("formatting");
-    console.log(date);
-
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const ting = new Date(date);
-    console.log(ting);
     return `${months[ting.getMonth()]} ${ting.getDate()}, ${ting.getFullYear()}`;
 };
 
@@ -182,7 +178,6 @@ const uploadAsset = (asset, cb) => new Promise((resolve, reject) => {
     request.onreadystatechange = (e) => {
         if (request.readyState === XMLHttpRequest.DONE) {
             if (request.status === 200) {
-                console.log("DFJKSDHFKDSFHJSDF!!NFJNFKHNFJ");
                 console.log(e);
                 resolve(JSON.parse(e.target.response));
             } else {
@@ -673,8 +668,6 @@ const modals = {
                 };
 
                 uploadAsset(uploadedFile, eventHandler).then((assetRes) => {
-                    console.log('asset res');
-                    console.log(assetRes);
                     const _loader = loaderBlack();
 
                     const request = new XMLHttpRequest();
