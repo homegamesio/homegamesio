@@ -1659,7 +1659,7 @@ const dashboards = {
             const profileLink = document.createElement('a');
             profileLink.innerHTML = 'View profile';
             profileLink.target = '_blank';
-            profileLink.href = `${window.location.origin}/dev?id=${window.hgUserInfo.username}`;
+            profileLink.href = `${window.location.origin}/dev.html?id=${window.hgUserInfo.username}`;
             profileLink.style = 'text-decoration: none; color: rgba(241, 112, 111, 255);';
             profileLink.target = '_blank';
             profileLinkWrapper.appendChild(profileLink);
@@ -2107,7 +2107,7 @@ const renderGamePage = (gameId, gameInfo) => {
 
     const authorLink = document.createElement('a');
     authorLink.innerHTML = gameInfo.createdBy;
-    authorLink.href = `${window.location.origin}/dev?id=${gameInfo.createdBy}`;
+    authorLink.href = `${window.location.origin}/dev.html?id=${gameInfo.createdBy}`;
     authorLink.style = 'color: #F1706F; text-decoration: none; margin-left: 6px;';
 
     author.appendChild(by);
@@ -2223,7 +2223,7 @@ const renderDevProfile = (devId, devInfo) =>  {
         gameEl.style = 'margin-bottom: 48px;';
 
         const linkWrapper = document.createElement('a');
-        linkWrapper.href = `${window.location.origin}/game?id=${game.id}`;
+        linkWrapper.href = `${window.location.origin}/game.html?id=${game.id}`;
         linkWrapper.style = 'display: grid; grid-template-columns: 1fr 1fr 4fr; text-decoration: none; line-height: 120px;';
 
         const thumbnail = document.createElement('img');
@@ -2605,7 +2605,7 @@ const renderGames = (games) => {
             const gameAuthor = simpleDiv('Author: ' + g.author);
             
             _div.onclick = () => {
-                window.history.pushState({id: g.id }, '/game', window.location.origin);
+                window.history.pushState({id: g.id }, '/game.html', window.location.origin);
 //                showModal('game-preview', g);
             };
 
