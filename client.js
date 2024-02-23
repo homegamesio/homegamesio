@@ -1,6 +1,6 @@
 const QRCode = require('qrcode');
-const API_PROTOCOL = 'http';// 'https';//window.origin && window.origin.startsWith('https') ? 'https' : 'http';
-const API_HOST = 'localhost:8080';//'api.homegames.io';//window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
+const API_PROTOCOL = 'https';//window.origin && window.origin.startsWith('https') ? 'https' : 'http';
+const API_HOST = 'api.homegames.io';//window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
 
 const ASSET_API_ENDPOINT = '/assets';
 
@@ -684,10 +684,8 @@ const modals = {
                             } 
                         }
                     };
-//                    const formData = new FormData();
                     const reqBody = {
                         'thumbnail': assetRes.assetId,
-                        'description': 'test value here'
                     }
                     request.send(JSON.stringify(reqBody));
                 });
