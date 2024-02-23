@@ -4,7 +4,8 @@
   "description": "Play games at home - the website",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "./node_modules/webpack/bin/webpack.js"
   },
   "repository": {
     "type": "git",
@@ -22,6 +23,11 @@
   "homepage": "https://github.com/prosif/homegamesio#readme",
   "dependencies": {
     "aws-sdk": "^2.892.0",
-    "homegames-common": "0.1.33"
+    "homegames-common": "0.1.33",
+    "qrcode": "^1.5.3"
+  },
+  "devDependencies": {
+    "webpack": "^5.65.0",
+    "webpack-cli": "^4.3.1"
   }
 }

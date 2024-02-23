@@ -22,33 +22,33 @@
         <div id="main">
             <div id="page-container">
                 <div id="header" class="clickable">
-                    <div onclick="showContent('home')" class="hg-button" id="logo"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
-                    <div onclick="showModal('login')" class="hg-button" id="settings">
-                        <h1>Log in</h1>
+                    <div onclick="showContent('home')" class="hg-button" id="logo"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png"></img></div>
+                    <div onclick="showModal('login')" class="hg-button amateur" id="settings">
+                        <h1>Developer log in</h1>
                     </div>
                 </div>
                 <div id="content" style="font-weight: lighter;">
                     <div id="info-content">
-                        <img src="https://assets.homegames.io/31b81479f187d9ab6aa6845e0794b4be" style="width: 20%; margin-left: 40%; margin-top: 12px; margin-bottom: 12px;"/>
-                        <div class='headlines'>
+                        <div class='headlines amateur'>
                             <h1>Homegames is a free and open-source game platform</h1>
                             <h2>Play games built by the Homegames community or build your own</h2>
                         </div>
-                        <div id="top-buttons">
+                        <div id="top-buttons" class="amateur">
                             <div style="width: 100%; display: flex; justify-content: center;">
-                                <div style="text-decoration: none; background: rgba(148, 210, 229, 255); font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" onclick="handleDownload(true)" class="clickable hg-button content-button">Download</div>
+                                <div style="text-decoration: none; background: rgba(148, 210, 229, 255); font-family: 'amateur'; font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" onclick="handleDownload(true)" class="clickable hg-button content-button">Download</div>
                             </div>
                             <div style="width: 100%; display: flex; justify-content: center;">                      
                                 <a style="text-decoration: none; background: #A0EB5D; font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px; margin-right: 160px;" href="/developers.html" class="clickable hg-button content-button">Developers</a>
-                                <a style="text-decoration: none; background: rgba(241, 112, 111, 255); font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" href="/catalog.html" class="clickable hg-button content-button">Catalog</a>
+                                <a style="text-decoration: none; background: rgba(241, 112, 111, 255); font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" href="/catalog.html" class="clickable hg-button content-button">Games</a>
                             </div>
                             <div style="width: 100%; display: flex; justify-content: center;">
-                                <a style="text-decoration: none; background: rgba(255, 247, 142, 255); font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" href="/about.html" class="clickable hg-button content-button">About</a>
+                                <a style="text-decoration: none; background: rgba(255, 247, 142, 255); font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" href="https://picodeg.io" target="_blank" class="clickable hg-button content-button">Demo</a>
                             </div>
                         </div> 
                         <div id="links">
-                            <div style="display: grid; grid-template-columns: 1fr; text-align: center;">
+                            <div style="display: grid; grid-template-columns: 1fr; text-align: center;" class="amateur">
                                 <ul>
+                                    <li><a href="/about.html">About</a></li>
                                     <li><a href="https://github.com/homegamesio" target="_blank">GitHub</a></li>
                                     <li><a href="/podcast.html">Podcast</a></li>
                                     <li><a href="/terms.html">Terms of Service</a></li>
@@ -58,7 +58,7 @@
                     </div>
                     <div hidden id="dashboard-content"></div>
                 </div>
-                <div id="footer" onclick="showModal('support')" class="clickable">
+                <div id="footer" onclick="showModal('support')" class="clickable amateur">
                     <h1>
                         Contact 
                     </h1>
@@ -66,6 +66,6 @@
             </div>
         </div>
     </body>
-    <script src="client.js"></script>
+    <script src="bundle.js"></script>
 
 </html>
