@@ -145,6 +145,10 @@ body {
     margin: 0;
 }
 
+.amateur {
+    font-family: "amateur";
+}
+
 #top-buttons {
     text-align: center;
     clear: both;
@@ -242,7 +246,7 @@ body {
 #login-section {
     width:  40%;
     float:  left;
-    margin: 5%;
+    margin: 36px;
 }
 
 #login-section input {
@@ -258,9 +262,9 @@ body {
 }
 
 #signup-section {
-    width:  40%;
-    float:  left;
-    margin: 5%;
+    width: 40%;
+    float: right;
+    margin: 36px;
 }
 
 #signup-section input {
@@ -289,7 +293,6 @@ body {
 }
 
 #me-label {
-    margin-left: 5%;
 }
 
 #me-section {
@@ -300,7 +303,7 @@ body {
     padding: 3%;
 }
 
-#my-games-button, #my-assets-button, #admin-button {
+#me-button, #my-games-button, #my-assets-button, #admin-button {
     border-radius: 5px;
     border: 1px solid black;
     width: 75%;
@@ -308,14 +311,18 @@ body {
     height: 100px;
     line-height: 100px;
     font-weight: 500;
-    color: #fbfff2;
-    background: black;
+    color: black;
+    background: #fbfff2;
     margin: auto;
 }
 
-#my-games-button:hover, #my-assets-button:hover {
+#me-button:hover, #admin-button:hover, #my-games-button:hover, #my-assets-button:hover {
     color: black;
-    background: #fbfff2;
+    background: rgba(255, 247, 142, 255);
+}
+
+#me-button.active, #admin-button.active, #my-games-button.active, #my-assets-button.active {
+    background: rgba(255, 247, 142, 255);
 }
 
 #support-container input {
@@ -465,4 +472,9 @@ body {
 td {
     overflow: scroll;
     padding: 40px;
+}
+
+@font-face {
+    font-family: 'amateur';
+    src: url('amateur.ttf') format('truetype');
 }

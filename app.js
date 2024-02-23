@@ -96,6 +96,14 @@ const PATH_MAP = {
         path: "client.js",
         contentType: "text/javascript"
     },
+    "/amateur.ttf": {
+        path: "assets/amateur.ttf",
+        contentType: "font/ttf"
+    },
+    "/bundle.js": {
+        path: "web/bundle.js",
+        contentType: "text/javascript"
+    },
     "/client.js": {
         path: "client.js",
         contentType: "text/javascript"
@@ -281,6 +289,16 @@ const server = http.createServer((req, res) => {
                 res.statusCode = 200;
                 res.setHeader("Content-Type", 'text/html');
                 const payload = fs.readFileSync(path.join(__dirname, 'developers.html'));
+                res.end(payload);
+            } else if (req.url.startsWith('/dev')) {
+                res.statusCode = 200;
+                res.setHeader("Content-Type", "text/html");
+                const payload = fs.readFileSync(path.join(__dirname, 'dev.html'));
+                res.end(payload);
+            } else if (req.url.startsWith('/game')) {
+                res.statusCode = 200;
+                res.setHeader("Content-Type", "text/html");
+                const payload = fs.readFileSync(path.join(__dirname, 'game.html'));
                 res.end(payload);
             } else if (req.url.startsWith('/catalog')) {
                 res.statusCode = 200;

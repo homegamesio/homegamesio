@@ -1,5 +1,6 @@
-const API_PROTOCOL = 'https';//window.origin && window.origin.startsWith('https') ? 'https' : 'http';
-const API_HOST = 'api.homegames.io';//window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
+const QRCode = require('qrcode');
+const API_PROTOCOL = 'http';// 'https';//window.origin && window.origin.startsWith('https') ? 'https' : 'http';
+const API_HOST = 'localhost:8080';//'api.homegames.io';//window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
 
 const ASSET_API_ENDPOINT = '/assets';
 
@@ -11,6 +12,8 @@ const clearChildren = (el) => {
         el.removeChild(el.firstChild);
     }
 };
+
+window.clearChildren = clearChildren;
 
 const makeGet = (endpoint, headers, isBlob) => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -121,15 +124,25 @@ const loadPodcasts = () => {
     });
 }
 
-const formatDate = (date) => {
+window.loadPodcasts = loadPodcasts;
 
+const formatDate = (date) => {
+    console.log("formatting");
+    console.log(date);
+
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const ting = new Date(date);
+    console.log(ting);
+    return `${months[ting.getMonth()]} ${ting.getDate()}, ${ting.getFullYear()}`;
 };
 
 const createGame = (name, description, thumbnail) => new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
 
     const formData = new FormData();
-    formData.append('thumbnail', thumbnail);
+    if (thumbnail) {
+        formData.append('thumbnail', thumbnail);
+    }
     formData.append('name', name);
     formData.append('description', description);
     request.open("POST", `${API_PROTOCOL}://${API_HOST}/games`);
@@ -169,7 +182,9 @@ const uploadAsset = (asset, cb) => new Promise((resolve, reject) => {
     request.onreadystatechange = (e) => {
         if (request.readyState === XMLHttpRequest.DONE) {
             if (request.status === 200) {
-                resolve();
+                console.log("DFJKSDHFKDSFHJSDF!!NFJNFKHNFJ");
+                console.log(e);
+                resolve(JSON.parse(e.target.response));
             } else {
                 reject();
             }
@@ -310,6 +325,19 @@ const listAssets = () => new Promise((resolve, reject) => {
     }).then(resolve);
 });
 
+const updateProfile = (body) => new Promise((resolve, reject) => {
+    makePost(`${API_URL}/profile`, body, true, true).then(() => {
+        resolve();
+    });
+});
+
+const getProfile = () => new Promise((resolve, reject) => {
+    makeGet(`${API_PROTOCOL}://${API_HOST}/profile`, {
+        'hg-username': window.hgUserInfo.username,
+        'hg-token': window.hgUserInfo.tokens.accessToken
+    }).then(resolve);
+});
+
 const modals = {
     'game-preview': {
         render: (game) => {
@@ -349,7 +377,8 @@ const modals = {
 
                 const downloadHeader = document.createElement('h1');
                 downloadHeader.innerHTML = 'Download';
-                downloadHeader.style = 'text-align: center';
+                downloadHeader.className = 'amateur';
+                downloadHeader.style = 'text-align: center; font-size: 30pt;';
 
                 // const publishedInfoDiv = document.createElement('h4');
                 // publishedInfoDiv.innerHTML = `Latest stable version published ${new Date(buildInfo.datePublished).toDateString()} ${new Date(buildInfo.datePublished).toTimeString()}`;
@@ -522,6 +551,13 @@ const modals = {
                 // instructions.style = 'text-align: center;';
 
 //                container.appendChild(setupGuide);
+
+                const downloadInfo = document.createElement('div');
+                const downloadText = document.createElement('strong');
+                downloadText.innerHTML = `Run the app on your computer and go to homegames.link using any browser on your network.`;
+                downloadInfo.appendChild(downloadText);
+                downloadInfo.style = 'text-align: center; color: rgba(255, 247, 142, 255);';
+                container.appendChild(downloadInfo);
                 container.appendChild(stableDiv);
 //                container.appendChild(latestDiv);
             // });
@@ -593,6 +629,80 @@ const modals = {
             container.appendChild(gameHeader);
             container.appendChild(idSubHeader);
 
+            if (game.thumbnail) {
+                const gameImageWrapper = document.createElement('div');
+                const gameImage = document.createElement('img');
+                gameImage.src = `https://assets.homegames.io/${game.thumbnail}`;
+                gameImage.style = 'max-width: 240px; min-width: 240px; max-height: 240px;';    
+                gameImageWrapper.appendChild(gameImage);
+                container.appendChild(gameImageWrapper);
+            }
+            
+            const thumbnailFormDiv = document.createElement('div');
+            const thumbnailForm = document.createElement('input');
+            thumbnailForm.type = 'file';
+            thumbnailForm.setAttribute('accept', 'image/png, image/jpeg');
+            thumbnailFormDiv.appendChild(thumbnailForm);
+            let uploadedFile;
+
+            thumbnailForm.oninput = (e) => {
+                if (thumbnailForm.files && thumbnailForm.files.length > 0) {
+                    const file = thumbnailForm.files[0];
+                    if (file.size < 2000000) {
+                        uploadedFile = file;
+                    } else {
+                        console.error('image too large');
+                    }
+                }
+            };
+
+            const updateImageButton = simpleDiv('Update image');
+            updateImageButton.id = 'update-image-button';
+            updateImageButton.className = 'clickable hg-button content-button';
+            updateImageButton.onclick = () => { 
+                if (!uploadedFile) {
+                    return;
+                }
+
+                const eventHandler = (_type, _payload) => {
+                    if (_type == 'loadstart') {
+                        //clearChildren(uploadSection);
+                        //const _loader = loaderBlack();
+                        //uploadSection.appendChild(_loader);
+                    }
+                };
+
+                uploadAsset(uploadedFile, eventHandler).then((assetRes) => {
+                    console.log('asset res');
+                    console.log(assetRes);
+                    const _loader = loaderBlack();
+
+                    const request = new XMLHttpRequest();
+                    request.open("POST", `${API_URL}/games/${game.id}/update`);
+
+                    request.setRequestHeader('hg-username', window.hgUserInfo.username);
+                    request.setRequestHeader('hg-token', window.hgUserInfo.tokens.accessToken);
+                    request.setRequestHeader("Content-Type", "application/json");
+
+                    request.onreadystatechange = (e) => {
+                        if (request.readyState === XMLHttpRequest.DONE) {
+                            if (request.status === 200) {
+                                console.log('cool!');
+                            } 
+                        }
+                    };
+//                    const formData = new FormData();
+                    const reqBody = {
+                        'thumbnail': assetRes.assetId,
+                        'description': 'test value here'
+                    }
+                    request.send(JSON.stringify(reqBody));
+                });
+            };
+
+            container.appendChild(thumbnailFormDiv);
+            container.appendChild(updateImageButton);
+
             const getDescription = () => {
                 const descriptionSection = document.createElement('div');
                 descriptionSection.style = 'float: left;width: 50%;';
@@ -601,7 +711,7 @@ const modals = {
                 descriptionHeader.innerHTML = 'Description';
 
                 descriptionSection.appendChild(descriptionHeader);
-                
+
                 if (!editingDescription) {
                     const descriptionText = simpleDiv(game.description || 'No description available');
                     const editButton = simpleDiv('Edit');
@@ -1002,6 +1112,7 @@ const modals = {
     'login': {
         render: () => {
             const container = document.createElement('div');
+            container.className = 'amateur';
 
             const loginHeader = document.createElement('h2');
             loginHeader.innerHTML = 'Log in';
@@ -1061,7 +1172,6 @@ const modals = {
             
             signupSection.appendChild(signupHeader);
 
-            
             const emailFormDiv = document.createElement('div');
             const signupEmailForm = document.createElement('input');
             signupEmailForm.type = 'email';
@@ -1158,6 +1268,11 @@ const modals = {
             signupSection.appendChild(signupMessageDiv);
             signupSection.appendChild(tosConfirm);
 
+            const signupInfo = document.createElement('h3');
+            signupInfo.innerHTML = 'Sign up to publish your own games to the Homegames community. No account is required to play games.';
+            signupInfo.style = 'text-align: center; width: 100%; color: rgba(255, 247, 142, 255); margin: 0';
+
+            container.appendChild(signupInfo);
             container.appendChild(loginSection);
             container.appendChild(signupSection);
 
@@ -1216,6 +1331,8 @@ const showModal = (modalName, args) => {
     modal.removeAttribute('hidden');
 };
 
+window.showModal = showModal;
+
 const getCertInfo = () => new Promise((resolve, reject) => {
    makeGet(`https://certifier.homegames.io/cert-info`, {
         'hg-username': window.hgUserInfo.username,
@@ -1255,28 +1372,28 @@ const dashboards = {
             } else {
                 const buttonContainer = document.createElement('div');
                 if (window.hgUserInfo.isAdmin) {
-                    buttonContainer.style = 'display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 50px';
+                    buttonContainer.style = 'display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; margin-top: 30px; margin-bottom: 30px;';
                 } else {
-                    buttonContainer.style = 'display: grid; grid-template-columns: 1fr 1fr; margin-top: 50px';
+                    buttonContainer.style = 'display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 30px; margin-bottom: 30px;';
                 }
 
                 const meButton = simpleDiv('Me');
                 meButton.id = 'me-button';
-                meButton.className = 'hg-button clickable content-button';
+                meButton.className = 'hg-button clickable content-button amateur';
 
                 const gamesButton = simpleDiv('My Games');
                 gamesButton.id = 'my-games-button';
-                gamesButton.className = 'hg-button clickable content-button';
+                gamesButton.className = 'hg-button clickable content-button amateur';
                 // gamesButton.style = 'margin: 2%; float: left;';
 
                 const assetsButton = simpleDiv('My Assets');
                 assetsButton.id = 'my-assets-button';
-                assetsButton.className = 'hg-button clickable content-button';
+                assetsButton.className = 'hg-button clickable content-button amateur';
                 // assetsButton.style = 'margin: 2%; float: left;';
     
                 const adminButton = simpleDiv('Admin');
                 adminButton.id = 'admin-button';
-                adminButton.className = 'hg-button clickable content-button';
+                adminButton.className = 'hg-button clickable content-button amateur';
                 
                 meButton.onclick = () => updateDashboardContent('me');
                 gamesButton.onclick = () => updateDashboardContent('games');
@@ -1285,7 +1402,7 @@ const dashboards = {
     
                 const el = document.createElement('div');
 
-                // buttonContainer.appendChild(meButton);
+                buttonContainer.appendChild(meButton);
                 buttonContainer.appendChild(gamesButton);
                 buttonContainer.appendChild(assetsButton);
                 
@@ -1294,6 +1411,10 @@ const dashboards = {
                 }
 
                 el.appendChild(buttonContainer);
+
+                const currentDashboard = document.createElement('div');
+                currentDashboard.id = 'current-dashboard';
+                el.appendChild(currentDashboard);
     
                 resolve(el);
             }
@@ -1384,7 +1505,7 @@ const dashboards = {
                 createButton.className = 'clickable hg-button content-button';
                 createButton.onclick = () => { 
                     const _loader = loaderBlack();
-                    if (uploadedFile && nameForm.value && descriptionForm.value) {
+                    if (nameForm.value && descriptionForm.value) {
                         createGame(nameForm.value, descriptionForm.value, uploadedFile).then(game => {
                             dashboards['games'].render().then((_container) => {
                                 clearChildren(container);
@@ -1536,18 +1657,218 @@ const dashboards = {
             meLabel.style = 'text-align: center';
             meLabel.innerHTML = window.hgUserInfo?.username || 'Unknown';
 
-            const memberSince = document.createElement('h3');
-            memberSince.innerHTML = `Member since ${memberSinceVal}`;
+            const memberSince = document.createElement('div');
+            memberSince.innerHTML = `Joined ${formatDate(memberSinceVal)}`;
             memberSince.style = 'text-align: center';
 
             container.appendChild(meLabel);
             container.appendChild(memberSince);
+            const profileLinkWrapper = document.createElement('h3');
+            profileLinkWrapper.style = 'text-align: center;';
+            const profileLink = document.createElement('a');
+            profileLink.innerHTML = 'View profile';
+            profileLink.target = '_blank';
+            profileLink.href = `${window.location.origin}/dev?id=${window.hgUserInfo.username}`;
+            profileLink.style = 'text-decoration: none; color: rgba(241, 112, 111, 255);';
+            profileLink.target = '_blank';
+            profileLinkWrapper.appendChild(profileLink);
+            container.appendChild(profileLinkWrapper);
 
-            makeGet(`${API_URL}/cert_status`, {
-                'hg-username': window.hgUserInfo.username,
-                'hg-token': window.hgUserInfo.tokens.accessToken
-            }).then(certStatus => {
-            });
+            const profileContainer = document.createElement('div');
+            profileContainer.style = 'display: grid; grid-template-columns: 1fr 2fr 2fr';
+
+            let profileData = {};
+
+            let editingQrValue = false;
+            let editingQrMeta = false;
+
+            const renderProfile = () => {
+                clearChildren(profileContainer);
+                profileContainer.appendChild(loaderBlack());
+                getProfile().then(_profileData => {
+                    clearChildren(profileContainer);
+                    profileData = JSON.parse(_profileData);
+                 
+                    const descriptionSection = document.createElement('div');
+                    descriptionSection.appendChild(loader());
+
+                    const imageSection = document.createElement('div');
+                    
+                    const fileForm = document.createElement('input');
+                    fileForm.type = 'file';
+
+                    const uploadButton = simpleDiv('Upload');
+                    uploadButton.className = 'hg-button content-button';
+
+                    const uploadSection = document.createElement('div');
+
+                    uploadSection.appendChild(fileForm);
+                    uploadSection.appendChild(uploadButton);
+
+                    uploadButton.onclick = () => {
+                        if (fileForm.files.length == 0) {
+                            return;
+                        }
+
+                        const eventHandler = (_type, _payload) => {
+                            if (_type == 'loadstart') {
+                                clearChildren(uploadSection);
+                                const _loader = loaderBlack();
+                                uploadSection.appendChild(_loader);
+                            }
+                        };
+
+                        uploadAsset(fileForm.files[0], eventHandler).then((response) => {
+                            if (response.assetId) {
+                                updateProfile({image: response.assetId}).then(() => {
+                                });
+                            }
+                        });
+                    };
+
+                    const currentQrValue = document.createElement('div');
+                    const editOrSaveQrValue = document.createElement('div');
+
+                    const currentQrLabel = document.createElement('div');
+                    const editOrSaveQrLabel = document.createElement('div');
+
+                    const editOrSaveDescriptionValue = document.createElement('div');
+
+                    const qrCodeSection = document.createElement('div');
+
+                    const onSaveQrValue = (val) => {
+                        clearChildren(profileContainer);
+                        profileContainer.appendChild(loaderBlack());
+                        updateProfile({ qrValue: val }).then(() => {
+                            renderProfile();
+                        });
+                    };
+
+                    const onSaveQrLabel = (val) => {
+                        clearChildren(profileContainer);
+                        profileContainer.appendChild(loaderBlack());
+                        updateProfile({ qrMeta: val }).then(() => {
+                            renderProfile();
+                        });
+                    };
+
+                    const onSaveDescription = (val) => {
+                        clearChildren(profileContainer);
+                        profileContainer.appendChild(loaderBlack());
+                        updateProfile({ description: val }).then(() => {
+                            renderProfile();
+                        });
+                    };
+
+                    const onEditQrValue = () => {
+                        editOrSaveQrValue.innerHTML = 'Save';
+
+                        const editable = document.createElement('input');
+                        editable.type = 'text';
+                        editable.value = profileData?.qrValue || '';
+
+                        editOrSaveQrValue.onclick = () => onSaveQrValue(editable.value);
+
+                        clearChildren(currentQrValue);
+                        currentQrValue.appendChild(editable);
+                    };
+
+                    const onEditQrLabel = () => {
+                        editOrSaveQrLabel.innerHTML = 'Save';
+
+                        const editable = document.createElement('input');
+                        editable.type = 'text';
+                        editable.value = profileData?.qrMeta || '';
+
+                        editOrSaveQrLabel.onclick = () => onSaveQrLabel(editable.value);
+
+                        clearChildren(currentQrLabel);
+                        currentQrLabel.appendChild(editable);
+                    };
+
+                    const onEditDescription = () => {
+                        editOrSaveDescriptionValue.innerHTML = 'Save';
+
+                        const editable = document.createElement('input');
+                        editable.type = 'text';
+                        editable.value = profileData?.description || '';
+
+                        editOrSaveDescriptionValue.onclick = () => onSaveDescription(editable.value);
+                        clearChildren(descriptionSection);
+                        descriptionSection.appendChild(editable);
+                        descriptionSection.appendChild(editOrSaveDescriptionValue);
+                    };
+
+                    clearChildren(descriptionSection);
+
+                    const descriptionLabel = document.createElement('label');
+                    descriptionLabel.innerHTML = 'Text to display on your profile (max 200 characters)';
+                    descriptionLabel.style = 'font-weight: bold';
+
+                    descriptionSection.appendChild(descriptionLabel);
+                    const descriptionTextDiv = simpleDiv(profileData.description || 'No description available');
+                    descriptionTextDiv.style = 'margin-top: 24px; margin-bottom: 24px';
+                    descriptionSection.appendChild(descriptionTextDiv);
+                    descriptionSection.appendChild(editOrSaveDescriptionValue);
+
+                    if (profileData.image) {
+                        const imageThing = document.createElement('img');
+                        imageThing.style = 'min-width: 100px; max-width: 400px; max-height: 600';
+                        imageThing.src = 'https://assets.homegames.io/' + profileData.image;
+                        imageSection.appendChild(imageThing); 
+                    }
+
+                    imageSection.appendChild(uploadSection);
+                    profileContainer.appendChild(imageSection);
+
+                    if (profileData.qrValue) {
+                        const newDiv = document.createElement('div');
+                        newDiv.innerHTML = profileData.qrValue;
+                        currentQrValue.appendChild(newDiv);
+                    }
+                    
+                    if (profileData.qrMeta) {
+                        currentQrLabel.innerHTML = profileData.qrMeta;
+                    } else {
+                        currentQrLabel.innerHTML = 'No label defined';
+                    }
+
+                    editOrSaveQrValue.innerHTML = 'Edit';
+                    editOrSaveQrValue.onclick = onEditQrValue;
+                    editOrSaveQrValue.style = 'margin-bottom: 24px';
+
+                    editOrSaveQrLabel.innerHTML = 'Edit';
+                    editOrSaveQrLabel.onclick = onEditQrLabel;
+                    editOrSaveQrLabel.style = 'margin-bottom: 24px';
+
+                    editOrSaveDescriptionValue.innerHTML = 'Edit';
+                    editOrSaveDescriptionValue.onclick = onEditDescription;
+
+                    const currentQrValueLabel = document.createElement('label');
+                    currentQrValueLabel.innerHTML = 'QR Code to be displayed on your profile (BTC address, personal website, whatever)';
+                    currentQrValueLabel.style = 'font-weight: bold';
+
+                    const currentQrMetaLabel = document.createElement('label');
+                    currentQrMetaLabel.innerHTML = 'Label to display next to your QR code';
+                    currentQrMetaLabel.style = 'font-weight: bold';
+
+                    qrCodeSection.appendChild(currentQrValueLabel);
+                    qrCodeSection.appendChild(currentQrValue);
+                    qrCodeSection.appendChild(editOrSaveQrValue);
+
+                    qrCodeSection.appendChild(currentQrMetaLabel);
+                    qrCodeSection.appendChild(currentQrLabel);
+                    qrCodeSection.appendChild(editOrSaveQrLabel);
+                
+//                    profileContainer.appendChild(descriptionLabel);
+                    profileContainer.appendChild(descriptionSection);
+                    profileContainer.appendChild(qrCodeSection);
+                });
+            };
+
+            renderProfile();
+
+            container.appendChild(profileContainer);
 
             resolve(container);
         }),
@@ -1703,9 +2024,43 @@ const dashboards = {
     }
 };
 
+const clearActiveClasses = () => {
+    const meButton = document.getElementById('me-button');
+    const adminButton = document.getElementById('admin-button');
+    const myGamesButton = document.getElementById('my-games-button');
+    const myAssetsButton = document.getElementById('my-assets-button');
+
+    if (meButton) {
+        meButton.classList.remove('active');
+    }
+
+    if (adminButton) {
+        adminButton.classList.remove('active');
+    }
+
+    if (myGamesButton) {
+        myGamesButton.classList.remove('active');
+    }
+
+    if (myAssetsButton) {
+        myAssetsButton.classList.remove('active');
+    }
+};
+
+const setActiveClass = (state) => {
+    const stateToElements = {'me': 'me-button', 'admin': 'admin-button', 'assets': 'my-assets-button', 'games': 'my-games-button'};
+    const elementId = stateToElements[state];
+    const button = document.getElementById(elementId);
+    if (button) {
+        button.classList.add('active');
+    }
+};
+
 const updateDashboardContent = (state) => {
+    clearActiveClasses();
+    setActiveClass(state);
     getDashboardContent(state).then(dashboardContent => {
-        const dashboardContentEl = document.getElementById('dashboard-content');
+        const dashboardContentEl = document.getElementById('current-dashboard');
         clearChildren(dashboardContentEl);
         dashboardContentEl.appendChild(dashboardContent);
     });
@@ -1717,20 +2072,7 @@ const getDashboardContent = (state) => new Promise((resolve, reject) => {
         const el = document.createElement('div');
 
         dashboards[thing].render().then(content => {
-
-            if (dashboards[thing].childOf) {
-                const backButton = document.createElement('div');
-                backButton.innerHTML = "Back";
-                backButton.className = 'clickable back-button hg-button content-button';
-                // backButton.style = 'margin-bottom: 2.5%';
-                backButton.onclick = () => {
-                    updateDashboardContent(dashboards[thing].childOf);
-                };
-                el.appendChild(backButton);
-            }
-
             el.appendChild(content);
-
             resolve(el);
         });
     });
@@ -1742,7 +2084,246 @@ const getDashboardContent = (state) => new Promise((resolve, reject) => {
     }
 });
 
-const showContent = (contentName) => {
+const getDeveloperProfile = (devId) => new Promise((resolve, reject) => {
+    makeGet(`${API_PROTOCOL}://${API_HOST}/profile/${devId}`).then(resolve).catch((err) => {
+        console.log('errororororor');
+        console.log(err);
+    });
+});
+
+const renderGamePage = (gameId, gameInfo) => {
+    const container = document.createElement('div');
+    container.style = 'display: grid; grid-template-columns: 1fr 2fr 1fr; height: 100%; margin: 24px;';
+
+    const gameImageWrapper = document.createElement('div');
+    gameImageWrapper.style = 'width: 100%;';
+
+    const gameImage = document.createElement('img');
+    if (gameInfo.thumbnail) {
+        gameImage.src  = `https://assets.homegames.io/${gameInfo.thumbnail}`;
+        gameImage.style = 'min-width: 360px; max-width: 360px; max-height: 360px';
+    }
+
+    gameImageWrapper.appendChild(gameImage);
+
+    const gameTitle = document.createElement('h1');
+    gameTitle.className = 'amateur';
+    gameTitle.innerHTML = gameInfo.name || 'Unknown game';
+
+    const author = document.createElement('h2');
+    const by = document.createElement('span');
+    by.innerHTML = 'by';
+
+    const authorLink = document.createElement('a');
+    authorLink.innerHTML = gameInfo.createdBy;
+    authorLink.href = `${window.location.origin}/dev?id=${gameInfo.createdBy}`;
+    authorLink.style = 'color: #F1706F; text-decoration: none; margin-left: 6px;';
+
+    author.appendChild(by);
+    author.appendChild(authorLink);
+
+    const tryItWrapper = document.createElement('a');
+    tryItWrapper.style = 'text-align: center; text-decoration: none';
+
+    const tryItSvgWrapper = document.createElement('div');
+    tryItSvgWrapper.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="120px" height="120px" viewBox="0 0 24 24" fill="none">
+            <rect width="24" height="24" fill="#fbfff2"/>
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M3 5.49686C3 3.17662 5.52116 1.73465 7.52106 2.91106L18.5764 9.41423C20.5484 10.5742 20.5484 13.4259 18.5764 14.5858L7.52106 21.089C5.52116 22.2654 3 20.8234 3 18.5032V5.49686Z" fill="#A0EB5D"/>
+        </svg>`;
+
+    const tryIt = document.createElement('h3');
+    tryIt.innerHTML = 'Try it';
+    tryIt.style = 'text-decoration: none; color: #A0EB5D';
+
+    tryItWrapper.href = `https://picodeg.io?gameId=${gameInfo.id}`;
+    tryItWrapper.target = '_blank';
+
+    const description = document.createElement('div');
+    description.innerHTML = gameInfo.description || 'No description available';
+    description.style = 'margin-top: 24px;';
+
+    const publishedVersionsCount = document.createElement('div');
+    const versions = gameInfo.versions || [];
+    const reviewedVersions = versions.filter(v => v.isReviewed);
+    publishedVersionsCount.innerHTML = `${versions.length} published versions (${reviewedVersions.length} reviewed)`;
+
+    const lastPublished = document.createElement('div');
+    lastPublished.innerHTML = `Last published ${gameInfo.versions.length > 0 ? formatDate(gameInfo.versions[gameInfo.versions.length - 1].publishedAt) : 'N/A'}`;
+
+    const firstPublished = document.createElement('div');
+    firstPublished.innerHTML = `First published ${gameInfo.versions.length > 0 ? formatDate(gameInfo.versions[0].publishedAt) : 'N/A'}`;
+    firstPublished.style = 'margin-bottom: 8px';
+
+    const col1 = document.createElement('div');
+    col1.style = 'text-align: center';
+
+    col1.appendChild(gameImageWrapper);
+    col1.appendChild(author);
+
+    const col2 = document.createElement('div');
+    col2.appendChild(gameTitle);
+    col2.appendChild(description);
+    col2.style = 'margin-left: 24px;';
+
+    const col3 = document.createElement('div');
+    col3.style = 'text-align: center; margin-top: 25%;';
+    
+    container.appendChild(col1);
+    container.appendChild(col2);
+    container.appendChild(col3);
+
+    if (versions.length > 0) {
+//        col3.appendChild(tryItSvg);
+        tryItWrapper.appendChild(tryItSvgWrapper);
+        tryItWrapper.appendChild(tryIt);
+        col3.appendChild(tryItWrapper);
+    }
+    col3.appendChild(publishedVersionsCount);
+    col1.appendChild(firstPublished);
+    col1.appendChild(lastPublished);
+
+    return container;
+};
+
+const renderDevProfile = (devId, devInfo) =>  {
+    const container = document.createElement('div');
+//    container.style = 'display: grid; grid-template-columns: 1fr 2fr 1fr; margin: 24px;';
+    container.style = 'display: grid; margin: 24px;';
+
+    const image = document.createElement('img');
+    const title = document.createElement('h1');
+    title.className = 'amateur';
+
+    const description = document.createElement('div');
+    description.innerHTML = devInfo.description || '';
+    
+    const qrCode = document.createElement('canvas');
+    qrCode.id = 'qrcode';
+//    qrCode.width = '300px;'
+//    qrCode.height = '200px;'
+
+    const qrMeta = document.createElement('div');
+    qrMeta.innerHTML = devInfo.qrMeta || '';
+
+    title.innerHTML = devId;
+
+    if (devInfo.image) {
+        image.src = `https://assets.homegames.io/${devInfo.image}`;
+        image.style = 'min-width: 240px; max-width: 240px; max-height: 240px;';
+    }
+
+    const gamesSection = document.createElement('div');
+    const gamesHeader = document.createElement('h1');
+    gamesHeader.style = 'text-align: center';
+    
+    const devGames = devInfo.games || [];
+    const sortedGames = devGames.sort((a, b) => a.createdAt - b.createdAt);
+
+    gamesHeader.innerHTML = `${devGames.length} games`;
+    gamesHeader.className = 'amateur';
+
+    const gameList = document.createElement('ul');
+    gameList.style = 'list-style-type: none';
+
+    for (const i in sortedGames) {
+        const game = sortedGames[i];
+        const gameEl = document.createElement('li');
+        gameEl.style = 'margin-bottom: 48px;';
+
+        const linkWrapper = document.createElement('a');
+        linkWrapper.href = `${window.location.origin}/game?id=${game.id}`;
+        linkWrapper.style = 'display: grid; grid-template-columns: 1fr 1fr 4fr; text-decoration: none; line-height: 120px;';
+
+        const thumbnail = document.createElement('img');
+        if (game.thumbnail) {
+            thumbnail.src = `https://assets.homegames.io/${game.thumbnail}`;
+            thumbnail.style = 'min-width: 120px; max-width: 120px; max-height: 120px;';
+        }
+        const title = document.createElement('strong');
+        title.innerHTML = game.name;
+        const description = simpleDiv(game.description);
+
+        linkWrapper.appendChild(thumbnail);
+
+        linkWrapper.appendChild(title);
+        linkWrapper.appendChild(description);
+        gameEl.appendChild(linkWrapper);
+        gameList.appendChild(gameEl);
+    }
+
+    gamesSection.appendChild(gamesHeader);
+    gamesSection.appendChild(gameList);
+
+    const col1 = document.createElement('div');
+    col1.style = 'text-align: center';
+
+    const col2 = document.createElement('div');
+    col2.style = 'text-align: center';
+
+    const col3 = document.createElement('div');
+    col3.style = 'text-align: center; margin-top: 25%';
+
+//    col1.appendChild(title);
+//    col1.appendChild(image);
+//    col1.appendChild(description);
+//    col2.appendChild(gamesSection);
+//    col3.appendChild(qrCode);
+//    col3.appendChild(qrMeta);
+ 
+    const row1Col1 = document.createElement('div');
+    row1Col1.style = 'text-align: center';
+    row1Col1.appendChild(image);
+    row1Col1.appendChild(title);
+
+    const row1Col2 = document.createElement('div');
+    row1Col2.appendChild(description);
+
+    const row1Col3 = document.createElement('div');
+    row1Col3.style = 'text-align: center';
+    row1Col3.appendChild(qrCode);
+    row1Col3.appendChild(qrMeta);
+
+    const row1 = document.createElement('div');
+    row1.style = 'display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid black; padding-bottom: 24px;';
+
+    const row2 = document.createElement('div');
+    row2.appendChild(gamesSection);
+
+    row1.appendChild(row1Col1);
+    row1.appendChild(row1Col2);
+    row1.appendChild(row1Col3);
+
+    container.appendChild(row1);
+    container.appendChild(row2);
+//    container.appendChild(row1Col2);
+//    container.appendChild(col1);
+//    container.appendChild(col3);
+//    container.appendChild(col2);
+
+    const qrValue = devInfo?.qrValue || 'No QR code available';
+
+    QRCode.toDataURL(qrValue, {
+        color: {
+            dark: "#F1706F",
+            light: "#fbfff2"
+        },
+        width: 150
+    }, function (err, url) {
+      const qrImg = new Image();
+
+      qrImg.addEventListener('load', () => {
+        qrCode.getContext('2d').drawImage(qrImg, 75, 0);
+      });
+
+      qrImg.setAttribute('src', url);
+    });
+
+    return container;
+};
+
+const showContent = (contentName, params) => {
+
     const contentEl = document.getElementById('content');
 
     const infoContentEl = document.getElementById('info-content');
@@ -1754,17 +2335,38 @@ const showContent = (contentName) => {
             infoContentEl.setAttribute('hidden', '');
             dashboardContentEl.appendChild(dashboardContent);
             dashboardContentEl.removeAttribute('hidden');
+            updateDashboardContent('me');
         });
+    } else if (contentName === 'developer') {
+        clearChildren(dashboardContentEl);
+        getDeveloperProfile(params.devId).then(_devInfo => {
+            const devInfo = JSON.parse(_devInfo);
+            infoContentEl.setAttribute('hidden', '');
+            const devProfile = renderDevProfile(params.devId, devInfo);
+            dashboardContentEl.appendChild(devProfile);
+            dashboardContentEl.removeAttribute('hidden');
+        });
+    } else if (contentName === 'game') {
+
     } else {
-        dashboardContentEl.setAttribute('hidden', '');
-        infoContentEl.removeAttribute('hidden');
+        if (dashboardContentEl) {
+            dashboardContentEl.setAttribute('hidden', '');
+        }
+
+        if (infoContentEl) {
+            infoContentEl.removeAttribute('hidden');
+        }
     }
 };
+
+window.showContent = showContent;
 
 const hideModal = () => {
     const modal = document.getElementById('modal');
     modal.setAttribute('hidden', '');
 };
+
+window.hideModal = hideModal;
 
 const doSort = (data, sort) => {
     if (sort) {
@@ -1915,6 +2517,8 @@ const goHome = () => {
     window.location.replace(`${location.protocol}//${location.hostname}:${location.port}`);
 };
 
+window.goHome = goHome;
+
 const navigateToCatalog = () => {
     window.location.assign('/catalog.html');
 };
@@ -1932,6 +2536,8 @@ const handleDownload = (stable) => {
     showModal('download', path);
 };
 
+window.handleDownload = handleDownload;
+
 const confirmSignup = (username, code) => new Promise((resolve, reject) => {
     makePost('https://auth.homegames.io', {
         username,
@@ -1940,8 +2546,11 @@ const confirmSignup = (username, code) => new Promise((resolve, reject) => {
     }).then(resolve);
 });
 
-const listGames = (limit = 10, offset = 0) => new Promise((resolve, reject) => { 
-    const gameUrl = `${API_PROTOCOL}://${API_HOST}/games`;
+const listGames = (limit = 10, offset = 0, author = null) => new Promise((resolve, reject) => { 
+    let gameUrl = `${API_PROTOCOL}://${API_HOST}/games`;
+    if (author) {
+        gameUrl += `?author=${author}`;
+    }
     makeGet(gameUrl).then((_games) => {
         resolve(JSON.parse(_games));
     }); 
@@ -2005,7 +2614,8 @@ const renderGames = (games) => {
             const gameAuthor = simpleDiv('Author: ' + g.author);
             
             _div.onclick = () => {
-                showModal('game-preview', g);
+                window.history.pushState({id: g.id }, '/game', window.location.origin);
+//                showModal('game-preview', g);
             };
 
             _div.appendChild(gameName);
@@ -2024,4 +2634,35 @@ const getAllGames = (page) => new Promise((resolve, reject) => {
     });
 });
 
+window.getAllGames = getAllGames;
+
+const showDeveloperProfile = (devId) => {
+    const contentEl = document.getElementById('content');
+    clearChildren(contentEl);
+    contentEl.appendChild(loaderBlack());
+    getDeveloperProfile(devId).then(_devInfo => {
+        clearChildren(contentEl);
+        const devInfo = JSON.parse(_devInfo);
+        const devProfile = renderDevProfile(devId, devInfo);
+        contentEl.appendChild(devProfile);
+        contentEl.removeAttribute('hidden');
+    }); 
+};
+
+window.showDeveloperProfile = showDeveloperProfile;
+
+const showGamePage = (gameId) => {
+    const contentEl = document.getElementById('content');
+    clearChildren(contentEl);
+    contentEl.appendChild(loaderBlack());
+    makeGet(`${API_URL}/games/${gameId}`).then((_versions) => { 
+        clearChildren(contentEl);
+        const gameDetails = JSON.parse(_versions);
+        const gamePage = renderGamePage(gameId, gameDetails);
+        contentEl.appendChild(gamePage);
+        contentEl.removeAttribute('hidden');
+    }); 
+};
+
+window.showGamePage = showGamePage;
 
