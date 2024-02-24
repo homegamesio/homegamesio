@@ -478,3 +478,25 @@ td {
     font-family: 'amateur';
     src: url('amateur.ttf') format('truetype');
 }
+
+@media (max-width: 768px) {
+    .headlines {
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
+
+    .headlines h1 {
+        margin-bottom: 20px;
+        font-size: 1.5em;
+    }
+
+    #catalog-container {
+        grid-template-columns: 1fr;
+    }
+
+    .close {
+        width: 10%;
+        font-size: 2em;
+    }
+
+}

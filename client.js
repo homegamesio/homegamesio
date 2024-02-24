@@ -579,6 +579,7 @@ const modals = {
             const imageContainer = document.createElement('div');
             imageContainer.style = 'text-align: center; margin-top: 36px; margin-bottom: 36px;';
             const imageEl = document.createElement('img');
+            imageEl.setAttribute('alt', `${game.name} image`);
             imageEl.setAttribute('src', `${ASSET_URL}/${game.thumbnail}`);
             imageContainer.appendChild(imageEl);
             imageEl.setAttribute('width', '250px');
@@ -627,6 +628,7 @@ const modals = {
             if (game.thumbnail) {
                 const gameImageWrapper = document.createElement('div');
                 const gameImage = document.createElement('img');
+                gameImage.setAttribute('alt', `${game.name} image`);
                 gameImage.src = `https://assets.homegames.io/${game.thumbnail}`;
                 gameImage.style = 'max-width: 240px; min-width: 240px; max-height: 240px;';    
                 gameImageWrapper.appendChild(gameImage);
@@ -1804,6 +1806,7 @@ const dashboards = {
 
                     if (profileData.image) {
                         const imageThing = document.createElement('img');
+                        imageThing.setAttribute('alt', `profile image`);
                         imageThing.style = 'min-width: 100px; max-width: 400px; max-height: 600';
                         imageThing.src = 'https://assets.homegames.io/' + profileData.image;
                         imageSection.appendChild(imageThing); 
@@ -2089,13 +2092,13 @@ const renderGamePage = (gameId, gameInfo) => {
     const gameImageWrapper = document.createElement('div');
     gameImageWrapper.style = 'width: 100%;';
 
-    const gameImage = document.createElement('img');
     if (gameInfo.thumbnail) {
+        const gameImage = document.createElement('img');
         gameImage.src  = `https://assets.homegames.io/${gameInfo.thumbnail}`;
         gameImage.style = 'min-width: 360px; max-width: 360px; max-height: 360px';
+        gameImage.setAttribute('alt', `${gameInfo.name} image`);
+        gameImageWrapper.appendChild(gameImage);
     }
-
-    gameImageWrapper.appendChild(gameImage);
 
     const gameTitle = document.createElement('h1');
     gameTitle.className = 'amateur';
@@ -2183,6 +2186,7 @@ const renderDevProfile = (devId, devInfo) =>  {
     container.style = 'display: grid; margin: 24px;';
 
     const image = document.createElement('img');
+    image.setAttribute('alt', `profile image`);
     const title = document.createElement('h1');
     title.className = 'amateur';
 
@@ -2230,6 +2234,7 @@ const renderDevProfile = (devId, devInfo) =>  {
         if (game.thumbnail) {
             thumbnail.src = `https://assets.homegames.io/${game.thumbnail}`;
             thumbnail.style = 'min-width: 120px; max-width: 120px; max-height: 120px;';
+            thumbnail.setAttribute('alt', `${game.name} image`);
         }
         const title = document.createElement('strong');
         title.innerHTML = game.name;
@@ -2408,6 +2413,7 @@ const getRows = (data, fields, sortState, cb, stylers, rowEndContent = null, ren
                 const imageEl = document.createElement('img');
                 imageEl.setAttribute('src', 'https://assets.homegames.io/' + val);
                 imageEl.setAttribute('width', 200);
+                imageEl.setAttribute('alt', `game image`);
                 const div = simpleDiv();
                 div.appendChild(imageEl);
                 cell.appendChild(div);
