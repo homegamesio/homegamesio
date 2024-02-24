@@ -103,6 +103,8 @@
     line-height: 10vh;
     min-height: 10vh;
     max-height: 10vh;
+    position: fixed;
+    bottom: 0;
 }
 
 #footer:hover {
