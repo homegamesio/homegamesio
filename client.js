@@ -670,6 +670,7 @@ const modals = {
                 };
 
                 uploadAsset(uploadedFile, eventHandler).then((assetRes) => {
+                    updateImageButton.onclick = null;
                     const _loader = loaderBlack();
 
                     const request = new XMLHttpRequest();
@@ -690,6 +691,10 @@ const modals = {
                         'thumbnail': assetRes.assetId,
                     }
                     request.send(JSON.stringify(reqBody));
+                    const notice = document.createElement('div');
+                    notice.innerHTML = 'Once your image is approved, your game info will be updated. Contact us at support@homegames.io if it takes too long.';
+                    notice.style = 'color: rgba(255, 247, 142, 255);';
+                    updateImageButton.appendChild(notice);
                 });
             };
 
@@ -1691,7 +1696,7 @@ const dashboards = {
                     fileForm.type = 'file';
 
                     const uploadButton = simpleDiv('Upload');
-                    uploadButton.className = 'hg-button content-button';
+                    uploadButton.className = 'hg-button content-button clickable';
 
                     const uploadSection = document.createElement('div');
 
@@ -1706,12 +1711,15 @@ const dashboards = {
                         const eventHandler = (_type, _payload) => {
                             if (_type == 'loadstart') {
                                 clearChildren(uploadSection);
-                                const _loader = loaderBlack();
-                                uploadSection.appendChild(_loader);
                             }
                         };
 
                         uploadAsset(fileForm.files[0], eventHandler).then((response) => {
+                            uploadButton.onclick = null;
+                            const notice = simpleDiv('Once your image is approved, your game info will be updated. Contact us at support@homegames.io if it takes too long.');
+                            notice.style = 'color: rgba(241, 112, 111, 255);';
+                            uploadSection.appendChild(notice);
+ 
                             if (response.assetId) {
                                 updateProfile({image: response.assetId}).then(() => {
                                 });
