@@ -22,12 +22,12 @@
                     <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
                 </div>
                 <div id="content">
-
+                    <div style="text-align: center;">
+                        <input type="text" id="search-box" placeholder="Find a game"></input>
+                    </div>
+                    <div id="catalog"></div>
                 </div>
 
-                <div style="text-align: center; background: rgba(255, 247, 142, 255);" class="amateur">
-                    <h4>The catalog contains games that have been published by the Homegames community. Search for them using the Homegames dashboard to play.</h4>
-                </div>
                 <div id="footer" onclick="showModal('support')" class="clickable amateur">
                     <h1>
                         Contact
@@ -38,11 +38,12 @@
     </body>
     <script src="bundle.js"></script>
     <script>
-        const contentDiv = document.getElementById('content');
+        const contentDiv = document.getElementById('catalog');
+        const searchBox = document.getElementById('search-box');
 
         const searchParams = new URLSearchParams(window.location.search);
-        const page = searchParams ? searchParams.get('page') : 1;
-
+        let page = searchParams ? searchParams.get('page') : 1;
+        const pageSize = 6;
         const renderCatalogGames = (data, _page = 1) => {
             const games = data.games;
             const pageCount = data.pageCount;
@@ -55,14 +56,8 @@
             games.forEach(game => {
                 const gameEl = document.createElement('a');
                 gameEl.href = `${window.location.origin}/game.html?id=${game.id}`;
-//                gameEl.onclick = () => {
-//                    window.history.pushState({}, '', `${window.location.origin}/game?id=${game.id}`);
-//                    showModal('catalog-game-detail', game);
-//                };
-
-                // gameEl.style = 'text-align: center; padding: 5%';
-                gameEl.style = 'text-align: center; text-decoration: none';//min-height: 50%; max-height: 50%; text-align: center;';
-
+                gameEl.style = 'text-align: center; text-decoration: none';
+                
                 const titleEl = document.createElement('h1');
                 titleEl.innerHTML = game.name;
                 titleEl.className = 'amateur';
@@ -73,32 +68,28 @@
 
                 const thumbnailEl = document.createElement('div');
                 const imageContainer = document.createElement('img');
-                //imageContainer.style = 'max-width: 80%; max-height: 50%; min-height: 50%;';
-                //imageContainer.style = "max-width: 100px; max-height: 100px; min-height: 50px;";
-//                imageContainer.style = "height: 100px; max-width: 200px;";
                 imageContainer.style = 'max-height: 200px; max-width: 300px; min-height: 200px';
-                // thumbnailEl.style = 'max-height: 80%; min-height: 80%; display: flex;';
 
-                imageContainer.setAttribute('src', 'https://assets.homegames.io/' + game.thumbnail);
-                // thumbnailEl.appendChild(imageContainer);
+                imageContainer.setAttribute('src', 'http://localhost:82/assets/' + game.thumbnail);
 
-                // gameEl.appendChild(thumbnailEl);
                 gameEl.appendChild(imageContainer);
                 gameEl.appendChild(titleEl);
-//                gameEl.appendChild(authorEl);
 
                 container.appendChild(gameEl);
             });
             contentDiv.appendChild(container);
 
             const buttonContainer = document.createElement('div');
-            buttonContainer.style = 'height: 10%;';
+            buttonContainer.style = 'height: 10%; display: grid; grid-template-columns: 1fr 1fr;';
             if (_page > 1) {
                 const leftButton = document.createElement('div');
+                leftButton.style = 'text-align: left; font-size: 8vw; padding: 24px;';
+                leftButton.className = 'clickable';
+
                 leftButton.innerHTML = String.fromCodePoint(8592);
                 leftButton.onclick = () => {
                     const newPage = _page ? _page - 1 : 1;
-                    getAllGames(newPage).then((_data) => {
+                    getAllGames(pageSize, Math.max(newPage - 1, 0)).then((_data) => {
                         renderCatalogGames(_data, newPage);
                     });
                 };
@@ -106,14 +97,15 @@
             }
 
             if ((_page || 1) < pageCount) {
-                console.log('rendering right');
                 const rightButton = document.createElement('div');
+                rightButton.className = 'clickable';
+                rightButton.style = 'text-align: right; font-size: 8vw; padding: 24px;';
+
                 rightButton.innerHTML = String.fromCodePoint(8594);
 
                 rightButton.onclick = () => {
-                    console.log('right to page ' + (_page ? _page + 1 : 2));
                     const newPage = _page ? _page + 1 : 2;
-                    getAllGames(newPage).then((_data) => {
+                    getAllGames(pageSize, (newPage - 1) * pageSize).then((_data) => {
                         renderCatalogGames(_data, newPage);
                     });
                 };
@@ -123,15 +115,40 @@
             contentDiv.appendChild(buttonContainer);
         };
 
-        getAllGames(page).then((data) => {
+        getAllGames(pageSize, page * pageSize).then((data) => {
             renderCatalogGames(data, page);
         });
+
+        searchBox.oninput = (e) => {
+            page = 1;
+
+            if (!e.target.value) {
+                getAllGames(pageSize, page * pageSize).then((data) => {
+                    renderCatalogGames(data, page);
+                });
+            } else {
+                const query = e.target.value;
+
+                searchGames(query, pageSize, page * pageSize).then((data) => {
+                    renderCatalogGames(data, page);
+                });
+            }
+        }
+
     </script>
     <script>
 
     </script>
     <style>
-        #content input {height: 40px; line-height: 40px; width: 20%; padding: 5px; margin-left: 2%; margin-right: 78%; margin-top: 1%}
+        #search-box {
+            width: 60%; 
+            border-radius: 4px;
+            padding: 24px;
+            margin: 24px;
+            font-size: 24px;
+            font-family: amateur;
+        }
+
         #submit-button {margin-top: 1%; margin-left: 2%; text-decoration: underline;}
     </style>
 
