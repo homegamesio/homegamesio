@@ -1,0 +1,60 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Homegames</title>
+        <link rel="stylesheet" href="app.css">
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+        <link rel="manifest" href="/site.webmanifest">
+    </head>
+
+    <body>
+        <div id="modal" class="fade-in" hidden>
+            <div id="modal-content">
+                <div class="close clickable" onclick="hideModal()">X</div>
+                <div class="back"></div>
+                <div class="content"></div>
+            </div>
+        </div>
+        <div id="main">
+            <div id="page-container">
+                <div id="header">
+                    <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
+                </div>
+                <div id="content">
+                </div>
+                <div id="footer" onclick="showModal('support')" class="clickable amateur">
+                    <h1>
+                        Contact
+                    </h1>
+                </div>
+            </div>
+        </div>
+    </body>
+    <script src="bundle.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const pageParam = urlParams.get('page') || 0;
+
+        const searchBox = document.getElementById('search-box');
+        // searchBox.oninput = (e) => {
+        //     if (e.target.value) {
+        //         // searchBlogContent(e.target.value);
+        //     } else {
+        //         // showBlogContent(pageParam);
+        //     }
+        // }
+
+        showBlogContent(pageParam);  
+    </script>
+    <style>
+        .selected {
+            color: rgb(241, 112, 111);
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+
+</html>
