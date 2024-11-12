@@ -19,7 +19,7 @@
         <div id="main">
             <div id="page-container">
                 <div id="header">
-                    <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
+                    <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png"></img></div>
                 </div>
                 <div id="content">
                     <div style="text-align: center;">
@@ -70,7 +70,7 @@
                 const imageContainer = document.createElement('img');
                 imageContainer.style = 'max-height: 200px; max-width: 300px; min-height: 200px';
 
-                imageContainer.setAttribute('src', 'http://localhost:82/assets/' + game.thumbnail);
+                imageContainer.setAttribute('src', window.API_URL + '/assets/' + game.thumbnail);
 
                 gameEl.appendChild(imageContainer);
                 gameEl.appendChild(titleEl);

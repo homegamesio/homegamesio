@@ -1,13 +1,14 @@
-const API_PROTOCOL = 'http';//'https';//window.origin && window.origin.startsWith('https') ? 'https' : 'http';
-const API_HOST = 'localhost';//'api.homegames.io';//window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
-const API_PORT = 82;
+window.API_PROTOCOL = 'http';//'https';//window.origin && window.origin.startsWith('https') ? 'https' : 'http';
+window.API_HOST = 'localhost';//'api.homegames.io';//window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
+window.API_PORT = 82;
 
+window.API_URL = `${window.API_PROTOCOL}://${window.API_HOST}:${window.API_PORT}`;
 
 const marked = require('marked');   
 
 const ASSET_API_ENDPOINT = '/assets';
 
-const API_URL = `${API_PROTOCOL}://${API_HOST}:${API_PORT}`
+const API_URL = window.API_URL;
 
 const ASSET_URL = `${API_PROTOCOL}://${API_HOST}:${API_PORT}/${ASSET_API_ENDPOINT}`;
 
@@ -291,7 +292,7 @@ const uploadAsset = (asset, description, cb) => new Promise((resolve, reject) =>
 });
 
 const login = (username, password) => new Promise((resolve, reject) => {
-    makePost('http://localhost:82/auth/login', {//auth.homegames.io', {
+    makePost(`${API_URL}/auth/login`, {
         username,
         password,
         type: 'login'
@@ -318,7 +319,7 @@ const login = (username, password) => new Promise((resolve, reject) => {
 });
 
 const signup = (username, password) => new Promise((resolve, reject) => {
-    makePost('http://localhost:82/auth/signup', {//auth.homegames.io', {
+    makePost(`${API_URL}/auth/signup`, {
         username,
         password,
         type: 'signUp'
@@ -1914,7 +1915,7 @@ const dashboards = {
                         const imageThing = document.createElement('img');
                         imageThing.setAttribute('alt', `profile image`);
                         imageThing.style = 'width: 100%; max-height: 100%';
-                        imageThing.src = 'http://localhost:82/assets/' + profileData.image;
+                        imageThing.src = `${API_URL}/assets/${profileData.image}`;
                         imageSection.appendChild(imageThing); 
                     }
 
@@ -2360,7 +2361,7 @@ const renderDevProfile = (devId, devInfo) =>  {
     title.innerHTML = devId;
 
     if (devInfo.image) {
-        image.src = `http://localhost:82/assets/${devInfo.image}`;
+        image.src = `${API_UIRL}/assets/${devInfo.image}`;
         image.style = 'min-width: 240px; max-width: 240px; max-height: 240px;';
     }
 
