@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8">
         <title>Homegames</title>
-        <link rel="stylesheet" href="/app.css">
+        <link rel="stylesheet" href="app.css">
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
         <link rel="manifest" href="/site.webmanifest">
     </head>
@@ -19,7 +19,7 @@
         <div id="main">
             <div id="page-container">
                 <div id="header">
-                     <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png"></img></div>
+                    <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
                 </div>
                 <div id="content">
                 </div>
@@ -31,20 +31,27 @@
             </div>
         </div>
     </body>
-    <script src="/bundle.js"></script>
+    <script src="bundle.js"></script>
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-        const devParam = urlParams.get('id');
+        const pageParam = urlParams.get('page') || 0;
 
-        if (devParam) {
-            showDeveloperProfile(devParam); 
-        } 
+        const searchBox = document.getElementById('search-box');
+        // searchBox.oninput = (e) => {
+        //     if (e.target.value) {
+        //         // searchBlogContent(e.target.value);
+        //     } else {
+        //         // showBlogContent(pageParam);
+        //     }
+        // }
+
+        showBlogContent(pageParam);  
     </script>
     <style>
-        #content input {height: 40px; line-height: 40px; width: 20%; padding: 5px; margin-left: 2%; margin-right: 78%; margin-top: 1%}
-        #submit-button {margin-top: 1%; margin-left: 2%; text-decoration: underline;}
-        #podcast-content {height: 250px;}
-        #podcast-content ul {text-align: left; list-style-type: none;}
+        .selected {
+            color: rgb(241, 112, 111);
+        }
+
         .hidden {
             display: none;
         }

@@ -3,8 +3,6 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const Readable = require('stream').Readable
-const { confirmUser, login, signup } = require('homegames-common');
-const aws = require('aws-sdk');
 
 const makePost = (endpoint, payload, notJson)  => new Promise((resolve, reject) => {
 
@@ -285,6 +283,11 @@ const server = http.createServer((req, res) => {
                 res.setHeader("Content-Type", 'text/html');
                 const payload = fs.readFileSync(path.join(__dirname, 'podcast.html'));
                 res.end(payload);
+            } else if (req.url.startsWith('/blog')) {
+                res.statusCode = 200;
+                res.setHeader("Content-Type", 'text/html');
+                const payload = fs.readFileSync(path.join(__dirname, 'blog.html'));
+                res.end(payload);
             } else if (req.url.startsWith('/developers')) {
                 res.statusCode = 200;
                 res.setHeader("Content-Type", 'text/html');
@@ -347,4 +350,4 @@ const server = http.createServer((req, res) => {
     }
 });
 
-server.listen(80);
+server.listen(81);

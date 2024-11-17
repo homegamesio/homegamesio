@@ -22,9 +22,7 @@
   },
   "homepage": "https://github.com/prosif/homegamesio#readme",
   "dependencies": {
-    "aws-sdk": "^2.892.0",
-    "homegames-common": "0.1.33",
-    "qrcode": "^1.5.3"
+    "marked": "^14.1.2"
   },
   "devDependencies": {
     "webpack": "^5.65.0",
