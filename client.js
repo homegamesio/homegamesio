@@ -2361,7 +2361,7 @@ const renderDevProfile = (devId, devInfo) =>  {
     title.innerHTML = devId;
 
     if (devInfo.image) {
-        image.src = `${API_UIRL}/assets/${devInfo.image}`;
+        image.src = `${API_URL}/assets/${devInfo.image}`;
         image.style = 'min-width: 240px; max-width: 240px; max-height: 240px;';
     }
 
