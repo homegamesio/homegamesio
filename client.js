@@ -912,7 +912,7 @@ const modals = {
 
             const stableLinux = document.createElement('a');
             stableLinux.className = 'downloadLink';
-            stableLinux.innerHTML = 'Linux (snap)';
+            stableLinux.innerHTML = 'Linux (x64)';
             stableLinux.href = 'https://builds.homegames.io/stable/homegames-x64.snap';
 
             const stableMac = document.createElement('a');
