@@ -1,6 +1,6 @@
-window.API_PROTOCOL = 'http';//'https';//window.origin && window.origin.startsWith('https') ? 'https' : 'http';
-window.API_HOST = 'localhost';//'api.homegames.io';//window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
-window.API_PORT = 82;
+window.API_PROTOCOL = 'https';//'https';//window.origin && window.origin.startsWith('https') ? 'https' : 'http';
+window.API_HOST = 'api.homegames.io';//'api.homegames.io';//window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
+window.API_PORT = 443;
 
 window.API_URL = `${window.API_PROTOCOL}://${window.API_HOST}:${window.API_PORT}`;
 
