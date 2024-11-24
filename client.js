@@ -915,11 +915,6 @@ const modals = {
             stableLinux.innerHTML = 'Linux (snap)';
             stableLinux.href = 'https://builds.homegames.io/stable/homegames-x64.snap';
 
-            const stableLinuxAppImage = document.createElement('a');
-            stableLinuxAppImage.className = 'downloadLink';
-            stableLinuxAppImage.innerHTML = 'Linux (AppImage)';
-            stableLinuxAppImage.href = 'https://builds.homegames.io/stable/homegames-x64.AppImage';
-
             const stableMac = document.createElement('a');
             stableMac.className = 'downloadLink';
             stableMac.innerHTML = 'macOS (x64)';
@@ -934,7 +929,6 @@ const modals = {
             stableDiv.appendChild(stableMac);
             stableDiv.appendChild(stableMacArm);
             stableDiv.appendChild(stableLinux);
-            stableDiv.appendChild(stableLinuxAppImage);
 
             const downloadInfo = document.createElement('div');
             const downloadText = document.createElement('strong');
