@@ -82,6 +82,14 @@ const PATH_MAP = {
         path: "site.webmanifest",
         contentType: "application/manifest+json"
     },
+    "/assets/leaflet.js": {
+        path: "assets/leaflet.js",
+        contentType: "text/javascript"
+    },
+     "/assets/Leaflet.VectorGrid.bundled.js": {
+        path: "assets/Leaflet.VectorGrid.bundled.js",
+        contentType: "image/png"
+    }, 
     "/assets/apple-badge.png": {
         path: "assets/apple-badge.png",
         contentType: "image/png"
@@ -89,6 +97,14 @@ const PATH_MAP = {
     "/assets/spotify-badge.png": {
         path: "assets/spotify-badge.png",
         contentType: "image/png"
+    },
+    "/assets/countries.json": {
+        path: "assets/countries.json",
+        contentType: "application/json"
+    },
+    "/assets/states.json": {
+        path: "assets/states.json",
+        contentType: "application/json"
     },
     "/client.js": {
         path: "client.js",
@@ -283,6 +299,11 @@ const server = http.createServer((req, res) => {
                 res.setHeader("Content-Type", 'text/html');
                 const payload = fs.readFileSync(path.join(__dirname, 'podcast.html'));
                 res.end(payload);
+            } else if (req.url.startsWith('/map')) {
+                res.statusCode = 200;
+                res.setHeader("Content-Type", 'text/html');
+                const payload = fs.readFileSync(path.join(__dirname, 'map.html'));
+                res.end(payload);
             } else if (req.url.startsWith('/blog')) {
                 res.statusCode = 200;
                 res.setHeader("Content-Type", 'text/html');
@@ -335,7 +356,6 @@ const server = http.createServer((req, res) => {
                 res.end(payload);
             } else {
                 const pathMapping = PATH_MAP[requestPath];
-
                 if (pathMapping) {
                     res.statusCode = 200;
                     res.setHeader("Content-Type", pathMapping.contentType);

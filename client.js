@@ -1,5 +1,5 @@
-window.API_PROTOCOL = 'https';//'https';//window.origin && window.origin.startsWith('https') ? 'https' : 'http';
-window.API_HOST = 'api.homegames.io';//'api.homegames.io';//window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
+window.API_PROTOCOL = 'https';//window.origin && window.origin.startsWith('https') ? 'https' : 'http';
+window.API_HOST = 'api.homegames.io';//'api.homegames.io';//'api.homegames.io';//window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
 window.API_PORT = 443;
 
 window.API_URL = `${window.API_PROTOCOL}://${window.API_HOST}:${window.API_PORT}`;
@@ -24,11 +24,8 @@ window.clearChildren = clearChildren;
 
 const makeGet = (endpoint, headers, isBlob) => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-   
+  
     xhr.open('GET', endpoint, true);
-
-    console.log('opening up ' + endpoint);
-    console.log(headers);
 
     for (const key in headers) {
         xhr.setRequestHeader(key, headers[key]);
@@ -39,8 +36,11 @@ const makeGet = (endpoint, headers, isBlob) => new Promise((resolve, reject) => 
     }
 
     xhr.onreadystatechange = () => {
+        console.log('ready state ' + endpoint);
+        console.log(xhr.readyState);
         if (xhr.readyState === XMLHttpRequest.DONE) {
             if (xhr.status === 200) {
+                console.log(xhr.response);
                 resolve(xhr.response);
             } else {
                 reject(xhr.response)
@@ -48,9 +48,35 @@ const makeGet = (endpoint, headers, isBlob) => new Promise((resolve, reject) => 
         }
     }
 
-
     xhr.send();
 });
+
+const makeDelete = (endpoint)  => new Promise((resolve, reject) => {
+    var xhr = new XMLHttpRequest();
+    xhr.open("DELETE", endpoint, true);
+    console.log('posting to ' + endpoint);
+
+    if (window.hgUserInfo) {
+        xhr.setRequestHeader('Authorization', `Bearer ${window.hgUserInfo.token}`);
+    }
+ 
+    xhr.onreadystatechange = () => {
+        if (xhr.readyState === XMLHttpRequest.DONE) {
+            if (xhr.status === 200) {
+                if (notJson) {
+                    resolve(xhr.response);
+                } else {
+                    resolve(JSON.parse(xhr.response));
+                }
+            } else {
+                reject(xhr.response)
+            }
+        }
+    }
+
+    xhr.send('');
+});
+
 
 const makePost = (endpoint, payload, notJson, useAuth)  => new Promise((resolve, reject) => {
     var xhr = new XMLHttpRequest();
@@ -315,6 +341,12 @@ const login = (username, password) => new Promise((resolve, reject) => {
                 isAdmin: loginData.isAdmin || false
             });
         }
+    });
+});
+
+const getMapData = () => new Promise((resolve, reject) => {
+    makeGet(`${API_URL}/map`).then((mapData) => {
+        resolve(JSON.parse(mapData));
     });
 });
 
@@ -2306,6 +2338,7 @@ const renderGamePage = (gameId, gameDetails) => {
 
     const firstPublished = document.createElement('div');
     firstPublished.innerHTML = `First published ${versions.length > 0 ? formatDate(versions[0].publishedAt) : 'N/A'}`;
+
     firstPublished.style = 'margin-bottom: 8px';
 
     const col1 = document.createElement('div');
@@ -2335,6 +2368,19 @@ const renderGamePage = (gameId, gameDetails) => {
     col3.appendChild(publishedVersionsCount);
     col1.appendChild(firstPublished);
     col1.appendChild(lastPublished);
+
+    if (window.hgUserInfo?.isAdmin) {
+        const deleteButton = document.createElement('div');
+        deleteButton.onclick = () => {
+            makeDelete(`${API_URL}/games/${gameDetails?.game?.id}`).then((res) => {
+                console.log('made request');
+                console.log(res);
+            });
+        };
+
+        deleteButton.innerHTML = 'Delete';
+        col1.appendChild(deleteButton);
+    }
 
     return container;
 };
@@ -3104,6 +3150,126 @@ const showGamePage = (gameId) => {
         contentEl.appendChild(gamePage);
         contentEl.removeAttribute('hidden');
     }); 
+};
+
+window.loadMap = () => {
+    const southWest = L.latLng(-85, -180);
+    const northEast = L.latLng(85, 180);
+    const bounds = L.latLngBounds(southWest, northEast);
+
+    const map = L.map('map', {
+        attributionControl: false,
+        center: [20, 0],
+        zoom: 2,
+        minZoom: 2,
+        maxZoom: 10,
+        maxBounds: bounds
+    }).setView([20, 0], 2);
+
+    const vectorTileOptions = {
+        vectorTileLayerStyles: {
+        countries: { /* styling */ },
+        states: { /* styling */ },
+        lakes: { /* styling */ },
+    },
+    interactive: true,
+    };
+    
+    const countryStyle = (feature) => {
+      return {
+        color: 'rgba(241, 112, 111, 1)', // Coral/red borders
+        weight: 1,
+        fillColor: 'rgba(241, 112, 111, 0.5)', // Semi-transparent fill
+      };
+    }
+    
+    const stateStyle = (feature) => {
+      return {
+        color: 'rgba(148, 210, 229, 1)', // Light blue borders
+        weight: 1,
+        fillColor: 'rgba(148, 210, 229, 0.5)', // Semi-transparent fill
+      };
+    }
+ 
+    console.log('fdsfdsf 1');
+    makeGet(`/assets/countries.json`).then((_countries) => {
+        console.log("DSIFDSIJFDJSFIDSFJDS");
+        makeGet(`/assets/states.json`).then((_states) => {
+            console.log("DSFDSFDSFDGSFBNGJ");
+            getMapData().then((mapData) => {
+                let totalCount = 0;
+                const countries = JSON.parse(_countries);
+                const states = JSON.parse(_states);
+                L.geoJSON(countries, {
+                    style: countryStyle,
+                    onEachFeature: function (feature, layer) {
+                      if (feature.properties && feature.properties.ADMIN) {
+                        layer.bindPopup(feature.properties.ADMIN);
+                      }
+                    },
+                }).addTo(map);
+
+                L.geoJSON(states, {
+                    style: stateStyle,
+                    onEachFeature: function (feature, layer) {
+                        if (feature.properties && feature.properties.NAME) {
+                            layer.bindPopup(feature.properties.NAME);
+                        }
+                    },
+                }).addTo(map);
+
+                const serverPointFeatures = mapData.map(d => {
+                    totalCount += d.total;
+
+                    return {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [d.centroid.longitude, d.centroid.latitude]
+                        },
+                        "properties": {
+                            "NAME": d.total
+                        }
+                    }
+                });
+
+                const pointsGeojson = {
+                    'type': 'FeatureCollection',
+                    'features': serverPointFeatures
+                };
+
+                L.geoJSON(pointsGeojson, {
+                    pointToLayer: (feature, latlng) => {
+                        return L.circleMarker(latlng, {
+                            radius: 5,
+                            fillColor: 'rgb(241, 112, 111)',
+                            color: 'red',
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        });
+                    },
+                    onEachFeature: (feature, layer) => {
+                        if (feature.properties && feature.properties.NAME) {
+                              layer.bindPopup(`${feature.properties.NAME}`);
+                        }
+                    }
+                }).addTo(map);
+
+                const captionControl = L.control({ position: 'topright' });
+
+                captionControl.onAdd = function () {
+                    const div = L.DomUtil.create('div', 'map-caption');
+                    const sessionsText = totalCount == 1 ? 'session' : 'sessions';
+                    div.innerHTML = `${totalCount} active ${sessionsText}`;
+                    return div;
+                };
+
+                captionControl.addTo(map);
+
+            });
+        });
+    });
 };
 
 window.showGamePage = showGamePage;

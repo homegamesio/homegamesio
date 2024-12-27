@@ -525,3 +525,15 @@ td {
     text-overflow: ellipsis;
     text-align: center
 }
+
+#map {
+    width: 100%;
+    height: 600px;
+    background: #fbfff2; /* Off-white background */
+    font-family: "amateur", sans-serif; /* Use the 'amateur' font */
+  }
+
+.map-caption {
+    color: rgba(241, 112, 111, 255);
+    font-size: 24pt;
+}
