@@ -309,11 +309,26 @@ const server = http.createServer((req, res) => {
                 res.setHeader("Content-Type", 'text/html');
                 const payload = fs.readFileSync(path.join(__dirname, 'blog.html'));
                 res.end(payload);
-            } else if (req.url.startsWith('/developers')) {
+            } else if (req.url.startsWith('/resources')) {
                 res.statusCode = 200;
                 res.setHeader("Content-Type", 'text/html');
-                const payload = fs.readFileSync(path.join(__dirname, 'developers.html'));
+                const payload = fs.readFileSync(path.join(__dirname, 'resources.html'));
                 res.end(payload);
+            } else if (req.url.startsWith('/user_guides')) {
+                res.statusCode = 200;
+                res.setHeader("Content-Type", 'text/html');
+                const payload = fs.readFileSync(path.join(__dirname, 'user_guides.html'));
+                res.end(payload);
+             } else if (req.url.startsWith('/developer_resources.html')) {
+                res.statusCode = 200;
+                res.setHeader("Content-Type", 'text/html');
+                const payload = fs.readFileSync(path.join(__dirname, 'developer_resources.html'));
+                res.end(payload);
+             } else if (req.url.startsWith('/how_it_works')) {
+                res.statusCode = 200;
+                res.setHeader("Content-Type", 'text/html');
+                const payload = fs.readFileSync(path.join(__dirname, 'how_it_works.html'));
+                res.end(payload); 
             } else if (req.url.startsWith('/dev')) {
                 res.statusCode = 200;
                 res.setHeader("Content-Type", "text/html");

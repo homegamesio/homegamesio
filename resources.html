@@ -1,0 +1,69 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Homegames</title>
+        <link rel="stylesheet" href="app.css">
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+        <link rel="manifest" href="/site.webmanifest">
+    </head>
+
+    <body>
+        <div id="modal" class="fade-in" hidden>
+            <div id="modal-content">
+                <div class="close clickable" onclick="hideModal()">X</div>
+                <div class="back"></div>
+                <div class="content"></div>
+            </div>
+        </div>
+        <div id="main">
+            <div id="page-container">
+                <div id="header">
+                    <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png"></img></div>
+                </div>
+                <div id="content" style="margin: 24px">
+                    <h1>User Guides</h1>
+                    <ul>
+                        <li><a href="/user_guides.html#installing">Installing Homegames</a></li>
+                        <li><a href="/user_guides.html#configuration">Server configuration</a></li>
+                        <li><a href="/user_guides.html#playing-games">Playing games</a></li>
+                        <li><a href="/user_guides.html#downloading-games">Downloading games</a></li>
+                    </ul>
+                    <h1>Developer Resources</h1>
+                    <ul>
+                        <li><a href="/developer_resources.html#setup">Development setup</a></li>
+                        <li><a href="/developer_resources.html#hello-world">Hello World game example</a></li>
+                        <li><a href="/developer_resources.html#publishing">Publishing your game</a></li>
+                        <li><a href="/developer_resources.html#hosting-infrastructure">Hosting your own infrastructure</a></li>
+                    </ul>
+                    <h1>How It Works</h1>
+                    <ul>
+                        <li><a href="/how_it_works.html#homegames-core">Homegames Core</a></li>
+                        <li><a href="/how_it_works.html#homegames-web">Homegames Web</a></li>
+                        <li><a href="/how_it_works.html#services">Homegames Services</a></li>
+                    </ul>
+                    <div style="margin-top: 36px">
+                        <strong>GitHub: <a href="https://github.com/homegamesio">https://github.com/homegamesio</a></strong>
+                    </div>
+                </div>
+                <div id="footer" onclick="showModal('support')" class="clickable amateur">
+                    <h1>
+                        Contact
+                    </h1>
+                </div>
+            </div>
+        </div>
+    </body>
+    <script src="bundle.js"></script>
+    <script>
+
+    </script>
+    <style>
+        #content input {height: 40px; line-height: 40px; width: 20%; padding: 5px; margin-left: 2%; margin-right: 78%; margin-top: 1%}
+        #submit-button {margin-top: 1%; margin-left: 2%; text-decoration: underline;}
+        ul li {
+            margin: 8px;
+        }
+    </style>
+
+</html>

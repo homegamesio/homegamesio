@@ -21,28 +21,33 @@
                 <div id="header">
                     <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
                 </div>
-                <div id="content">
+                <div id="content" style="font-family: initial; font-size: 14pt;">
                     <div>
                         <h2>What is Homegames?</h2>
-                        <p>Homegames is a free, self-hosted, open-source game platform.</p>
-                        <p>Games are 100% community made using the Homegames game engine (SquishJS) and published via the Homegames website.</p>
-                        <p>You host your own Homegames server, allowing you to play using any device on your network with a web browser.</p>
+                        <p>Homegames is a free and open-source game platform.</p>
+                        <p><strong>Games run on a server you host on your own computer.</strong> We host a demo instance you can try at <a href="https://picodeg.io" target="_blank">https://picodeg.io</a></p>
+                        <p>You connect to your server and play games by accessing <a href="https://homegames.link" target="_blank">homegames.link</a> from any browser on your local network. If you enable public games, you can also play with anyone over the internet via a session code.</p>
+                        <p>There are several games that come "out of the box" with the Homegames server bundle. You can also download and play games published by the Homegames community, right from the Homegames dashboard.</p>
+                        <p>All of the code for the Homegames platform, Homegames web services, and every single game is publicly available on <a href="https://github.com/homegamesio" target="_blank">GitHub</a>.</p>
 
                         <h2>How do I play a game?</h2>
-                        <p>Install and run the Homegames software bundle on a PC running MacOS, Linux or Windows.</p>
-                        <p>On any device on the same network as your server, navigate to homegames.link in a web browser.</p>
+                        <p>Install and run the Homegames server bundle on any device running Windows, macOS, or Linux.</p>
+                        <p>On any device on the same network as your server, navigate to <a href="https://homegames.link" target="_blank">homegames.link</a> in a web browser.</p>
+                        <p>Public game sessions are available at <a href="https://public.homegames.link" target="_blank">public.homegames.link</a></p>
 
-                        <h2>Do I need a computer to play games?</h2>
-                        <p>At the moment, yes.</p>
-                        <p>However, it is also possible to host your own instance via a cloud provider like EC2. That's what we did for our <a href="https://picodeg.io" target="_blank">demo site</a></p>
-                        
+                        <h2>Who are you?</h2>
+                        <p>Homegames was created and is maintained by <a target="_blank" href="https://github.com/prosif">Joseph Garcia.</a> The podcast is cohosted by Joseph & <a href="https://github.com/YazeedLoonat" target="_blank">Yazeed</a>, who created the cult classic <a href="https://picodeg.io/?gameId=squarer">Squarer</a>.</p>
+                        <h2>Do I need a desktop to play games?</h2>
+                        <p>To host your own game server on your local network, you need something running Windows, macOS or Linux.</p>
+                        <p>Game clients can be anything with a web browser. So if your friend is hosting a public game, you can play with them using your phone or tablet.</p>
+                        <p>You can also host your own instance on something like <a href="https://aws.amazon.com/ec2/" target="_blank">EC2</a> (that's what we do for our <a href="https://picodeg.io" target="_blank">demo site</a>.)
+
                         <h2>Do I need to make an account?</h2>
-                        <p>Not unless you want to publish a game on our website.</p>
+                        <p>Not unless you want to publish a game via homegames.io. You can make, play and distribute your games on your own if you want to.</p>
 
-                        <h2>Do I need an Internet connection to play?</h2>
-                        <p>Technically, no.</p>
-                        <p>Games require an Internet connection on first run to download game assets, but once assets are downloaded locally you can play on your local network without access to the public Internet.</p>
-                        <p>homegames.link functionality requires an Internet connection as well, so you'll have to connect to the Homegames server directly via IP address. Not the best offline experience but it should work.</p>
+                        <h2>Do I need an internet connection to play?</h2>
+                        <p>Homegames requires an internet connection during intitial setup to download assets and generate TLS certificates used for homegames.link functionality. However, once assets are downloaded to your server, you can play on your local network without access to the public internet.</p>
+                        <p>homegames.link functionality requires an internet connection, so you'll have to connect to the Homegames server directly via IP address.</p>
 
                         <h2>How do I make a game?</h2>
                         <p>We have some basic setup and high level info available on our developer page</p>
@@ -55,22 +60,11 @@
                         <p>If you want to publish your game publicly, you can submit a request to have your game reviewed for publishing.</p>
                         <p>After your game is approved, Homegames players can find your game in the catalog.</p>
 
-                        <h2>I want to make a game but I don't want to publish it on the Homegames website.</h2>
-                        <p>That's cool with us. You can make your game and upload it wherever you want. Or you can just keep it to yourself forever.</p>
-
-                        <h2>I want to make a game but I don't know how to get started.</h2>
-                        <p>If you've taken a look at our getting started guide and you're still feeling stuck, please don't hesitate to reach out to the <a href="https://twitter.com/i/communities/1675343570289713153" target="_blank">Homegames Twitter community</a> or send us an email. We'd be happy to help!</p>
-                        <p>If you feel that something is missing or unclear in our documentation, please let us know - we'd appreciate the feedback.</p>
-
-                        <h2>How do you make money?</h2>
-                        <p>At the moment, we do not.</p>
-                        <p>We might sell t-shirts or something like that some day, but right now we're just trying to build a community and make the service better.</p>
-
                         <h2>I want to contribute</h2>
-                        <p>That would be great! Feel free to open a GitHub issue or pull request. If your change is big or if you're not sure about what you're building, you might want to reach out to us via our <a href="https://twitter.com/i/communities/1675343570289713153" target="_blank">Twitter community</a> before opening a pull request. We'd love to help!</p>
+                        <p>Feel free to open a GitHub issue or pull request. If your change is big or if you're not sure about what you're building, you might want to reach out to us via the contact form at the bottom of the page.</p>
 
-                        <h2>I have feedback</h2>
-                        <p>Feel free to leave any feedback - positive or negative, using our contact form at the bottom of the page.</p>
+                        <h2>Contacting us</h2>
+                        <p>Contact us by clicking the "Contact" button at the bottom of the page.</p>
                     </div>
                 </div>
                 <div id="footer" onclick="showModal('support')" class="clickable amateur">
@@ -85,7 +79,7 @@
     <style>
         #content p {margin: 24px; }
         #content ul li {margin:48px;}
-        #content {margin-left: 48px; margin-right: 48px;}
+        #content {margin-left: 24px; margin-right: 24px;}
     </style>
 
 </html>

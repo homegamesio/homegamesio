@@ -1,0 +1,209 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Homegames</title>
+        <link rel="stylesheet" href="app.css">
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+        <link rel="manifest" href="/site.webmanifest">
+    </head>
+
+    <body>
+        <div id="modal" class="fade-in" hidden>
+            <div id="modal-content">
+                <div class="close clickable" onclick="hideModal()">X</div>
+                <div class="back"></div>
+                <div class="content"></div>
+            </div>
+        </div>
+        <div id="main">
+            <div id="page-container">
+                <div id="header">
+                    <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png"></img></div>
+                </div>
+                <div id="content">
+                    <h1 id="setup">Development Setup</h1>
+                    <div>
+                        <p>
+                            <strong>Prerequisites: NodeJS(v18+)</strong>
+                        </p>
+                        <p>
+                            <strong>Homegames core</strong>
+                            <ol>
+                                <li>Clone the homegames core repo from GitHub<pre class="code">/Users/josephgarcia/homegames-demo$ git clone https://github.com/homegamesio/homegames-core</pre></li>
+                                <li>Navigate to the homegames-core directory<pre class="code">/Users/josephgarcia/homegames-demo$ cd homegames-core</pre></li>
+                                <li>Install dependencies<pre class="code">/Users/josephgarcia/homegames-demo/homegames-core$ npm i</pre></li>
+                                <li>Set API URL & disable local HTTPS<pre class="code">export HTTPS_ENABLED=false</pre><pre class="code">export API_URL=https://api.homegames.io</pre></li>
+                                <li>Run the game server<pre class="code">/Users/josephgarcia/homegames-demo/homegames-core$ node index.js</pre></li>
+                            </ol>
+                            <strong>Homegames web</strong>
+                            <ol>
+                                <li>Clone the homegames web repo from GitHub<pre class="code">/Users/josephgarcia/homegames-demo$ git clone https://github.com/homegamesio/homegames-web</pre></li>
+                                <li>Navigate to the homegames-web directory<pre class="code">/Users/josephgarcia/homegames-demo$ cd homegames-web</pre></li>
+                                <li>Install dependencies<pre class="code">/Users/josephgarcia/homegames-demo/homegames-web$ npm i</pre></li>
+                                <li>Build the web bundle<pre class="code">/Users/josephgarcia/homegames_demo/homegames-web$ ./node_modules/webpack-cli/bin/cli.js</pre></li>
+                                <li>Run the game server<pre class="code">/Users/josephgarcia/homegames-demo/homegames-web$ node index.js</pre></li>
+                            </ol>
+                            <div>
+                                <p>
+                                    With the core and web servers running on your machine, you should be able to access the Homegames dashboard at <strong>http://localhost:80</strong> (unless you have configured the web client server to run on a different port). If you can't, let us know using the contact button at the bottom of the page.
+                                </p>
+                            </div>
+                            <div style="text-align: center">
+                                <img width=640 src="https://api.homegames.io/assets/2909e3e572e3a2293a535f9edbffe5b0"></img>
+                            </div>
+                        </p>
+                    </div>
+                    <h1 id="hello-world">Hello World Game Guide</h1>
+                    <div>
+                        <p>Prerequisites: homegames-core running locally</p>
+                        <div>
+                            <ol>
+                                <li>Create a new directory for your game in the `games` directory of homegames-core<pre class="code">/Users/josephgarcia/homegames_demo/homegames-core$ mkdir src/games/hello-world</pre></li>
+                                <li>Create an index.js file in your new directory using a text editor of your choice<pre class="code">vim src/games/hello-world/index.js</pre></li>
+                                <li>Import game dependencies<pre class="code">const { Colors, Game, GameNode, Shapes, ShapeUtils } = require('squish-120');</pre><strong>Colors</strong> is a helper that contains a bunch of predefined RGBA values for common colors, eg. black and white. You can choose your own color from this file or hardcode a color of your choice using an array of rgba values, eg. [255, 0, 0, 255] for red.<br/><br/><strong>Game</strong> is the base class that all games inherit from. It contains logic that lets the game session listen to state updates.<br/><br/><strong>GameNode</strong> is the base unit of all "things" in a game. For example, the text we're going to render on the screen is a thing. The canvas we're going to put it on is a different thing.<br/><br/><strong>Shapes</strong> contains constants representing each type of shape we support, eg. polygon.<br/><br/><strong>ShapeUtils</strong> is a helper that gives us a simple interface to create shapes, eg. a white rectangular canvas.<br/><br/><strong>require('squish-120')</strong> imports the specific version of SquishJS (the Homegames game library) we are depending on. In this case, it's version 1.2.0.</li>
+                                <li>Define your game class
+<pre class="code">
+// A new class that extends the base "Game" class
+class HelloWorld extends Game {
+    // tell the game session what version of squish we're using
+    static metadata() {
+        return {
+            squishVersion: '120'
+        }
+    }
+    
+    // instantiate game, set up initial stuff in base class
+    constructor() {
+        super();
+
+        // create base canvas, a white rectangle
+        this.base = new GameNode.Shape({
+            // a rectangle is a polygon
+            shapeType: Shapes.POLYGON,
+            // use our helper to create a list of drawing coordinates for a rectangle
+            // the rectangle starts at (0, 0) on the plane (first 2 arguments)
+            // and it takes up 100% of the width and 100% of the height of the screen (3rd and 4th arguments)
+            coordinates2d: ShapeUtils.rectangle(0, 0, 100, 100),
+            // it's white
+            fill: Colors.COLORS.WHITE
+        });
+    }
+
+    // tell the game session what layers define our game. 
+    // in this case, it's one layer - a white canvas
+    getLayers() {
+        return [{ root: this.base }];
+    }
+}                            
+// export our game class as the main thing of this file, using CommonJS syntax
+module.exports = HelloWorld;
+</pre>This is one of the most basic "games" we can possibly make. It's a class that extends the Game class in a specific version of SquishJS, and says it uses a specific version of SquishJS, and it defines a single layer.</li>
+                                <li>Add "hello world!" text node
+<pre class="code">
+    constructor() {
+        super();
+        this.base = new GameNode.Shape({
+            shapeType: Shapes.POLYGON,
+            coordinates2d: ShapeUtils.rectangle(0, 0, 100, 100),
+            fill: COLORS.WHITE
+        });
+        
+        // create a text node centered at (50, 50) on the screen, with black text saying "Hello, world!"
+        const textNode = new GameNode.Text({
+            textInfo: {
+                x: 50,
+                y: 50,
+                align: 'center',
+                size: 2,
+                text: 'Hello, world!',
+                color: Colors.COLORS.BLACK
+            }
+        });
+        
+        // add that text node as a child of the canvas
+        this.base.addChild(textNode);
+    }
+</pre>The full file looks like this
+<pre class="code">
+const { Colors, Game, GameNode, Shapes, ShapeUtils } = require('squish-120');
+
+class HelloWorld extends Game {
+    static metadata() {
+        return {
+            squishVersion: '120'
+        };
+    }
+
+    constructor() {
+        super();
+        this.base = new GameNode.Shape({
+            shapeType: Shapes.POLYGON,
+            coordinates2d: ShapeUtils.rectangle(0, 0, 100, 100),
+            fill: Colors.COLORS.WHITE
+        });
+
+        const textNode = new GameNode.Text({
+            textInfo: {
+                x: 50,
+                y: 50,
+                align: 'center',
+                size: 2,
+                text: 'Hello, world!',
+                color: Colors.COLORS.BLACK
+            }
+        });
+        
+        this.base.addChild(textNode);
+    }
+
+    getLayers() {
+        return [{root: this.base}];
+    }
+}
+
+module.exports = HelloWorld;
+</pre></li>
+                                <li>Test your game<pre class="code">node index.js</pre></li>
+                            </ol>
+                            <div>
+                                <p>
+                                    You should now be able to see your new "HelloWorld" game in the homegames dashboard (assuming you also have a client pointed to your game server)
+                                </p>
+                                <img width="640" src="https://api.homegames.io/assets/34c56125abcfe8c50a890591ed1a91b4"></img>
+                                <img width="640" src="https://api.homegames.io/assets/eb76cecee5956c147bce5f6905b2d516"></img>
+                            </div>
+                        </div>
+                    </div>
+                    <h1 id="publishing">Publishing Your Game</h1>
+                    <div>
+                    </div>
+                    <h1 id="hosting-infrastructure">Hosting Infrastructure</h1>
+                    <div>
+                    </div>
+                </div>
+                <div id="footer" onclick="showModal('support')" class="clickable amateur">
+                    <h1>
+                        Contact
+                    </h1>
+                </div>
+            </div>
+        </div>
+    </body>
+    <script src="bundle.js"></script>
+    <script>
+
+    </script>
+    <style>
+        #content input {height: 40px; line-height: 40px; width: 20%; padding: 5px; margin-left: 2%; margin-right: 78%; margin-top: 1%}
+        #submit-button {margin-top: 1%; margin-left: 2%; text-decoration: underline;}
+        .code {
+            background: #4D4D4D; 
+            color: #fbfff2; 
+            min-height: 50px; 
+            line-height: 50px; 
+            padding: 12px;
+        }
+    </style>
+
+</html>
