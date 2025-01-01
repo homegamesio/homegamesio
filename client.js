@@ -2930,10 +2930,10 @@ const showBlogContent = (initialPage = 0, pageSize = 5) => {
         const blogInfo = JSON.parse(_blogInfo);
 
         const navigationContainer = document.createElement('div');
-        navigationContainer.style = 'display: grid; grid-template-columns: 1fr 3fr; border-bottom: 1px solid black;'
+        navigationContainer.style = 'display: grid; grid-template-columns: 2fr 3fr; border-bottom: 1px solid black;'
 
         const searchBox = document.createElement('input');
-        searchBox.style = 'margin: 72px;';
+        searchBox.style = 'margin-left: 24px; margin-right: 24px; margin-top: 72px; margin-bottom: 72px;';
         searchBox.type = 'text';
         searchBox.placeholder = 'Find a post';
         navigationContainer.appendChild(searchBox);
@@ -2975,7 +2975,6 @@ const showBlogContent = (initialPage = 0, pageSize = 5) => {
 
         const currentContent = document.createElement('div');
         const currentTitle = document.createElement('h1');
-        currentTitle.style = 'font-size: 2.25vw;';
         const publishedBy = document.createElement('h3');
         const publishedByLink = document.createElement('a');
         publishedByLink.target = '_blank';
@@ -3010,7 +3009,7 @@ const showBlogContent = (initialPage = 0, pageSize = 5) => {
         const renderBlogList = (data) => { 
             clearChildren(blogListContainer);
             const blogList = document.createElement('ul');
-            blogList.style = 'text-align: center; list-style-type: none; height: 240px; max-height: 240px;';
+            blogList.style = 'text-align: center; list-style-type: none; height: 240px; max-height: 240px; padding: 0';
             data.posts.forEach(p => {
                 const el = document.createElement('li');
                 el.style = 'margin: 12px; font-size: large; text-decoration: underline; line-height: 24px; max-height: 48px; overflow: hidden';
