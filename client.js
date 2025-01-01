@@ -724,7 +724,10 @@ const renderGameDetailModal = (game) => {
                     commit: commitForm.value,
                 };
 
-                submitPublishRequest({ type: 'github', gameId: game.id, payload });
+                submitPublishRequest({ type: 'github', gameId: game.id, payload }).then(() => {
+                    hideModal();
+                    updateDashboardContent('games');
+                });
             }
         };
 

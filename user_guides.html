@@ -21,19 +21,76 @@
                 <div id="header">
                     <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png"></img></div>
                 </div>
-                <div id="content">
+                <div id="content" style="margin-left: 24px">
                     <h1>User Guides</h1>
                     <h2 id="installing">Installation & Setup</h2>
                     <div>
+                    <ol>
+                    <li>Download the Homegames server bundle for your operating system from homegames.io<br/><img width="640" src="https://api.homegames.io/assets/6e258ca739e75449655529b8091358cd"></img></li>
+                    <li><strong>Note: if you're using Windows, you will likely see a warning message that looks like this. The ability to sign these builds costs money, so we don't do it. To continue installation, click "More info" and then "Run anyway"</strong><br/><img width="640" src="https://api.homegames.io/assets/edc062303f37bd742ee8bbbd9f732bfc"></img></li>
+                    <li>Once homegames is installed, all you have to do is run the app and wait for the initial setup to complete. This process involves creating a certificate and DNS record to map to your local Homegames instance. It should take around 2 to 3 minutes to complete the first time. If it takes more than 5 minutes or if it breaks, please let us know using the contact form at the bottom of the page.<br/><img width="640" src="https://api.homegames.io/assets/0c5c1f75c42117cb47df745d19aac9c4"></img></li>
+                    <li>Once your cert and DNS record have been generated, your homegames instance is up and running on your local network.<br/><img width="640" src="https://api.homegames.io/assets/24aa1d7efdbae1cfb50a0d3c117ee746"></img></li>
                     </div>
-                    <h2 id="configuration">Configuring Your Server</h2>
-                    <div>
-                    </div>
+                    </ol>
                     <h2 id="playing-games">Playing Games</h2>
                     <div>
+                    <li>Once your server is up and running, you can access the Homegames dashboard from any device on the same network as your server. All you have to do is navigate to homegames.link in a web browser, and you will be redirected to your local instance (it will look like [nonsense].homegames.link).<br/>
+                    <img width="640" src="https://api.homegames.io/assets/4073e7d4ce02a9450a4955158ce9e82f"></img></li>
+                    <li>Navigate the dashboard using the arrows on the right side to find a game you want to play. You can also search by clicking the red "search" box. Once you find one, click it to join any ongoing game sessions for that game, or create your own.<br/><img width="640" src="https://api.homegames.io/assets/3555a8dc1590cea73b629a2f09e698bb"></img></li>
+
+                    <li>Once you're in a game session, you'll see a "spectate" button on the top left, which will let you drop out as a player and drop in as a spectator, or vice versa.<br/>The blue section at the top shows your current player name. You can click it and change your name, as well as see information about the current game session.<br/>The red text on the top right shows the code you can give someone not on your same network to play with you at public.homegames.link<br/><img width="640" src="https://api.homegames.io/assets/38bc1cc5fdfae9a50925b162d17ff686"></img></li>
+                    </div>
+
+                    <h2 id="configuration">Configuring Your Server</h2>
+                    <div>
+                        <strong>This section is still a work-in-progress</strong>
+                        <div>I plan on implementing a UI for these values at some point in the future, especially since the current implementation is a mess.</div>
+                        <div>Here is the default config in JSON format
+                        <pre>
+{
+    "HTTPS_ENABLED": true,
+    "LINK_ENABLED": true,
+    "HOMENAMES_PORT": 7400,
+    "HOME_PORT": 9801,
+    "LOG_LEVEL": "INFO",
+    "GAME_SERVER_PORT_RANGE_MIN": 8300,
+    "GAME_SERVER_PORT_RANGE_MAX": 8400,
+    "IS_DEMO": false,
+    "BEZEL_SIZE_X": 9,
+    "BEZEL_SIZE_Y": 9,
+    "HOTLOAD_ENABLED": false,
+    "PERFORMANCE_PROFILING": false,
+    "DOWNLOADED_GAME_DIRECTORY": "hg-games",
+    "LOG_PATH": "homegames_log.txt",
+    "PUBLIC_GAMES": true,
+    "ERROR_REPORTING": true,
+    "ERROR_REPORTING_ENDPOINT": "https://api.homegames.io/bugs",
+    "CERT_DOMAIN": "homegames.link",
+    "TESTS_ENABLED": true,
+    "API_URL": "https://api.homegames.io",
+    "LINK_PROXY_URL": "wss://public.homegames.link:81",
+    "LINK_URL": "wss://homegames.link",
+    "MAP_ENABLED": true
+}
+                        </pre>
+                        <div>
+                            You can copy and paste this as `config.json` and modify it as you see fit in either:
+                            <ul>
+                                <li>Windows: /Path/To/Your/User/AppData/Roaming/homegames/config.json</li>
+                                <li>MacOS: /Users/you/Library/Application Support/homegames/config.json</li>
+                                <li>Linux: /path/to/home/directory/.homegames/config.json</li>
+                            </ul>
+                        </div>
+                        </div>
                     </div>
                     <h2 id="downloading-games">Downloading Games</h2>
                     <div>
+                    In addition to playing built-in games, you can download games published by members of the Homegames community. To find something you want to play, you can either browse the <a href="/catalog.html">catalog</a> or search using the Homegames dashboard.<br/>
+                    <img width="640" src="https://api.homegames.io/assets/70a180da29ad92a21514dc1baf30b216"></img><br/>
+                    Every game available via search has at least one version published to the catalog. Versions published to the catalog are reviewed and approved by Joseph personally. You can switch versions (if available) by clicking the left and right arrows in the top right of the game popup.<br/> 
+                    <img width="640" src="https://api.homegames.io/assets/c0943636ef354c651cc7e7ca8d8aae7d"></img><br/>
+                    Game versions that have not been published in the catalog (but have passed automated testing and validation) are still playable, but you will see a warning in the UI letting you know the game has not been reviewed.<br/>
+                    <img width="640" src="https://api.homegames.io/assets/d1eb40e733431b3a297fb1e0772f8d8c"></img>
                     </div> 
                 </div>
                 <div id="footer" onclick="showModal('support')" class="clickable amateur">
