@@ -354,6 +354,11 @@ const server = http.createServer((req, res) => {
                 res.setHeader('Content-Type', 'text/html');
                 const payload = fs.readFileSync(path.join(__dirname, 'privacy.html'));
                 res.end(payload);
+            } else if (req.url.startsWith('/studio')) {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/html');
+                const payload = fs.readFileSync(path.join(__dirname, 'game-studio.html'));
+                res.end(payload);
             } else if (req.url.startsWith('/roadmap')) {
                 res.statusCode = 200;
                 res.setHeader("Content-Type", 'text/html');
