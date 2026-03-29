@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 const API_URL = 'http://localhost:80';
+const PREVIEW_SERVER_URL = 'ws://localhost:7001';
 
 // ---------------------------------------------------------------------------
 // State
@@ -17,6 +18,9 @@ let openFiles = {};      // path -> { content, sha, dirty, original }
 let versions = [];
 let versionPage = 1;
 let viewingVersion = null; // null = HEAD, or { sha, message, date }
+let previewClient = null;
+let previewOpen = false;
+let previewDebounceTimer = null;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -108,6 +112,7 @@ const renderGameList = () => {
 
 const selectGame = (game) => {
     if (currentGame && hasUnsavedChanges() && !confirmDiscard()) return;
+    stopPreview();
     currentGame = game;
     currentFile = null;
     openFiles = {};
@@ -123,6 +128,7 @@ const selectGame = (game) => {
 
 const goHome = () => {
     if (currentGame && hasUnsavedChanges() && !confirmDiscard()) return;
+    stopPreview();
     currentGame = null; currentFile = null; openFiles = {}; viewingVersion = null;
     renderGameList();
     $('main-content').innerHTML = '<div id="welcome-pane">Select a game or create a new one</div>';
@@ -160,8 +166,15 @@ const renderGameView = () => {
     cloneBtn.onclick = toggleClonePopover;
     header.appendChild(left);
 
+    const previewToggle = document.createElement('button');
+    previewToggle.className = 'preview-toggle' + (previewOpen ? ' active' : '');
+    previewToggle.textContent = '▶ Preview';
+    previewToggle.id = 'preview-toggle-btn';
+    previewToggle.onclick = togglePreviewPanel;
+
     const rightHeader = document.createElement('div');
     rightHeader.style = 'display:flex;align-items:center;gap:8px';
+    rightHeader.appendChild(previewToggle);
     rightHeader.appendChild(cloneBtn);
     header.appendChild(rightHeader);
     main.appendChild(header);
@@ -229,6 +242,44 @@ const renderGameView = () => {
     versionPanel.appendChild(vpFooter);
     editorArea.appendChild(versionPanel);
 
+    // Preview panel
+    const previewPanel = document.createElement('div');
+    previewPanel.id = 'preview-panel';
+    if (previewOpen) previewPanel.classList.add('open');
+
+    const previewHeader = document.createElement('div');
+    previewHeader.id = 'preview-header';
+    previewHeader.innerHTML = '<span>Preview</span>';
+    const previewControls = document.createElement('div');
+    previewControls.id = 'preview-controls';
+
+    const playBtn = document.createElement('button');
+    playBtn.textContent = '▶ Run';
+    playBtn.id = 'preview-play-btn';
+    playBtn.onclick = startPreview;
+
+    const stopBtn = document.createElement('button');
+    stopBtn.textContent = '■ Stop';
+    stopBtn.className = 'stop-btn';
+    stopBtn.id = 'preview-stop-btn';
+    stopBtn.onclick = stopPreview;
+    stopBtn.style.display = 'none';
+
+    previewControls.appendChild(playBtn);
+    previewControls.appendChild(stopBtn);
+    previewHeader.appendChild(previewControls);
+    previewPanel.appendChild(previewHeader);
+
+    const previewContainer = document.createElement('div');
+    previewContainer.id = 'preview-container';
+    previewPanel.appendChild(previewContainer);
+
+    const previewStatus = document.createElement('div');
+    previewStatus.id = 'preview-status';
+    previewPanel.appendChild(previewStatus);
+
+    editorArea.appendChild(previewPanel);
+
     main.appendChild(editorArea);
 
     // Bottom bar
@@ -263,6 +314,7 @@ const onEditorInput = () => {
     updateSaveButton();
     renderTabs();
     renderFileTree();
+    debouncedUpdatePreview();
 };
 
 const onEditorKeydown = (e) => {
@@ -779,3 +831,109 @@ document.addEventListener('click', (e) => {
 window.addEventListener('beforeunload', (e) => {
     if (hasUnsavedChanges()) { e.preventDefault(); e.returnValue = ''; }
 });
+
+// ---------------------------------------------------------------------------
+// Preview
+// ---------------------------------------------------------------------------
+
+const togglePreviewPanel = () => {
+    previewOpen = !previewOpen;
+    const panel = $('preview-panel');
+    const btn = $('preview-toggle-btn');
+    if (panel) {
+        if (previewOpen) {
+            panel.classList.add('open');
+        } else {
+            panel.classList.remove('open');
+            stopPreview();
+        }
+    }
+    if (btn) {
+        btn.className = 'preview-toggle' + (previewOpen ? ' active' : '');
+    }
+};
+
+const getPreviewCode = () => {
+    // Gather all open files' content. The main game file is typically index.js
+    // For preview, we send the currently active file's content.
+    // If the user has an index.js open, prefer that.
+    if (openFiles['index.js']) return openFiles['index.js'].content;
+    // Otherwise send whatever file is currently being edited
+    if (currentFile && openFiles[currentFile.path]) return openFiles[currentFile.path].content;
+    return null;
+};
+
+const startPreview = () => {
+    const code = getPreviewCode();
+    if (!code) {
+        setPreviewStatus('No code to preview — open a file first');
+        return;
+    }
+
+    stopPreview();
+
+    setPreviewStatus('Connecting...');
+
+    try {
+        previewClient = new HomegamesClient({
+            url: PREVIEW_SERVER_URL,
+            containerId: 'preview-container',
+            code: code,
+            onReady: (playerId) => {
+                setPreviewStatus('Running (player ' + playerId + ')');
+                const playBtn = $('preview-play-btn');
+                const stopBtn = $('preview-stop-btn');
+                if (playBtn) { playBtn.textContent = '↻ Restart'; }
+                if (stopBtn) stopBtn.style.display = '';
+            },
+            onClose: () => {
+                setPreviewStatus('Disconnected');
+                resetPreviewButtons();
+            },
+            onError: (err) => {
+                setPreviewStatus('Error: ' + (err.message || err));
+                resetPreviewButtons();
+            },
+        });
+        previewClient.start();
+    } catch (err) {
+        setPreviewStatus('Error: ' + err.message);
+        resetPreviewButtons();
+    }
+};
+
+const stopPreview = () => {
+    if (previewClient) {
+        previewClient.stop();
+        previewClient = null;
+    }
+    setPreviewStatus('');
+    resetPreviewButtons();
+};
+
+const resetPreviewButtons = () => {
+    const playBtn = $('preview-play-btn');
+    const stopBtn = $('preview-stop-btn');
+    if (playBtn) playBtn.textContent = '▶ Run';
+    if (stopBtn) stopBtn.style.display = 'none';
+};
+
+const updatePreview = () => {
+    if (!previewClient) return;
+    const code = getPreviewCode();
+    if (code) {
+        previewClient.updateCode(code);
+        setPreviewStatus('Updated');
+    }
+};
+
+const debouncedUpdatePreview = () => {
+    if (!previewClient) return;
+    clearTimeout(previewDebounceTimer);
+    previewDebounceTimer = setTimeout(updatePreview, 1000);
+};
+
+const setPreviewStatus = (msg) => {
+    const el = $('preview-status');
+    if (el) el.textContent = msg;
+};

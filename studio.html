@@ -127,6 +127,22 @@
             .modal-btn.secondary:hover { background: #444; }
             .modal-error { color: rgba(241, 112, 111, 255); font-size: 0.85em; min-height: 18px; margin-top: 4px; }
 
+            /* Preview panel */
+            #preview-panel { width: 0; background: #0a0a1a; border-left: 1px solid #333; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: width 0.2s ease; }
+            #preview-panel.open { width: 420px; }
+            #preview-header { padding: 6px 10px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+            #preview-header span { color: #666; font-size: 0.75em; text-transform: uppercase; letter-spacing: 1px; }
+            #preview-controls { display: flex; gap: 6px; align-items: center; }
+            #preview-controls button { font-size: 0.78em; padding: 3px 10px; border-radius: 4px; border: 1px solid #444; cursor: pointer; font-family: inherit; background: #16213e; color: #aaa; }
+            #preview-controls button:hover { background: #1a1a3e; color: #eee; }
+            #preview-controls button.active { background: #A0EB5D; color: #1a1a2e; border-color: #A0EB5D; }
+            #preview-controls button.stop-btn { background: rgba(241, 112, 111, 255); color: #fff; border-color: rgba(241, 112, 111, 255); }
+            #preview-container { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #000; }
+            #preview-status { padding: 4px 10px; border-top: 1px solid #333; font-size: 0.78em; color: #555; flex-shrink: 0; min-height: 24px; }
+            .preview-toggle { font-size: 0.8em; padding: 3px 10px; border-radius: 10px; background: #333; color: #aaa; cursor: pointer; border: none; font-family: inherit; margin-left: 8px; }
+            .preview-toggle:hover { background: #444; color: #fff; }
+            .preview-toggle.active { background: rgba(148, 210, 229, 255); color: #1a1a2e; }
+
             /* Loading spinner */
             .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #444; border-top-color: #A0EB5D; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
             @keyframes spin { to { transform: rotate(360deg); } }
@@ -183,6 +199,7 @@
             </div>
         </div>
 
+        <script src="homegames-client.js"></script>
         <script src="studio.js"></script>
     </body>
 </html>
