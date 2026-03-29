@@ -1,0 +1,188 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Homegames Studio</title>
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+        <link rel="manifest" href="/site.webmanifest">
+        <style>
+            @font-face { font-family: 'amateur'; src: url('/amateur.ttf'); }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: 'amateur', monospace; background: #1a1a2e; color: #eee; height: 100vh; overflow: hidden; }
+
+            /* Login */
+            #studio-login { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 6px; }
+            #studio-login h1 { font-size: 2em; margin-bottom: 16px; color: rgba(148, 210, 229, 255); }
+            #studio-login input { width: 280px; padding: 10px; border: 1px solid #444; border-radius: 4px; background: #16213e; color: #eee; font-size: 16px; font-family: inherit; }
+            #studio-login .login-btn { background: #A0EB5D; color: #1a1a2e; border: none; cursor: pointer; font-weight: bold; }
+            #studio-login .login-btn:hover { background: #8cd94f; }
+            #studio-login .login-error { color: rgba(241, 112, 111, 255); min-height: 20px; font-size: 0.9em; }
+
+            /* App shell */
+            #studio-app { display: none; flex-direction: column; height: 100vh; }
+
+            #studio-header { display: flex; justify-content: space-between; align-items: center; padding: 0 16px; background: #16213e; border-bottom: 1px solid #333; height: 44px; flex-shrink: 0; }
+            #studio-header .logo { font-size: 1.1em; color: rgba(148, 210, 229, 255); cursor: pointer; text-decoration: none; }
+            #studio-header .user-info { color: #666; font-size: 0.85em; }
+
+            #studio-body { display: flex; flex: 1; overflow: hidden; }
+
+            /* Sidebar */
+            #sidebar { width: 220px; background: #16213e; border-right: 1px solid #333; overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column; }
+            #sidebar-header { padding: 10px 12px; color: #666; font-size: 0.75em; text-transform: uppercase; letter-spacing: 1px; }
+            #new-game-btn { padding: 8px 12px; cursor: pointer; color: #A0EB5D; font-weight: bold; font-size: 0.9em; border-bottom: 1px solid #222; }
+            #new-game-btn:hover { background: #1a1a3e; }
+            #game-list { flex: 1; overflow-y: auto; }
+            .game-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #1a1a2e; color: #aaa; font-size: 0.9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .game-item:hover { background: #1a1a3e; color: #ccc; }
+            .game-item.active { background: #0f3460; color: #fff; }
+
+            /* Main content */
+            #main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+            /* Welcome */
+            #welcome-pane { flex: 1; display: flex; align-items: center; justify-content: center; color: #555; font-size: 1.1em; }
+
+            /* Game header */
+            #game-header { padding: 8px 16px; background: #16213e; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+            .game-title { font-size: 1em; color: #ddd; }
+            .game-desc { font-size: 0.8em; color: #666; margin-left: 12px; }
+            .version-badge { font-size: 0.8em; padding: 3px 10px; border-radius: 10px; white-space: nowrap; font-family: monospace; }
+            .version-badge.head { background: #A0EB5D; color: #1a1a2e; }
+            .version-badge.history { background: rgba(255, 247, 142, 255); color: #1a1a2e; }
+            .clone-btn { font-size: 0.8em; padding: 3px 10px; border-radius: 10px; background: #333; color: #aaa; cursor: pointer; border: none; font-family: inherit; }
+            .clone-btn:hover { background: #444; color: #fff; }
+            #clone-popover { display: none; position: absolute; top: 44px; right: 252px; background: #16213e; border: 1px solid #444; border-radius: 6px; padding: 12px; z-index: 50; width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+            #clone-popover.visible { display: block; }
+            #clone-popover label { display: block; color: #888; font-size: 0.78em; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+            #clone-popover .clone-url-box { display: flex; gap: 6px; margin-bottom: 10px; }
+            #clone-popover input { flex: 1; padding: 6px 8px; background: #0a0a1a; border: 1px solid #444; border-radius: 3px; color: #eee; font-family: monospace; font-size: 0.85em; }
+            #clone-popover .copy-btn { padding: 6px 12px; background: #A0EB5D; color: #1a1a2e; border: none; border-radius: 3px; cursor: pointer; font-weight: bold; font-size: 0.85em; font-family: inherit; }
+            #clone-popover .copy-btn:hover { background: #8cd94f; }
+            #clone-popover .clone-hint { color: #666; font-size: 0.78em; line-height: 1.4; }
+
+            /* Editor layout */
+            #editor-area { display: flex; flex: 1; overflow: hidden; }
+
+            /* File tree */
+            #file-tree { width: 200px; background: #0f3460; border-right: 1px solid #333; overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column; }
+            #file-tree-header { padding: 6px 10px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+            #file-tree-header span { color: #666; font-size: 0.75em; text-transform: uppercase; letter-spacing: 1px; }
+            #new-file-btn { color: #A0EB5D; cursor: pointer; font-size: 0.85em; font-weight: bold; }
+            #new-file-btn:hover { color: #8cd94f; }
+            #file-list { flex: 1; overflow-y: auto; }
+            .file-item { padding: 5px 10px; cursor: pointer; font-size: 0.82em; color: #99a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; }
+            .file-item:hover { background: #16213e; color: #ddd; }
+            .file-item.active { background: #1a1a2e; color: #A0EB5D; }
+            .file-item.dirty::after { content: ' ●'; color: rgba(255, 247, 142, 255); }
+            .file-item.folder { color: rgba(148, 210, 229, 255); font-family: inherit; }
+            .file-tree-empty { padding: 12px; color: #555; font-size: 0.82em; text-align: center; }
+
+            /* Editor */
+            #editor-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+            #editor-tab-bar { padding: 0 8px; background: #16213e; border-bottom: 1px solid #333; display: flex; align-items: center; height: 32px; flex-shrink: 0; overflow-x: auto; }
+            .editor-tab { padding: 4px 12px; font-size: 0.8em; color: #888; cursor: pointer; border-right: 1px solid #222; white-space: nowrap; }
+            .editor-tab:hover { color: #ccc; }
+            .editor-tab.active { color: #eee; background: #0a0a1a; }
+            .editor-tab.dirty::after { content: ' ●'; color: rgba(255, 247, 142, 255); }
+            #editor-textarea { flex: 1; width: 100%; padding: 12px; background: #0a0a1a; color: #eee; border: none; resize: none; font-family: monospace; font-size: 14px; line-height: 1.6; tab-size: 2; outline: none; }
+            #editor-placeholder { flex: 1; display: flex; align-items: center; justify-content: center; color: #444; font-size: 0.95em; background: #0a0a1a; }
+
+            /* Version panel (right sidebar) */
+            #version-panel { width: 240px; background: #0f3460; border-left: 1px solid #333; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
+            #version-panel-header { padding: 6px 10px; border-bottom: 1px solid #333; color: #666; font-size: 0.75em; text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0; }
+            #version-list { flex: 1; overflow-y: auto; }
+            #version-panel-footer { padding: 4px 10px; border-top: 1px solid #333; display: flex; justify-content: space-between; flex-shrink: 0; min-height: 28px; }
+            .vp-nav { color: rgba(148, 210, 229, 255); cursor: pointer; font-size: 0.8em; }
+            .vp-nav:hover { color: #fff; }
+            .version-item { padding: 8px 10px; border-bottom: 1px solid #1a1a2e; cursor: pointer; font-size: 0.82em; }
+            .version-item:hover { background: #16213e; }
+            .version-item.active { background: #1a1a2e; border-left: 3px solid #A0EB5D; }
+            .v-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+            .v-sha { color: rgba(148, 210, 229, 255); font-family: monospace; font-size: 0.95em; }
+            .v-date { color: #555; font-size: 0.9em; }
+            .v-msg { color: #aaa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; font-size: 0.9em; }
+            .v-restore { display: inline-block; margin-top: 4px; color: rgba(255, 247, 142, 255); font-size: 0.85em; cursor: pointer; }
+            .v-restore:hover { color: #fff; }
+
+            /* Bottom bar */
+            #bottom-bar { display: flex; justify-content: space-between; align-items: center; padding: 0 16px; background: #16213e; border-top: 1px solid #333; height: 40px; flex-shrink: 0; }
+            #status-msg { font-size: 0.82em; color: #666; }
+            #bottom-right { display: flex; gap: 12px; align-items: center; }
+            #save-btn { background: #A0EB5D; color: #1a1a2e; border: none; padding: 6px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; font-family: inherit; }
+            #save-btn:hover { background: #8cd94f; }
+            #save-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+            /* Modals */
+            .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center; }
+            .modal-overlay.visible { display: flex; }
+            .modal-box { background: #16213e; border: 1px solid #444; border-radius: 8px; padding: 24px; width: 380px; }
+            .modal-box h2 { margin-bottom: 14px; color: rgba(148, 210, 229, 255); font-size: 1.1em; }
+            .modal-box input { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #444; border-radius: 4px; background: #0a0a1a; color: #eee; font-size: 14px; font-family: inherit; }
+            .modal-buttons { display: flex; gap: 8px; margin-top: 14px; }
+            .modal-btn { flex: 1; padding: 9px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; font-family: inherit; }
+            .modal-btn.primary { background: #A0EB5D; color: #1a1a2e; }
+            .modal-btn.primary:hover { background: #8cd94f; }
+            .modal-btn.secondary { background: #333; color: #ccc; }
+            .modal-btn.secondary:hover { background: #444; }
+            .modal-error { color: rgba(241, 112, 111, 255); font-size: 0.85em; min-height: 18px; margin-top: 4px; }
+
+            /* Loading spinner */
+            .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #444; border-top-color: #A0EB5D; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
+            @keyframes spin { to { transform: rotate(360deg); } }
+        </style>
+    </head>
+    <body>
+        <div id="studio-login">
+            <h1>Homegames Studio</h1>
+            <input type="text" id="login-username" placeholder="Username" autocomplete="username">
+            <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+            <input type="submit" class="login-btn" value="Log in" id="login-btn">
+            <div class="login-error" id="login-error"></div>
+        </div>
+
+        <div id="studio-app">
+            <div id="studio-header">
+                <span class="logo" id="logo-btn">⌂ Homegames Studio</span>
+                <span class="user-info" id="user-info"></span>
+            </div>
+            <div id="studio-body">
+                <div id="sidebar">
+                    <div id="sidebar-header">My Games</div>
+                    <div id="new-game-btn">+ New Game</div>
+                    <div id="game-list"></div>
+                </div>
+                <div id="main-content">
+                    <div id="welcome-pane">Select a game or create a new one</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="new-game-modal">
+            <div class="modal-box">
+                <h2>New Game</h2>
+                <input type="text" id="new-game-name" placeholder="Game name">
+                <input type="text" id="new-game-desc" placeholder="Description (optional)">
+                <div class="modal-error" id="new-game-error"></div>
+                <div class="modal-buttons">
+                    <button class="modal-btn secondary" id="new-game-cancel">Cancel</button>
+                    <button class="modal-btn primary" id="new-game-create">Create</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="new-file-modal">
+            <div class="modal-box">
+                <h2>New File</h2>
+                <input type="text" id="new-file-name" placeholder="filename.js">
+                <div class="modal-error" id="new-file-error"></div>
+                <div class="modal-buttons">
+                    <button class="modal-btn secondary" id="new-file-cancel">Cancel</button>
+                    <button class="modal-btn primary" id="new-file-create">Create</button>
+                </div>
+            </div>
+        </div>
+
+        <script src="studio.js"></script>
+    </body>
+</html>
