@@ -124,6 +124,7 @@ const selectGame = (game) => {
     renderGameView();
     loadFiles();
     loadVersions();
+    if (assetPanelOpen) loadAssets(true);
 };
 
 const goHome = () => {
@@ -172,8 +173,15 @@ const renderGameView = () => {
     previewToggle.id = 'preview-toggle-btn';
     previewToggle.onclick = togglePreviewPanel;
 
+    const assetToggle = document.createElement('button');
+    assetToggle.className = 'asset-toggle' + (assetPanelOpen ? ' active' : '');
+    assetToggle.textContent = '🎨 Assets';
+    assetToggle.id = 'asset-toggle-btn';
+    assetToggle.onclick = toggleAssetPanel;
+
     const rightHeader = document.createElement('div');
     rightHeader.style = 'display:flex;align-items:center;gap:8px';
+    rightHeader.appendChild(assetToggle);
     rightHeader.appendChild(previewToggle);
     rightHeader.appendChild(cloneBtn);
     header.appendChild(rightHeader);
@@ -241,6 +249,36 @@ const renderGameView = () => {
     vpFooter.id = 'version-panel-footer';
     versionPanel.appendChild(vpFooter);
     editorArea.appendChild(versionPanel);
+
+    // Asset panel
+    const assetPanel = document.createElement('div');
+    assetPanel.id = 'asset-panel';
+    if (assetPanelOpen) assetPanel.classList.add('open');
+
+    const assetHeader = document.createElement('div');
+    assetHeader.id = 'asset-panel-header';
+    assetHeader.innerHTML = '<span>Assets</span>';
+    const assetActions = document.createElement('div');
+    assetActions.id = 'asset-panel-actions';
+
+    const drawBtn = document.createElement('button');
+    drawBtn.textContent = '✏ Draw';
+    drawBtn.onclick = openDrawOverlay;
+    assetActions.appendChild(drawBtn);
+
+    const recordBtn = document.createElement('button');
+    recordBtn.textContent = '🎤 Record';
+    recordBtn.onclick = openRecordOverlay;
+    assetActions.appendChild(recordBtn);
+
+    assetHeader.appendChild(assetActions);
+    assetPanel.appendChild(assetHeader);
+
+    const assetListEl = document.createElement('div');
+    assetListEl.id = 'asset-list';
+    assetPanel.appendChild(assetListEl);
+
+    editorArea.appendChild(assetPanel);
 
     // Preview panel
     const previewPanel = document.createElement('div');
@@ -937,3 +975,540 @@ const setPreviewStatus = (msg) => {
     const el = $('preview-status');
     if (el) el.textContent = msg;
 };
+
+// ---------------------------------------------------------------------------
+// Asset Panel
+// ---------------------------------------------------------------------------
+
+let assetPanelOpen = false;
+let assetList = [];
+let assetPage = 0;
+const ASSET_PAGE_SIZE = 20;
+let assetTotal = 0;
+let playingAudioEl = null;
+
+const apiUpload = (file, description) => new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_URL}/asset`, true);
+    if (userInfo) xhr.setRequestHeader('Authorization', `Bearer ${userInfo.token}`);
+    const form = new FormData();
+    form.append('file', file);
+    if (description) form.append('description', description);
+    xhr.onreadystatechange = () => {
+        if (xhr.readyState === XMLHttpRequest.DONE) {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try { resolve(JSON.parse(xhr.response)); }
+                catch (e) { resolve(xhr.response); }
+            } else {
+                reject(xhr.response);
+            }
+        }
+    };
+    xhr.send(form);
+});
+
+const toggleAssetPanel = () => {
+    assetPanelOpen = !assetPanelOpen;
+    const panel = $('asset-panel');
+    const btn = $('asset-toggle-btn');
+    if (panel) {
+        if (assetPanelOpen) {
+            panel.classList.add('open');
+            loadAssets(true);
+        } else {
+            panel.classList.remove('open');
+        }
+    }
+    if (btn) {
+        btn.className = 'asset-toggle' + (assetPanelOpen ? ' active' : '');
+    }
+};
+
+const loadAssets = (reset) => {
+    if (reset) { assetPage = 0; assetList = []; }
+    const offset = assetPage * ASSET_PAGE_SIZE;
+    api('GET', `/assets?limit=${ASSET_PAGE_SIZE}&offset=${offset}`)
+        .then(data => {
+            const newAssets = data.assets || [];
+            assetTotal = data.count || 0;
+            if (reset) { assetList = newAssets; } else { assetList = assetList.concat(newAssets); }
+            renderAssetList();
+        })
+        .catch(err => {
+            console.error('Failed to load assets', err);
+        });
+};
+
+const getAssetType = (asset) => {
+    const t = (asset.type || '').toLowerCase();
+    if (t.startsWith('image')) return 'image';
+    if (t.startsWith('audio')) return 'audio';
+    if (t.startsWith('font')) return 'font';
+    return 'other';
+};
+
+const renderAssetList = () => {
+    const list = $('asset-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    // Drop zone
+    const dropZone = document.createElement('div');
+    dropZone.className = 'asset-drop-zone';
+    dropZone.id = 'asset-drop-zone';
+    dropZone.textContent = 'Drop files here or click to upload';
+    dropZone.onclick = () => {
+        const inp = document.createElement('input');
+        inp.type = 'file';
+        inp.accept = 'image/*,audio/*';
+        inp.multiple = true;
+        inp.onchange = () => { handleAssetFiles(inp.files); };
+        inp.click();
+    };
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('drag-over'); });
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        handleAssetFiles(e.dataTransfer.files);
+    });
+    list.appendChild(dropZone);
+
+    if (assetList.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'asset-empty';
+        empty.textContent = 'No assets yet. Upload files, draw, or record audio.';
+        list.appendChild(empty);
+    }
+
+    assetList.forEach(asset => {
+        const item = document.createElement('div');
+        item.className = 'asset-item';
+
+        const type = getAssetType(asset);
+
+        // Thumbnail
+        if (type === 'image') {
+            const img = document.createElement('img');
+            img.className = 'asset-thumb';
+            img.src = `${API_URL}/assets/${asset.id}`;
+            img.alt = asset.name || '';
+            img.onerror = () => { img.style.display = 'none'; };
+            item.appendChild(img);
+        } else if (type === 'audio') {
+            const audioThumb = document.createElement('div');
+            audioThumb.className = 'asset-audio-thumb';
+            audioThumb.textContent = '▶';
+            audioThumb.onclick = () => {
+                if (playingAudioEl) { playingAudioEl.pause(); playingAudioEl = null; audioThumb.textContent = '▶'; return; }
+                const audio = new Audio(`${API_URL}/assets/${asset.id}`);
+                playingAudioEl = audio;
+                audioThumb.textContent = '■';
+                audio.onended = () => { playingAudioEl = null; audioThumb.textContent = '▶'; };
+                audio.onerror = () => { playingAudioEl = null; audioThumb.textContent = '▶'; };
+                audio.play();
+            };
+            item.appendChild(audioThumb);
+        } else {
+            const placeholder = document.createElement('div');
+            placeholder.className = 'asset-audio-thumb';
+            placeholder.textContent = '?';
+            item.appendChild(placeholder);
+        }
+
+        // Info
+        const info = document.createElement('div');
+        info.className = 'asset-info';
+        const name = document.createElement('span');
+        name.className = 'asset-name';
+        name.textContent = asset.name || asset.id;
+        name.title = asset.id;
+        info.appendChild(name);
+        const badge = document.createElement('span');
+        badge.className = 'asset-type-badge ' + type;
+        badge.textContent = type;
+        info.appendChild(badge);
+        item.appendChild(info);
+
+        // Copy ID button
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'asset-copy-btn';
+        copyBtn.textContent = 'Copy ID';
+        copyBtn.onclick = () => {
+            navigator.clipboard.writeText(asset.id).then(() => {
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => { copyBtn.textContent = 'Copy ID'; }, 1500);
+            });
+        };
+        item.appendChild(copyBtn);
+
+        list.appendChild(item);
+    });
+
+    // Load more button
+    if (assetList.length < assetTotal) {
+        const loadMoreDiv = document.createElement('div');
+        loadMoreDiv.id = 'asset-load-more';
+        const loadMoreBtn = document.createElement('button');
+        loadMoreBtn.textContent = 'Load more';
+        loadMoreBtn.onclick = () => { assetPage++; loadAssets(false); };
+        loadMoreDiv.appendChild(loadMoreBtn);
+        list.appendChild(loadMoreDiv);
+    }
+};
+
+const handleAssetFiles = (files) => {
+    if (!files || files.length === 0) return;
+    setStatus('Uploading asset...');
+    const uploadNext = (i) => {
+        if (i >= files.length) {
+            setStatus('Upload complete');
+            loadAssets(true);
+            return;
+        }
+        apiUpload(files[i], files[i].name)
+            .then(() => uploadNext(i + 1))
+            .catch(err => {
+                console.error('Upload failed', err);
+                setStatus('Upload failed');
+            });
+    };
+    uploadNext(0);
+};
+
+// ---------------------------------------------------------------------------
+// Draw Tool
+// ---------------------------------------------------------------------------
+
+const DRAW_GRID_SIZE = 32;
+const DRAW_PIXEL_SIZE = 16; // 512 / 32
+const DRAW_COLORS = [
+    '#1a1a2e', // dark (near-black)
+    '#e74c3c', // red
+    '#3498db', // blue
+    '#2ecc71', // green
+    '#f1c40f', // yellow
+];
+let drawCurrentColor = DRAW_COLORS[0];
+let drawIsErasing = false;
+let drawGrid = null; // 2D array of hex colors or null
+let drawMouseDown = false;
+
+const openDrawOverlay = () => {
+    drawGrid = [];
+    for (let y = 0; y < DRAW_GRID_SIZE; y++) {
+        drawGrid[y] = [];
+        for (let x = 0; x < DRAW_GRID_SIZE; x++) {
+            drawGrid[y][x] = null;
+        }
+    }
+    drawCurrentColor = DRAW_COLORS[0];
+    drawIsErasing = false;
+    drawMouseDown = false;
+
+    // Build palette
+    const palette = $('draw-palette');
+    palette.innerHTML = '';
+    DRAW_COLORS.forEach(c => {
+        const swatch = document.createElement('div');
+        swatch.className = 'draw-color' + (c === drawCurrentColor ? ' active' : '');
+        swatch.style.background = c;
+        swatch.onclick = () => {
+            drawCurrentColor = c;
+            drawIsErasing = false;
+            palette.querySelectorAll('.draw-color').forEach(s => s.classList.remove('active'));
+            swatch.classList.add('active');
+        };
+        palette.appendChild(swatch);
+    });
+    // Eraser
+    const eraser = document.createElement('div');
+    eraser.className = 'draw-color eraser';
+    eraser.onclick = () => {
+        drawIsErasing = true;
+        drawCurrentColor = null;
+        palette.querySelectorAll('.draw-color').forEach(s => s.classList.remove('active'));
+        eraser.classList.add('active');
+    };
+    palette.appendChild(eraser);
+
+    $('draw-name').value = '';
+    renderDrawCanvas();
+    $('draw-overlay').classList.add('visible');
+};
+
+const closeDrawOverlay = () => {
+    $('draw-overlay').classList.remove('visible');
+    drawGrid = null;
+};
+
+const renderDrawCanvas = () => {
+    const canvas = $('draw-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw pixels
+    for (let y = 0; y < DRAW_GRID_SIZE; y++) {
+        for (let x = 0; x < DRAW_GRID_SIZE; x++) {
+            if (drawGrid[y][x]) {
+                ctx.fillStyle = drawGrid[y][x];
+                ctx.fillRect(x * DRAW_PIXEL_SIZE, y * DRAW_PIXEL_SIZE, DRAW_PIXEL_SIZE, DRAW_PIXEL_SIZE);
+            }
+        }
+    }
+
+    // Draw grid lines
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= DRAW_GRID_SIZE; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * DRAW_PIXEL_SIZE, 0);
+        ctx.lineTo(i * DRAW_PIXEL_SIZE, canvas.height);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, i * DRAW_PIXEL_SIZE);
+        ctx.lineTo(canvas.width, i * DRAW_PIXEL_SIZE);
+        ctx.stroke();
+    }
+};
+
+const drawAtPos = (canvas, clientX, clientY) => {
+    if (!drawGrid) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor((clientX - rect.left) / DRAW_PIXEL_SIZE);
+    const y = Math.floor((clientY - rect.top) / DRAW_PIXEL_SIZE);
+    if (x < 0 || x >= DRAW_GRID_SIZE || y < 0 || y >= DRAW_GRID_SIZE) return;
+    drawGrid[y][x] = drawIsErasing ? null : drawCurrentColor;
+    renderDrawCanvas();
+};
+
+// Canvas mouse/touch events
+document.addEventListener('DOMContentLoaded', () => {
+    const canvas = $('draw-canvas');
+    if (!canvas) return;
+    canvas.addEventListener('mousedown', (e) => { drawMouseDown = true; drawAtPos(canvas, e.clientX, e.clientY); });
+    canvas.addEventListener('mousemove', (e) => { if (drawMouseDown) drawAtPos(canvas, e.clientX, e.clientY); });
+    canvas.addEventListener('mouseup', () => { drawMouseDown = false; });
+    canvas.addEventListener('mouseleave', () => { drawMouseDown = false; });
+    // Touch
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); drawAtPos(canvas, e.touches[0].clientX, e.touches[0].clientY); });
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); drawAtPos(canvas, e.touches[0].clientX, e.touches[0].clientY); });
+});
+
+const saveDrawing = () => {
+    if (!drawGrid) return;
+    const name = $('draw-name').value.trim() || ('drawing-' + Date.now());
+
+    // Render to a clean canvas (no grid lines)
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = DRAW_GRID_SIZE;
+    exportCanvas.height = DRAW_GRID_SIZE;
+    const ctx = exportCanvas.getContext('2d');
+    for (let y = 0; y < DRAW_GRID_SIZE; y++) {
+        for (let x = 0; x < DRAW_GRID_SIZE; x++) {
+            if (drawGrid[y][x]) {
+                ctx.fillStyle = drawGrid[y][x];
+                ctx.fillRect(x, y, 1, 1);
+            }
+        }
+    }
+
+    exportCanvas.toBlob((blob) => {
+        if (!blob) { setStatus('Failed to export image'); return; }
+        const file = new File([blob], name + '.png', { type: 'image/png' });
+        setStatus('Saving drawing...');
+        apiUpload(file, name)
+            .then(() => {
+                setStatus('Drawing saved');
+                closeDrawOverlay();
+                loadAssets(true);
+            })
+            .catch(err => {
+                console.error('Failed to save drawing', err);
+                setStatus('Failed to save drawing');
+            });
+    }, 'image/png');
+};
+
+$('draw-save').onclick = saveDrawing;
+$('draw-cancel').onclick = closeDrawOverlay;
+$('draw-clear').onclick = () => {
+    if (!drawGrid) return;
+    for (let y = 0; y < DRAW_GRID_SIZE; y++) {
+        for (let x = 0; x < DRAW_GRID_SIZE; x++) {
+            drawGrid[y][x] = null;
+        }
+    }
+    renderDrawCanvas();
+};
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        if ($('draw-overlay').classList.contains('visible')) closeDrawOverlay();
+        if ($('record-overlay').classList.contains('visible')) closeRecordOverlay();
+    }
+});
+
+// ---------------------------------------------------------------------------
+// Audio Recording
+// ---------------------------------------------------------------------------
+
+let mediaRecorder = null;
+let recordedChunks = [];
+let recordingStream = null;
+let recTimerInterval = null;
+let recStartTime = null;
+let recPausedDuration = 0;
+let recPauseStart = null;
+let recBlob = null;
+
+const formatRecTime = (ms) => {
+    const secs = Math.floor(ms / 1000);
+    const mins = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${mins}:${s < 10 ? '0' : ''}${s}`;
+};
+
+const updateRecTimer = () => {
+    if (!recStartTime) return;
+    const paused = recPauseStart ? (Date.now() - recPauseStart) : 0;
+    const elapsed = Date.now() - recStartTime - recPausedDuration - paused;
+    $('rec-timer').textContent = formatRecTime(Math.max(0, elapsed));
+};
+
+const openRecordOverlay = () => {
+    recBlob = null;
+    recordedChunks = [];
+    recStartTime = null;
+    recPausedDuration = 0;
+    recPauseStart = null;
+
+    $('rec-timer').textContent = '0:00';
+    $('rec-indicator').className = 'record-indicator stopped';
+    $('rec-start').style.display = '';
+    $('rec-pause').style.display = 'none';
+    $('rec-stop').style.display = 'none';
+    $('rec-preview').style.display = 'none';
+    $('rec-preview').innerHTML = '';
+    $('rec-name').style.display = 'none';
+    $('rec-name').value = '';
+    $('rec-save-row').style.display = 'none';
+
+    $('record-overlay').classList.add('visible');
+};
+
+const closeRecordOverlay = () => {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+    }
+    if (recordingStream) {
+        recordingStream.getTracks().forEach(t => t.stop());
+        recordingStream = null;
+    }
+    if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
+    mediaRecorder = null;
+    recBlob = null;
+    $('record-overlay').classList.remove('visible');
+};
+
+const startRecording = () => {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+            recordingStream = stream;
+            recordedChunks = [];
+            recBlob = null;
+
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) recordedChunks.push(e.data);
+            };
+            mediaRecorder.onstop = () => {
+                recBlob = new Blob(recordedChunks, { type: 'audio/webm' });
+                if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
+                showRecordingPreview();
+            };
+
+            mediaRecorder.start(100); // collect in 100ms chunks
+            recStartTime = Date.now();
+            recPausedDuration = 0;
+            recPauseStart = null;
+            recTimerInterval = setInterval(updateRecTimer, 200);
+
+            $('rec-indicator').className = 'record-indicator recording';
+            $('rec-start').style.display = 'none';
+            $('rec-pause').style.display = '';
+            $('rec-pause').textContent = '❚❚ Pause';
+            $('rec-stop').style.display = '';
+        })
+        .catch(err => {
+            console.error('Microphone access denied', err);
+            setStatus('Microphone access denied');
+        });
+};
+
+const pauseRecording = () => {
+    if (!mediaRecorder) return;
+    if (mediaRecorder.state === 'recording') {
+        mediaRecorder.pause();
+        recPauseStart = Date.now();
+        $('rec-indicator').className = 'record-indicator paused';
+        $('rec-pause').textContent = '▶ Continue';
+    } else if (mediaRecorder.state === 'paused') {
+        if (recPauseStart) { recPausedDuration += Date.now() - recPauseStart; recPauseStart = null; }
+        mediaRecorder.resume();
+        $('rec-indicator').className = 'record-indicator recording';
+        $('rec-pause').textContent = '❚❚ Pause';
+    }
+};
+
+const stopRecording = () => {
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+    if (recPauseStart) { recPausedDuration += Date.now() - recPauseStart; recPauseStart = null; }
+    mediaRecorder.stop();
+    if (recordingStream) {
+        recordingStream.getTracks().forEach(t => t.stop());
+        recordingStream = null;
+    }
+    $('rec-indicator').className = 'record-indicator stopped';
+    $('rec-pause').style.display = 'none';
+    $('rec-stop').style.display = 'none';
+};
+
+const showRecordingPreview = () => {
+    if (!recBlob) return;
+    const url = URL.createObjectURL(recBlob);
+    const preview = $('rec-preview');
+    preview.innerHTML = '';
+    const audio = document.createElement('audio');
+    audio.controls = true;
+    audio.src = url;
+    preview.appendChild(audio);
+    preview.style.display = '';
+    $('rec-name').style.display = '';
+    $('rec-save-row').style.display = 'flex';
+};
+
+const saveRecording = () => {
+    if (!recBlob) return;
+    const name = $('rec-name').value.trim() || ('recording-' + Date.now());
+    const file = new File([recBlob], name + '.webm', { type: 'audio/webm' });
+    setStatus('Saving recording...');
+    $('rec-save').disabled = true;
+    apiUpload(file, name)
+        .then(() => {
+            setStatus('Recording saved');
+            closeRecordOverlay();
+            loadAssets(true);
+        })
+        .catch(err => {
+            console.error('Failed to save recording', err);
+            setStatus('Failed to save recording');
+            $('rec-save').disabled = false;
+        });
+};
+
+$('rec-start').onclick = startRecording;
+$('rec-pause').onclick = pauseRecording;
+$('rec-stop').onclick = stopRecording;
+$('rec-save').onclick = saveRecording;
+$('rec-cancel').onclick = closeRecordOverlay;
