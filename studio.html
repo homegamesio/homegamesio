@@ -17,6 +17,14 @@
             #studio-login .login-btn { background: #A0EB5D; color: #1a1a2e; border: none; cursor: pointer; font-weight: bold; }
             #studio-login .login-btn:hover { background: #8cd94f; }
             #studio-login .login-error { color: rgba(241, 112, 111, 255); min-height: 20px; font-size: 0.9em; }
+            #studio-login .auth-toggle { color: #888; font-size: 0.85em; margin-top: 10px; }
+            #studio-login .auth-toggle a { color: rgba(148, 210, 229, 255); cursor: pointer; text-decoration: none; }
+            #studio-login .auth-toggle a:hover { text-decoration: underline; }
+            #studio-login .auth-form { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+            #studio-login .tos-row { display: flex; align-items: center; gap: 8px; width: 280px; font-size: 0.8em; color: #888; margin-top: 2px; }
+            #studio-login .tos-row input[type="checkbox"] { width: auto; margin: 0; }
+            #studio-login .tos-row a { color: rgba(148, 210, 229, 255); text-decoration: none; }
+            #studio-login .tos-row a:hover { text-decoration: underline; }
 
             /* App shell */
             #studio-app { display: none; flex-direction: column; height: 100vh; }
@@ -232,10 +240,29 @@
     <body>
         <div id="studio-login">
             <h1>Homegames Studio</h1>
-            <input type="text" id="login-username" placeholder="Username" autocomplete="username">
-            <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
-            <input type="submit" class="login-btn" value="Log in" id="login-btn">
-            <div class="login-error" id="login-error"></div>
+
+            <!-- Login form -->
+            <div id="login-form" class="auth-form">
+                <input type="text" id="login-username" placeholder="Username" autocomplete="username">
+                <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+                <input type="submit" class="login-btn" value="Log in" id="login-btn">
+                <div class="login-error" id="login-error"></div>
+                <div class="auth-toggle">Don't have an account? <a id="show-signup">Sign up</a></div>
+            </div>
+
+            <!-- Signup form (hidden by default) -->
+            <div id="signup-form" class="auth-form" style="display: none;">
+                <input type="text" id="signup-username" placeholder="Username" autocomplete="username">
+                <input type="password" id="signup-password" placeholder="Password" autocomplete="new-password">
+                <input type="password" id="signup-password-confirm" placeholder="Confirm password" autocomplete="new-password">
+                <div class="tos-row">
+                    <input type="checkbox" id="signup-tos">
+                    <label for="signup-tos">I agree to the <a href="/terms" target="_blank">Terms of Service</a></label>
+                </div>
+                <input type="submit" class="login-btn" value="Sign up" id="signup-btn">
+                <div class="login-error" id="signup-error"></div>
+                <div class="auth-toggle">Already have an account? <a id="show-login">Log in</a></div>
+            </div>
         </div>
 
         <div id="studio-app">

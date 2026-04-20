@@ -85,6 +85,69 @@ $('login-password').addEventListener('keydown', (e) => { if (e.key === 'Enter') 
 $('login-username').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('login-password').focus(); });
 
 // ---------------------------------------------------------------------------
+// Signup
+// ---------------------------------------------------------------------------
+
+const doSignup = () => {
+    const username = $('signup-username').value.trim();
+    const password = $('signup-password').value;
+    const confirm = $('signup-password-confirm').value;
+    const tos = $('signup-tos').checked;
+    const errorEl = $('signup-error');
+    errorEl.textContent = '';
+
+    if (!username || !password) { errorEl.textContent = 'Username and password required'; return; }
+    if (password !== confirm) { errorEl.textContent = 'Passwords do not match'; return; }
+    if (!tos) { errorEl.textContent = 'You must agree to the Terms of Service'; return; }
+
+    $('signup-btn').disabled = true;
+    $('signup-btn').value = 'Signing up...';
+
+    api('POST', '/auth/signup', { username, password })
+        .then(data => {
+            // API returns { token: { userId, token } }
+            const tokenData = data.token || data;
+            const token = tokenData.token || tokenData;
+            const userId = tokenData.userId || username;
+
+            if (token) {
+                userInfo = { username: userId, token };
+                $('studio-login').style.display = 'none';
+                $('studio-app').style.display = 'flex';
+                $('user-info').textContent = userInfo.username;
+                loadGames();
+            } else {
+                errorEl.textContent = 'Signup failed';
+            }
+        })
+        .catch(err => {
+            const msg = (err && err.error) || (typeof err === 'string' ? err : 'Signup failed');
+            errorEl.textContent = msg;
+        })
+        .finally(() => { $('signup-btn').disabled = false; $('signup-btn').value = 'Sign up'; });
+};
+
+$('signup-btn').onclick = doSignup;
+$('signup-password-confirm').addEventListener('keydown', (e) => { if (e.key === 'Enter') doSignup(); });
+$('signup-username').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('signup-password').focus(); });
+$('signup-password').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('signup-password-confirm').focus(); });
+
+// Toggle between login and signup forms
+$('show-signup').onclick = () => {
+    $('login-form').style.display = 'none';
+    $('signup-form').style.display = 'flex';
+    $('signup-error').textContent = '';
+    $('signup-username').focus();
+};
+
+$('show-login').onclick = () => {
+    $('signup-form').style.display = 'none';
+    $('login-form').style.display = 'flex';
+    $('login-error').textContent = '';
+    $('login-username').focus();
+};
+
+// ---------------------------------------------------------------------------
 // Game list
 // ---------------------------------------------------------------------------
 
