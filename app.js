@@ -144,6 +144,11 @@ const server = http.createServer((req, res) => {
                 res.setHeader('Content-Type', 'text/javascript');
                 const payload = fs.readFileSync(path.join(__dirname, 'studio.js'));
                 res.end(payload);
+            } else if (req.url === '/socket-worker.js') {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/javascript');
+                const payload = fs.readFileSync(path.join(__dirname, 'socket-worker.js'));
+                res.end(payload);
             } else if (req.url === '/homegames-client.js') {
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'text/javascript');

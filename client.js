@@ -3,6 +3,7 @@ window.API_HOST = 'localhost';//'api.homegames.io';//'api.homegames.io';//'api.h
 window.API_PORT = 80;
 
 window.API_URL = `${window.API_PROTOCOL}://${window.API_HOST}:${window.API_PORT}`;
+window.HOMENAMES_URL = 'http://localhost:7400';
 
 const marked = require('marked');   
 
@@ -390,114 +391,266 @@ const searchBlogContent = (query, limit, offset) => new Promise((resolve, reject
 });
 
 const renderGamePage = (gameId, gameDetails) => {
-    console.log('gngngng');
-    console.log(gameDetails)
     const container = document.createElement('div');
     container.style = 'display: grid; grid-template-columns: 1fr 2fr 1fr; height: 100%; margin: 24px;';
+
+    // --- Column 1: Image + Author ---
+    const col1 = document.createElement('div');
+    col1.style = 'text-align: center';
 
     const gameImageWrapper = document.createElement('div');
     gameImageWrapper.style = 'width: 100%;';
 
     if (gameDetails?.game?.thumbnail) {
         const gameImage = document.createElement('img');
-        gameImage.src  = `${ASSET_URL}/${gameDetails?.game?.thumbnail}`;
+        gameImage.src = `${ASSET_URL}/${gameDetails?.game?.thumbnail}`;
         gameImage.style = 'min-width: 360px; max-width: 360px; max-height: 360px';
         gameImage.setAttribute('alt', `${gameDetails?.game?.name} image`);
         gameImageWrapper.appendChild(gameImage);
     }
 
-    const gameTitle = document.createElement('h1');
-    gameTitle.className = 'amateur';
-    gameTitle.innerHTML = gameDetails?.game?.name || 'Unknown game';
-
     const author = document.createElement('h2');
     const by = document.createElement('span');
     by.innerHTML = 'by';
-
     const authorLink = document.createElement('a');
     authorLink.innerHTML = gameDetails?.game?.developerId;
     authorLink.href = `${window.location.origin}/dev.html?id=${gameDetails?.game?.developerId}`;
     authorLink.style = 'color: #F1706F; text-decoration: none; margin-left: 6px;';
-
     author.appendChild(by);
     author.appendChild(authorLink);
 
-    const tryItWrapper = document.createElement('a');
-    tryItWrapper.style = 'text-align: center; text-decoration: none';
+    col1.appendChild(gameImageWrapper);
+    col1.appendChild(author);
 
-    const tryItSvgWrapper = document.createElement('div');
-    tryItSvgWrapper.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="120px" height="120px" viewBox="0 0 24 24" fill="none">
-            <rect width="24" height="24" fill="#fbfff2"/>
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M3 5.49686C3 3.17662 5.52116 1.73465 7.52106 2.91106L18.5764 9.41423C20.5484 10.5742 20.5484 13.4259 18.5764 14.5858L7.52106 21.089C5.52116 22.2654 3 20.8234 3 18.5032V5.49686Z" fill="#A0EB5D"/>
-        </svg>`;
+    // --- Column 2: Title + Description ---
+    const col2 = document.createElement('div');
+    col2.style = 'margin-left: 24px;';
 
-    const tryIt = document.createElement('h3');
-    tryIt.innerHTML = 'Try it';
-    tryIt.style = 'text-decoration: none; color: #A0EB5D';
-
-    tryItWrapper.href = `https://picodeg.io?gameId=${gameDetails?.game?.id}`;
-    tryItWrapper.target = '_blank';
+    const gameTitle = document.createElement('h1');
+    gameTitle.className = 'amateur';
+    gameTitle.innerHTML = gameDetails?.game?.name || 'Unknown game';
 
     const description = document.createElement('div');
     description.innerHTML = gameDetails?.game?.description || 'No description available';
     description.style = 'margin-top: 24px;';
 
-    const publishedVersionsCount = document.createElement('div');
-    const versions = gameDetails?.versions || [];
-    const reviewedVersions = versions.filter(v => v.isReviewed);
-    publishedVersionsCount.innerHTML = `${versions.length} published versions (${reviewedVersions.length} reviewed)`;
-
-    const lastPublished = document.createElement('div');
-    lastPublished.innerHTML = `Last published ${versions.length > 0 ? formatDate(versions[versions.length - 1].publishedAt) : 'N/A'}`;
-
-    const firstPublished = document.createElement('div');
-    firstPublished.innerHTML = `First published ${versions.length > 0 ? formatDate(versions[0].publishedAt) : 'N/A'}`;
-
-    firstPublished.style = 'margin-bottom: 8px';
-
-    const col1 = document.createElement('div');
-    col1.style = 'text-align: center';
-
-    col1.appendChild(gameImageWrapper);
-    col1.appendChild(author);
-
-    const col2 = document.createElement('div');
     col2.appendChild(gameTitle);
     col2.appendChild(description);
-    col2.style = 'margin-left: 24px;';
 
+    // --- Column 3: Play section ---
     const col3 = document.createElement('div');
-    col3.style = 'text-align: center; margin-top: 25%;';
-    
+    col3.style = 'text-align: center; padding-top: 24px;';
+
+    // Fetch published versions from the API
+    const versionSection = document.createElement('div');
+    versionSection.style = 'margin-bottom: 24px;';
+
+    const versionLabel = document.createElement('div');
+    versionLabel.innerHTML = 'Loading versions...';
+    versionLabel.className = 'amateur';
+    versionSection.appendChild(versionLabel);
+
+    const versionSelect = document.createElement('select');
+    versionSelect.style = 'width: 180px; padding: 6px; margin-top: 8px; display: none;';
+
+    const createBtn = document.createElement('div');
+    createBtn.innerHTML = '▶ Create Session';
+    createBtn.className = 'clickable amateur';
+    createBtn.style = 'background: #A0EB5D; color: #333; padding: 12px 24px; border-radius: 8px; display: inline-block; margin-top: 12px; font-size: 1.1em; cursor: pointer; display: none;';
+
+    const statusMsg = document.createElement('div');
+    statusMsg.style = 'margin-top: 8px; font-size: 0.9em; color: #888;';
+
+    versionSection.appendChild(versionSelect);
+    versionSection.appendChild(createBtn);
+    versionSection.appendChild(statusMsg);
+
+    // Session list
+    const sessionSection = document.createElement('div');
+    sessionSection.style = 'margin-top: 24px; text-align: left;';
+
+    const sessionHeader = document.createElement('h3');
+    sessionHeader.className = 'amateur';
+    sessionHeader.innerHTML = 'Active Sessions';
+    sessionHeader.style = 'text-align: center;';
+
+    const sessionList = document.createElement('div');
+    sessionList.style = 'margin-top: 8px;';
+
+    sessionSection.appendChild(sessionHeader);
+    sessionSection.appendChild(sessionList);
+
+    col3.appendChild(versionSection);
+    col3.appendChild(sessionSection);
+
     container.appendChild(col1);
     container.appendChild(col2);
     container.appendChild(col3);
 
-    if (versions.length > 0) {
-//        col3.appendChild(tryItSvg);
-        tryItWrapper.appendChild(tryItSvgWrapper);
-        tryItWrapper.appendChild(tryIt);
-        col3.appendChild(tryItWrapper);
-    }
-    col3.appendChild(publishedVersionsCount);
-    col1.appendChild(firstPublished);
-    col1.appendChild(lastPublished);
+    // --- Load published versions ---
+    makeGet(`${API_URL}/games/${gameId}/published-versions`).then(_data => {
+        const data = JSON.parse(_data);
+        const publishedVersions = data.versions || [];
 
-    if (window.hgUserInfo?.isAdmin) {
-        const deleteButton = document.createElement('div');
-        deleteButton.onclick = () => {
-            makeDelete(`${API_URL}/games/${gameDetails?.game?.id}`).then((res) => {
-                console.log('made request');
-                console.log(res);
-            });
-        };
+        if (publishedVersions.length === 0) {
+            versionLabel.innerHTML = 'No published versions';
+            return;
+        }
 
-        deleteButton.innerHTML = 'Delete';
-        col1.appendChild(deleteButton);
-    }
+        versionLabel.innerHTML = 'Version:';
+        versionSelect.style.display = '';
+        createBtn.style.display = 'inline-block';
+
+        publishedVersions.forEach((v, i) => {
+            const opt = document.createElement('option');
+            opt.value = v.commitSha;
+            const dateStr = v.publishedAt ? new Date(v.publishedAt).toLocaleDateString() : '';
+            opt.textContent = `${v.commitSha.substring(0, 7)} — ${dateStr}`;
+            versionSelect.appendChild(opt);
+        });
+
+        // Load active sessions
+        loadGameSessions(gameId, sessionList);
+
+    }).catch(err => {
+        versionLabel.innerHTML = 'Failed to load versions';
+        console.error(err);
+    });
+
+    // --- Create session handler ---
+    createBtn.onclick = () => {
+        const commitSha = versionSelect.value;
+        if (!commitSha) return;
+
+        createBtn.style.display = 'none';
+        statusMsg.innerHTML = 'Starting session...';
+
+        makePost(`${API_URL}/sessions`, { gameId, commitSha }).then(sessionData => {
+            statusMsg.innerHTML = '';
+            createBtn.style.display = 'inline-block';
+            // Refresh session list
+            loadGameSessions(gameId, sessionList);
+            // Connect to the new session
+            connectToSession(sessionData, container);
+        }).catch(err => {
+            statusMsg.innerHTML = 'Failed to create session';
+            createBtn.style.display = 'inline-block';
+            console.error(err);
+        });
+    };
 
     return container;
+};
+
+// ---------------------------------------------------------------------------
+// Session helpers for game page
+// ---------------------------------------------------------------------------
+
+const loadGameSessions = (gameId, listEl) => {
+    listEl.innerHTML = '<div style="text-align: center; color: #888;">Loading...</div>';
+
+    makeGet(`${window.HOMENAMES_URL}/sessions`).then(_data => {
+        const data = JSON.parse(_data);
+        const allSessions = data.sessions || [];
+        // Filter to sessions for this game
+        const gameSessions = allSessions.filter(s => s.gameId === gameId);
+
+        listEl.innerHTML = '';
+
+        if (gameSessions.length === 0) {
+            listEl.innerHTML = '<div style="text-align: center; color: #888;">No active sessions</div>';
+            return;
+        }
+
+        gameSessions.forEach(s => {
+            const row = document.createElement('div');
+            row.style = 'display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 6px;';
+
+            const info = document.createElement('div');
+            info.innerHTML = `Session #${s.id} — ${s.playerCount || 0} player(s)`;
+            info.style = 'font-size: 0.9em;';
+
+            const joinBtn = document.createElement('div');
+            joinBtn.innerHTML = 'Join';
+            joinBtn.className = 'clickable';
+            joinBtn.style = 'background: #A0EB5D; color: #333; padding: 4px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;';
+            joinBtn.onclick = () => {
+                const wsUrl = `ws://${window.HOMENAMES_URL.replace(/^https?:\/\//, '').replace(/:\d+$/, '')}:${s.port}`;
+                connectToSession({ wsUrl, sessionId: s.id, port: s.port }, row.closest('#content') || document.getElementById('content'));
+            };
+
+            row.appendChild(info);
+            row.appendChild(joinBtn);
+            listEl.appendChild(row);
+        });
+    }).catch(err => {
+        listEl.innerHTML = '<div style="text-align: center; color: #888;">Could not load sessions</div>';
+        console.error(err);
+    });
+};
+
+const connectToSession = (sessionData) => {
+    // sessionData: { wsUrl, sessionId, port }
+    const wsUrl = sessionData.wsUrl;
+
+    if (!wsUrl) {
+        console.error('No WebSocket URL in session data');
+        return;
+    }
+
+    // Replace the page content with game container
+    const contentEl = document.getElementById('content');
+    clearChildren(contentEl);
+
+    const backBtn = document.createElement('div');
+    backBtn.innerHTML = '← Back';
+    backBtn.className = 'clickable amateur';
+    backBtn.style = 'padding: 12px 24px; cursor: pointer; color: #A0EB5D;';
+    backBtn.onclick = () => {
+        if (window._hgClient) {
+            window._hgClient.stop();
+            window._hgClient = null;
+        }
+        const urlParams = new URLSearchParams(window.location.search);
+        const gameParam = urlParams.get('id');
+        if (gameParam) showGamePage(gameParam);
+    };
+
+    const gameContainer = document.createElement('div');
+    gameContainer.id = 'game-container';
+    gameContainer.style = 'width: 100%; height: 80vh; background: #000;';
+
+    const statusEl = document.createElement('div');
+    statusEl.style = 'text-align: center; padding: 12px; color: #888;';
+    statusEl.innerHTML = 'Connecting...';
+
+    contentEl.appendChild(backBtn);
+    contentEl.appendChild(gameContainer);
+    contentEl.appendChild(statusEl);
+
+    // Use HomegamesClient library
+    if (typeof HomegamesClient === 'undefined') {
+        statusEl.innerHTML = 'Game client library not loaded';
+        return;
+    }
+
+    const client = new HomegamesClient({
+        containerId: 'game-container',
+        wsUrl: wsUrl,
+        onReady: (playerId) => {
+            statusEl.innerHTML = 'Playing as player ' + playerId;
+        },
+        onClose: () => {
+            statusEl.innerHTML = 'Disconnected';
+        },
+        onError: (err) => {
+            statusEl.innerHTML = 'Connection error';
+            console.error('Game client error:', err);
+        },
+    });
+
+    window._hgClient = client;
+    client.start();
 };
 
 const renderDevProfile = (devId, devInfo) =>  {

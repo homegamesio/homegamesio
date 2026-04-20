@@ -18,6 +18,7 @@ let openFiles = {};      // path -> { content, sha, dirty, original }
 let versions = [];
 let versionPage = 1;
 let viewingVersion = null; // null = HEAD, or { sha, message, date }
+let publishStatuses = {};  // commitSha -> { status, error, requestId, ... }
 let previewClient = null;
 let previewOpen = false;
 let previewDebounceTimer = null;
@@ -183,10 +184,12 @@ const selectGame = (game) => {
     versionPage = 1;
     viewingVersion = null;
     cloneInfo = null;
+    publishStatuses = {};
     renderGameList();
     renderGameView();
     loadFiles();
     loadVersions();
+    loadPublishStatuses();
     if (assetPanelOpen) loadAssets(true);
 };
 
@@ -698,6 +701,43 @@ const renderVersionList = () => {
         el.appendChild(top);
         el.appendChild(msg);
 
+        // Publish status / action
+        const pubStatus = publishStatuses[v.sha];
+        const pubRow = document.createElement('div');
+        pubRow.className = 'v-publish-row';
+
+        if (pubStatus) {
+            const badge = document.createElement('span');
+            badge.className = 'v-publish-badge ' + pubStatus.status.toLowerCase();
+            badge.textContent = pubStatus.status;
+            pubRow.appendChild(badge);
+
+            if (pubStatus.status === 'FAILED' && pubStatus.error) {
+                const errMsg = document.createElement('span');
+                errMsg.className = 'v-publish-error';
+                errMsg.textContent = pubStatus.error;
+                errMsg.title = pubStatus.error;
+                pubRow.appendChild(errMsg);
+            }
+
+            // Allow resubmit if failed
+            if (pubStatus.status === 'FAILED') {
+                const retryBtn = document.createElement('span');
+                retryBtn.className = 'v-publish-btn';
+                retryBtn.textContent = '↻ Retry';
+                retryBtn.onclick = (e) => { e.stopPropagation(); submitForPublishing(v.sha); };
+                pubRow.appendChild(retryBtn);
+            }
+        } else {
+            const publishBtn = document.createElement('span');
+            publishBtn.className = 'v-publish-btn';
+            publishBtn.textContent = '📦 Publish';
+            publishBtn.onclick = (e) => { e.stopPropagation(); submitForPublishing(v.sha); };
+            pubRow.appendChild(publishBtn);
+        }
+
+        el.appendChild(pubRow);
+
         if (isActive && viewingVersion) {
             const restore = document.createElement('span');
             restore.className = 'v-restore';
@@ -728,6 +768,87 @@ const renderVersionList = () => {
         next.onclick = () => { versionPage++; loadVersions(); };
         footer.appendChild(next);
     }
+};
+
+// ---------------------------------------------------------------------------
+// Publish statuses
+// ---------------------------------------------------------------------------
+
+const loadPublishStatuses = () => {
+    if (!currentGame) return;
+    api('GET', `/studio/games/${currentGame.id}/publish-status`)
+        .then(data => {
+            publishStatuses = {};
+            (data.requests || []).forEach(r => {
+                // Keep the most recent request per commitSha
+                if (!publishStatuses[r.commitSha] || r.created > publishStatuses[r.commitSha].created) {
+                    publishStatuses[r.commitSha] = r;
+                }
+            });
+            renderVersionList();
+        })
+        .catch(err => console.error('Failed to load publish statuses', err));
+};
+
+const submitForPublishing = (commitSha) => {
+    if (!currentGame) return;
+    if (!confirm(`Submit version ${commitSha.substring(0, 7)} for publishing?`)) return;
+
+    setStatus('Submitting publish request...');
+
+    api('POST', `/studio/games/${currentGame.id}/publish`, { commitSha })
+        .then(data => {
+            publishStatuses[commitSha] = {
+                requestId: data.requestId,
+                commitSha,
+                status: data.status || 'PENDING',
+                created: Date.now(),
+            };
+            renderVersionList();
+            setStatus('Publish request submitted');
+
+            // Poll for status updates
+            pollPublishStatus(commitSha);
+        })
+        .catch(err => {
+            const msg = (err && err.error) || 'Failed to submit publish request';
+            setStatus(msg);
+        });
+};
+
+const pollPublishStatus = (commitSha) => {
+    if (!currentGame) return;
+    const gameId = currentGame.id;
+
+    const poll = () => {
+        // Stop polling if user navigated away
+        if (!currentGame || currentGame.id !== gameId) return;
+
+        const current = publishStatuses[commitSha];
+        if (!current || current.status === 'PUBLISHED' || current.status === 'FAILED') return;
+
+        api('GET', `/studio/games/${gameId}/publish-status`)
+            .then(data => {
+                (data.requests || []).forEach(r => {
+                    if (!publishStatuses[r.commitSha] || r.created >= publishStatuses[r.commitSha].created) {
+                        publishStatuses[r.commitSha] = r;
+                    }
+                });
+                renderVersionList();
+
+                const updated = publishStatuses[commitSha];
+                if (updated && (updated.status === 'PENDING' || updated.status === 'PROCESSING')) {
+                    setTimeout(poll, 3000);
+                } else if (updated && updated.status === 'PUBLISHED') {
+                    setStatus('Version published successfully! 🎉');
+                } else if (updated && updated.status === 'FAILED') {
+                    setStatus('Publish failed: ' + (updated.error || 'unknown error'));
+                }
+            })
+            .catch(() => setTimeout(poll, 5000));
+    };
+
+    setTimeout(poll, 2000);
 };
 
 const viewVersion = (v) => {
