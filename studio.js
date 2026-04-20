@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 const API_URL = 'http://localhost:80';
-const PREVIEW_SERVER_URL = 'ws://localhost:7001';
+const HOMENAMES_URL = 'http://localhost:7400';
 
 // ---------------------------------------------------------------------------
 // State
@@ -20,6 +20,7 @@ let versionPage = 1;
 let viewingVersion = null; // null = HEAD, or { sha, message, date }
 let publishStatuses = {};  // commitSha -> { status, error, requestId, ... }
 let previewClient = null;
+let previewSessionId = null;
 let previewOpen = false;
 let previewDebounceTimer = null;
 
@@ -1075,53 +1076,82 @@ const togglePreviewPanel = () => {
     }
 };
 
-const getPreviewCode = () => {
-    // Gather all open files' content. The main game file is typically index.js
-    // For preview, we send the currently active file's content.
-    // If the user has an index.js open, prefer that.
-    if (openFiles['index.js']) return openFiles['index.js'].content;
-    // Otherwise send whatever file is currently being edited
-    if (currentFile && openFiles[currentFile.path]) return openFiles[currentFile.path].content;
-    return null;
+const getPreviewFiles = () => {
+    // Gather all open files as a { path: content } map for multi-file preview.
+    // Uses the latest in-memory content (including unsaved edits).
+    const files = {};
+    for (const filePath in openFiles) {
+        files[filePath] = openFiles[filePath].content;
+    }
+    if (Object.keys(files).length === 0) return null;
+    if (!files['index.js']) {
+        // If index.js isn't open, we can't preview
+        return null;
+    }
+    return files;
 };
 
 const startPreview = () => {
-    const code = getPreviewCode();
-    if (!code) {
-        setPreviewStatus('No code to preview — open a file first');
+    const files = getPreviewFiles();
+    if (!files) {
+        setPreviewStatus('Open index.js to preview');
         return;
     }
 
     stopPreview();
 
-    setPreviewStatus('Connecting...');
+    setPreviewStatus('Starting session...');
 
-    try {
-        previewClient = new HomegamesClient({
-            url: PREVIEW_SERVER_URL,
-            containerId: 'preview-container',
-            code: code,
-            onReady: (playerId) => {
-                setPreviewStatus('Running (player ' + playerId + ')');
-                const playBtn = $('preview-play-btn');
-                const stopBtn = $('preview-stop-btn');
-                if (playBtn) { playBtn.textContent = '↻ Restart'; }
-                if (stopBtn) stopBtn.style.display = '';
-            },
-            onClose: () => {
-                setPreviewStatus('Disconnected');
-                resetPreviewButtons();
-            },
-            onError: (err) => {
-                setPreviewStatus('Error: ' + (err.message || err));
-                resetPreviewButtons();
-            },
-        });
-        previewClient.start();
-    } catch (err) {
-        setPreviewStatus('Error: ' + err.message);
-        resetPreviewButtons();
-    }
+    const playBtn = $('preview-play-btn');
+    const stopBtn = $('preview-stop-btn');
+    if (playBtn) playBtn.disabled = true;
+
+    // Create a session on Homenames with the game files
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${HOMENAMES_URL}/sessions`, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onreadystatechange = () => {
+        if (xhr.readyState !== XMLHttpRequest.DONE) return;
+
+        if (xhr.status >= 200 && xhr.status < 300) {
+            let data;
+            try { data = JSON.parse(xhr.response); } catch (e) {
+                setPreviewStatus('Invalid response from server');
+                if (playBtn) playBtn.disabled = false;
+                return;
+            }
+
+            previewSessionId = data.sessionId;
+            const wsUrl = data.wsUrl;
+
+            setPreviewStatus('Connecting...');
+
+            previewClient = new HomegamesClient({
+                containerId: 'preview-container',
+                wsUrl: wsUrl,
+                onReady: (playerId) => {
+                    setPreviewStatus('Running (player ' + playerId + ')');
+                    if (playBtn) { playBtn.textContent = '↻ Restart'; playBtn.disabled = false; }
+                    if (stopBtn) stopBtn.style.display = '';
+                },
+                onClose: () => {
+                    setPreviewStatus('Disconnected');
+                    resetPreviewButtons();
+                },
+                onError: (err) => {
+                    setPreviewStatus('Error: ' + (err.message || err));
+                    resetPreviewButtons();
+                },
+            });
+            previewClient.start();
+        } else {
+            let errMsg = 'Failed to start preview session';
+            try { errMsg = JSON.parse(xhr.response).error || errMsg; } catch (e) {}
+            setPreviewStatus(errMsg);
+            if (playBtn) playBtn.disabled = false;
+        }
+    };
+    xhr.send(JSON.stringify({ files }));
 };
 
 const stopPreview = () => {
@@ -1129,6 +1159,15 @@ const stopPreview = () => {
         previewClient.stop();
         previewClient = null;
     }
+
+    // Tell Homenames to kill the session
+    if (previewSessionId) {
+        const xhr = new XMLHttpRequest();
+        xhr.open('DELETE', `${HOMENAMES_URL}/sessions/${previewSessionId}`, true);
+        xhr.send();
+        previewSessionId = null;
+    }
+
     setPreviewStatus('');
     resetPreviewButtons();
 };
@@ -1136,17 +1175,14 @@ const stopPreview = () => {
 const resetPreviewButtons = () => {
     const playBtn = $('preview-play-btn');
     const stopBtn = $('preview-stop-btn');
-    if (playBtn) playBtn.textContent = '▶ Run';
+    if (playBtn) { playBtn.textContent = '▶ Run'; playBtn.disabled = false; }
     if (stopBtn) stopBtn.style.display = 'none';
 };
 
 const updatePreview = () => {
+    // Hot-reload: stop the old session and start a new one with updated code
     if (!previewClient) return;
-    const code = getPreviewCode();
-    if (code) {
-        previewClient.updateCode(code);
-        setPreviewStatus('Updated');
-    }
+    startPreview();
 };
 
 const debouncedUpdatePreview = () => {
