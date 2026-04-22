@@ -22,8 +22,12 @@
                     <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png"></img></div>
                 </div>
                 <div id="content">
-                    <div style="text-align: center;">
-                        <input type="text" id="search-box" placeholder="Find a game"></input>
+                    <div style="text-align: center; display: flex; justify-content: center; align-items: center; gap: 12px; padding: 12px;">
+                        <input type="text" id="search-box" placeholder="Find a game" style="height: 40px; padding: 5px; width: 300px;"></input>
+                        <label class="amateur" style="cursor: pointer; font-size: 1.1em;">
+                            <input type="checkbox" id="featured-filter" style="margin-right: 4px;" />
+                            ★ Featured
+                        </label>
                     </div>
                     <div id="catalog"></div>
                 </div>
@@ -42,7 +46,7 @@
         const searchBox = document.getElementById('search-box');
 
         const searchParams = new URLSearchParams(window.location.search);
-        let page = searchParams ? searchParams.get('page') : 1;
+        let page = (searchParams && searchParams.get('page')) ? Number(searchParams.get('page')) : 1;
         const pageSize = 6;
         const renderCatalogGames = (data, _page = 1) => {
             const games = data.games;
@@ -67,12 +71,12 @@
                 authorEl.className = 'amateur';
 
                 const thumbnailEl = document.createElement('div');
-                const imageContainer = document.createElement('img');
-                imageContainer.style = 'max-height: 200px; max-width: 300px; min-height: 200px';
-
-                imageContainer.setAttribute('src', window.API_URL + '/assets/' + game.thumbnail);
-
-                gameEl.appendChild(imageContainer);
+                if (game.thumbnail) {
+                    const imageContainer = document.createElement('img');
+                    imageContainer.style = 'max-height: 200px; max-width: 300px; min-height: 200px';
+                    imageContainer.setAttribute('src', window.API_URL + '/assets/' + game.thumbnail);
+                    gameEl.appendChild(imageContainer);
+                }
                 gameEl.appendChild(titleEl);
 
                 container.appendChild(gameEl);
@@ -115,25 +119,34 @@
             contentDiv.appendChild(buttonContainer);
         };
 
-        getAllGames(pageSize, page * pageSize).then((data) => {
-            renderCatalogGames(data, page);
-        });
+        const featuredCheckbox = document.getElementById('featured-filter');
 
-        searchBox.oninput = (e) => {
-            page = 1;
-
-            if (!e.target.value) {
-                getAllGames(pageSize, page * pageSize).then((data) => {
+        const refreshCatalog = () => {
+            const query = searchBox.value.trim();
+            const featured = featuredCheckbox.checked;
+            if (query) {
+                const featuredParam = featured ? '&featured=true' : '';
+                searchGames(query, pageSize, (page - 1) * pageSize).then((data) => {
                     renderCatalogGames(data, page);
                 });
             } else {
-                const query = e.target.value;
-
-                searchGames(query, pageSize, page * pageSize).then((data) => {
+                getAllGames(pageSize, (page - 1) * pageSize, featured || null).then((data) => {
                     renderCatalogGames(data, page);
                 });
             }
-        }
+        };
+
+        refreshCatalog();
+
+        searchBox.oninput = () => {
+            page = 1;
+            refreshCatalog();
+        };
+
+        featuredCheckbox.onchange = () => {
+            page = 1;
+            refreshCatalog();
+        };
 
     </script>
     <script>

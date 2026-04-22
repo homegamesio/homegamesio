@@ -353,6 +353,19 @@ const renderGameView = () => {
     versionBadge.textContent = 'HEAD';
     left.appendChild(versionBadge);
 
+    // Thumbnail indicator
+    if (currentGame.thumbnail) {
+        const thumbImg = document.createElement('img');
+        thumbImg.src = `${API_URL}/assets/${currentGame.thumbnail}`;
+        thumbImg.style = 'width:24px;height:24px;border-radius:3px;object-fit:cover;border:1px solid var(--border);';
+        left.appendChild(thumbImg);
+    }
+
+    const thumbBtn = document.createElement('button');
+    thumbBtn.className = 'clone-btn';
+    thumbBtn.textContent = '🖼 Thumbnail';
+    thumbBtn.onclick = () => toggleThumbnailPicker();
+
     const cloneBtn = document.createElement('button');
     cloneBtn.className = 'clone-btn';
     cloneBtn.textContent = '⤓ Clone';
@@ -375,6 +388,7 @@ const renderGameView = () => {
     rightHeader.style = 'display:flex;align-items:center;gap:8px';
     rightHeader.appendChild(assetToggle);
     rightHeader.appendChild(previewToggle);
+    rightHeader.appendChild(thumbBtn);
     rightHeader.appendChild(cloneBtn);
     header.appendChild(rightHeader);
     main.appendChild(header);
@@ -383,6 +397,11 @@ const renderGameView = () => {
     const popover = document.createElement('div');
     popover.id = 'clone-popover';
     main.appendChild(popover);
+
+    // Thumbnail picker popover (hidden by default)
+    const thumbPopover = document.createElement('div');
+    thumbPopover.id = 'thumbnail-popover';
+    main.appendChild(thumbPopover);
 
     // Editor area
     const editorArea = document.createElement('div');
@@ -418,13 +437,29 @@ const renderGameView = () => {
     placeholder.id = 'editor-placeholder';
     placeholder.textContent = 'Select or create a file to start editing';
     editorPane.appendChild(placeholder);
+    // Syntax highlight layer (behind textarea)
+    const editorWrap = document.createElement('div');
+    editorWrap.id = 'editor-wrap';
+    const highlightPre = document.createElement('pre');
+    highlightPre.id = 'editor-highlight';
+    const highlightCode = document.createElement('code');
+    highlightCode.id = 'editor-highlight-code';
+    highlightPre.appendChild(highlightCode);
+    editorWrap.appendChild(highlightPre);
+
     const textarea = document.createElement('textarea');
     textarea.id = 'editor-textarea';
     textarea.style.display = 'none';
     textarea.spellcheck = false;
-    editorPane.appendChild(textarea);
+    editorWrap.appendChild(textarea);
+
+    editorPane.appendChild(editorWrap);
     textarea.addEventListener('input', onEditorInput);
     textarea.addEventListener('keydown', onEditorKeydown);
+    textarea.addEventListener('scroll', () => {
+        highlightPre.scrollTop = textarea.scrollTop;
+        highlightPre.scrollLeft = textarea.scrollLeft;
+    });
     editorArea.appendChild(editorPane);
 
     // Version panel (right sidebar)
@@ -550,6 +585,74 @@ const renderGameView = () => {
 // Editor events
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Lightweight JS syntax highlighter (no external deps)
+// ---------------------------------------------------------------------------
+
+const highlightJS = (code) => {
+    const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    // Tokenize with a single regex that matches in priority order
+    const tokens = [];
+    const re = /\/\/[^\n]*|\/\*[\s\S]*?\*\/|`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\/(?:[^/\\]|\\.)+\/[gimsuy]*|\b(?:const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|new|this|class|extends|super|import|export|default|from|of|in|typeof|instanceof|try|catch|finally|throw|async|await|yield|static|get|set|null|undefined|true|false|NaN|Infinity)\b|\b\d+\.?\d*(?:e[+-]?\d+)?\b|[{}()[\];,]|=>|\.\.\.|\?\.|[+\-*/%=!<>&|^~?:]+|[a-zA-Z_$][a-zA-Z0-9_$]*/g;
+
+    let match;
+    let lastIndex = 0;
+
+    while ((match = re.exec(code)) !== null) {
+        // Plain text before this token
+        if (match.index > lastIndex) {
+            tokens.push(esc(code.slice(lastIndex, match.index)));
+        }
+
+        const t = match[0];
+        let cls = '';
+
+        if (t.startsWith('//') || t.startsWith('/*')) {
+            cls = 'hl-comment';
+        } else if (t.startsWith('"') || t.startsWith("'") || t.startsWith('`')) {
+            cls = 'hl-string';
+        } else if (t.startsWith('/') && t.length > 1 && !t.startsWith('//') && !t.startsWith('/*')) {
+            cls = 'hl-regex';
+        } else if (/^(?:const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|new|this|class|extends|super|import|export|default|from|of|in|typeof|instanceof|try|catch|finally|throw|async|await|yield|static|get|set|null|undefined|true|false|NaN|Infinity)$/.test(t)) {
+            cls = 'hl-keyword';
+        } else if (/^\d/.test(t)) {
+            cls = 'hl-number';
+        } else if (/^[a-zA-Z_$]/.test(t)) {
+            // Check if followed by ( → function call
+            const after = code[re.lastIndex];
+            cls = after === '(' ? 'hl-function' : '';
+        } else if (/^[+\-*/%=!<>&|^~?:]+$/.test(t) || t === '=>') {
+            cls = 'hl-operator';
+        }
+
+        tokens.push(cls ? `<span class="${cls}">${esc(t)}</span>` : esc(t));
+        lastIndex = re.lastIndex;
+    }
+
+    // Remaining text
+    if (lastIndex < code.length) {
+        tokens.push(esc(code.slice(lastIndex)));
+    }
+
+    return tokens.join('');
+};
+
+const updateHighlight = () => {
+    const textarea = $('editor-textarea');
+    const code = $('editor-highlight-code');
+    if (!textarea || !code) return;
+    if (textarea.style.display === 'none') return;
+
+    const text = textarea.value;
+    // Only highlight JS files
+    const isJS = currentFile && (currentFile.path.endsWith('.js') || currentFile.path.endsWith('.mjs'));
+    code.innerHTML = isJS ? highlightJS(text) : text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    // Ensure trailing newline so scroll heights match
+    if (!code.innerHTML.endsWith('\n')) code.innerHTML += '\n';
+};
+
 const onEditorInput = () => {
     if (!currentFile || viewingVersion) return;
     const textarea = $('editor-textarea');
@@ -560,6 +663,7 @@ const onEditorInput = () => {
     updateSaveButton();
     renderTabs();
     renderFileTree();
+    updateHighlight();
     debouncedUpdatePreview();
 };
 
@@ -661,6 +765,7 @@ const openFile = (file) => {
                     textarea.value = content;
                     textarea.style.display = 'block';
                     textarea.readOnly = true;
+                    updateHighlight();
                 }
                 if (placeholder) placeholder.style.display = 'none';
                 renderTabs();
@@ -686,15 +791,19 @@ const switchToFile = (path) => {
 const showEditor = () => {
     const textarea = $('editor-textarea');
     const placeholder = $('editor-placeholder');
+    const editorWrap = $('editor-wrap');
     if (!textarea) return;
     if (currentFile && openFiles[currentFile.path]) {
         textarea.value = openFiles[currentFile.path].content;
         textarea.style.display = 'block';
         textarea.readOnly = !!viewingVersion;
+        if (editorWrap) editorWrap.style.display = '';
         if (placeholder) placeholder.style.display = 'none';
+        updateHighlight();
         textarea.focus();
     } else {
         textarea.style.display = 'none';
+        if (editorWrap) editorWrap.style.display = 'none';
         if (placeholder) placeholder.style.display = 'flex';
     }
 };
@@ -1096,6 +1205,24 @@ const loadTemplates = () => {
 };
 loadTemplates();
 
+// ---------------------------------------------------------------------------
+// Theme toggle
+// ---------------------------------------------------------------------------
+
+$('theme-toggle').onclick = () => {
+    const isLight = document.body.classList.toggle('light');
+    $('theme-toggle').textContent = isLight ? '🌙' : '☀';
+    try { localStorage.setItem('hg-studio-theme', isLight ? 'light' : 'dark'); } catch (e) {}
+};
+
+// Restore saved theme
+try {
+    if (localStorage.getItem('hg-studio-theme') === 'light') {
+        document.body.classList.add('light');
+        $('theme-toggle').textContent = '🌙';
+    }
+} catch (e) {}
+
 $('sidebar-header').onclick = () => {
     $('sidebar').classList.toggle('collapsed');
 };
@@ -1199,13 +1326,90 @@ const showClonePopover = (info) => {
 
 };
 
-// Close popover when clicking outside
+// Close popovers when clicking outside
 document.addEventListener('click', (e) => {
-    const popover = $('clone-popover');
-    if (!popover || !popover.classList.contains('visible')) return;
-    if (e.target.closest('#clone-popover') || e.target.closest('.clone-btn')) return;
-    popover.classList.remove('visible');
+    const clonePopover = $('clone-popover');
+    if (clonePopover && clonePopover.classList.contains('visible')) {
+        if (!e.target.closest('#clone-popover') && !e.target.closest('.clone-btn')) {
+            clonePopover.classList.remove('visible');
+        }
+    }
+    const thumbPopover = $('thumbnail-popover');
+    if (thumbPopover && thumbPopover.classList.contains('visible')) {
+        if (!e.target.closest('#thumbnail-popover') && !e.target.textContent?.includes('Thumbnail')) {
+            thumbPopover.classList.remove('visible');
+        }
+    }
 });
+
+// ---------------------------------------------------------------------------
+// Thumbnail picker
+// ---------------------------------------------------------------------------
+
+const toggleThumbnailPicker = () => {
+    const popover = $('thumbnail-popover');
+    if (!popover) return;
+
+    if (popover.classList.contains('visible')) {
+        popover.classList.remove('visible');
+        return;
+    }
+
+    popover.innerHTML = '<label>Choose a thumbnail</label><div style="color:var(--text-faint);font-size:0.8em;">Loading assets...</div>';
+    popover.classList.add('visible');
+
+    // Fetch image assets
+    api('GET', '/assets?limit=50&offset=0').then(data => {
+        const imageAssets = (data.assets || []).filter(a => a.type && a.type.startsWith('image'));
+
+        popover.innerHTML = '';
+        const label = document.createElement('label');
+        label.textContent = 'Choose a thumbnail';
+        popover.appendChild(label);
+
+        if (imageAssets.length === 0) {
+            const empty = document.createElement('div');
+            empty.style = 'color:var(--text-faint);font-size:0.85em;';
+            empty.textContent = 'No image assets. Upload one in the Assets panel.';
+            popover.appendChild(empty);
+            return;
+        }
+
+        const grid = document.createElement('div');
+        grid.className = 'thumb-pick-grid';
+
+        imageAssets.forEach(asset => {
+            const item = document.createElement('div');
+            item.className = 'thumb-pick-item' + (currentGame.thumbnail === asset.id ? ' selected' : '');
+
+            const img = document.createElement('img');
+            img.src = `${API_URL}/assets/${asset.id}`;
+            img.alt = asset.name || asset.id;
+            img.title = asset.name || asset.id;
+            item.appendChild(img);
+
+            item.onclick = () => {
+                api('POST', `/studio/games/${currentGame.id}/thumbnail`, { assetId: asset.id }).then(() => {
+                    currentGame.thumbnail = asset.id;
+                    popover.classList.remove('visible');
+                    renderGameView();
+                    loadFiles();
+                    loadVersions();
+                    loadPublishStatuses();
+                    setStatus('Thumbnail updated');
+                }).catch(err => {
+                    setStatus('Failed to set thumbnail');
+                });
+            };
+
+            grid.appendChild(item);
+        });
+
+        popover.appendChild(grid);
+    }).catch(err => {
+        popover.innerHTML = '<div style="color:var(--accent-red);">Failed to load assets</div>';
+    });
+};
 
 // ---------------------------------------------------------------------------
 // Warn on unload

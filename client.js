@@ -598,175 +598,43 @@ const connectToSession = (sessionData) => {
     window.open(`/play?ws=${encodeURIComponent(wsUrl)}`, '_blank');
 };
 
-const renderDevProfile = (devId, devInfo) =>  {
+const renderDevProfile = (devId, devInfo) => {
     const container = document.createElement('div');
-//    container.style = 'display: grid; grid-template-columns: 1fr 2fr 1fr; margin: 24px;';
-    container.style = 'display: grid; margin: 24px;';
+    container.style = 'max-width: 900px; margin: 24px auto;';
 
-    const image = document.createElement('img');
-    image.setAttribute('alt', `profile image`);
-    const title = document.createElement('h1');
-    title.className = 'amateur';
-
-    const description = document.createElement('div');
-    description.innerHTML = devInfo.description || '';
-
-    title.innerHTML = devId;
+    // --- Profile header ---
+    const profileHeader = document.createElement('div');
+    profileHeader.style = 'display: flex; gap: 24px; align-items: flex-start; padding-bottom: 24px; border-bottom: 1px solid #ddd; margin-bottom: 24px;';
 
     if (devInfo.image) {
+        const image = document.createElement('img');
         image.src = `${API_URL}/assets/${devInfo.image}`;
-        image.style = 'min-width: 240px; max-width: 240px; max-height: 240px;';
+        image.alt = 'profile image';
+        image.style = 'width: 120px; height: 120px; border-radius: 8px; object-fit: cover; flex-shrink: 0;';
+        profileHeader.appendChild(image);
     }
 
-    const gamesSection = document.createElement('div');
-    const gamesHeader = document.createElement('h1');
-    gamesHeader.style = 'text-align: center';
-    
-    const devGames = devInfo.games || [];
+    const profileInfo = document.createElement('div');
+    profileInfo.style = 'flex: 1;';
 
-    gamesHeader.className = 'amateur';
+    const title = document.createElement('h1');
+    title.className = 'amateur';
+    title.textContent = devId;
+    profileInfo.appendChild(title);
 
-    const gameList = document.createElement('ul');
-    gameList.style = 'list-style-type: none';
-
-    const prevButtonWrapper = document.createElement('div');
-    const nextButtonWrapper = document.createElement('div');
-
-    const prevButton = document.createElement('div');
-    prevButton.innerHTML = String.fromCodePoint(8592);
-    prevButton.style = 'text-align: left; font-size: 72px; margin-top: 24px;'
-
-    const nextButton = document.createElement('div');
-    nextButton.innerHTML = String.fromCodePoint(8594);
-    nextButton.style = 'text-align: right; font-size: 72px; margin-top: 24px;'
-
-    prevButton.className = 'clickable';
-    nextButton.className = 'clickable';
-
-    prevButtonWrapper.appendChild(prevButton);
-    nextButtonWrapper.appendChild(nextButton);
-
-    let page = 0;
-    const pageSize = 5;
-    const renderGameList = () => {
-
-        console.log("kliustut " + page)
-        listGames(pageSize, page * pageSize, devId).then((userGames) => {
-            console.log('ococococo!');
-            clearChildren(gameList);
-            console.log("iudsf")
-            gamesHeader.innerHTML = `${userGames.total} games`;
-
-            for (const i in userGames.games) {
-                const game = userGames.games[i];
-                const gameEl = document.createElement('li');
-                gameEl.style = 'margin-bottom: 48px;';
-
-                const linkWrapper = document.createElement('a');
-                linkWrapper.href = `${window.location.origin}/game.html?id=${game.id}`;
-                linkWrapper.style = 'display: grid; grid-template-columns: 1fr 1fr 4fr; text-decoration: none;';
-
-                const thumbnail = document.createElement('img');
-                if (game.thumbnail) {
-                    thumbnail.src = `${ASSET_URL}/${game.thumbnail}`;
-                    thumbnail.style = 'min-width: 120px; max-width: 120px; max-height: 120px;';
-                    thumbnail.setAttribute('alt', `${game.name} image`);
-                }
-                const title = document.createElement('strong');
-                title.innerHTML = game.name;
-                const description = simpleDiv(game.description);
-
-                linkWrapper.appendChild(thumbnail);
-
-                linkWrapper.appendChild(title);
-                linkWrapper.appendChild(description);
-                gameEl.appendChild(linkWrapper);
-                gameList.appendChild(gameEl);
-            }
-
-
-            if (page - 1 < 0) {
-                prevButton.classList.add('hidden');
-            } else {
-                prevButton.classList.remove('hidden');
-            }
-
-            prevButton.onclick = () => {
-                // prev page
-                if (page - 1 < 0) {
-                    return;
-                }
-                page--;
-                renderGameList();
-                // getBlogInfo(pageSize, (page * pageSize), false).then(_blogInfo => {
-                //     renderBlogList(JSON.parse(_blogInfo));
-
-                //     if (page - 1 < 0) {
-                //         prevButton.classList.add('hidden');
-                //     } else {
-                //         prevButton.classList.remove('hidden');
-                //     } 
-
-                //     if ((page + 1) * pageSize >= data.count) {
-                //         nextButton.classList.add('hidden');
-                //     } else {
-                //         nextButton.classList.remove('hidden');
-                //     }
-
-                // });
-            }
-
-            if ((page + 1) * pageSize > userGames.total) {
-                nextButton.classList.add('hidden');
-            } else {
-                nextButton.classList.remove('hidden');
-            }
-
-            nextButton.onclick = () => {
-                // prev page
-                if ((page + 1 * pageSize) > userGames.total) {
-                    return;
-                }
-                page++;
-                renderGameList();
-            }
-        });
+    if (devInfo.description) {
+        const desc = document.createElement('div');
+        desc.style = 'margin-top: 8px; color: #555;';
+        desc.innerHTML = devInfo.description;
+        profileInfo.appendChild(desc);
     }
 
-    renderGameList();
+    profileHeader.appendChild(profileInfo);
 
-    gamesSection.appendChild(gamesHeader);
-    gamesSection.appendChild(gameList);
-
-    const buttonWrapper = document.createElement('div');
-    buttonWrapper.style = 'display: grid; grid-template-columns: 1fr 1fr;'
-    buttonWrapper.appendChild(prevButtonWrapper);
-    buttonWrapper.appendChild(nextButtonWrapper);
-    gamesSection.appendChild(buttonWrapper);
-
-    const col1 = document.createElement('div');
-    col1.style = 'text-align: center';
-
-    const col2 = document.createElement('div');
-    col2.style = 'text-align: center';
-
-    const col3 = document.createElement('div');
-    col3.style = 'text-align: center; margin-top: 25%';
-
-    const row1Col1 = document.createElement('div');
-    row1Col1.style = 'text-align: center';
-    row1Col1.appendChild(image);
-    row1Col1.appendChild(title);
-
-    const row1Col2 = document.createElement('div');
-    row1Col2.appendChild(description);
-
-    const row1Col3 = document.createElement('div');
-    row1Col3.style = 'text-align: center';
-
+    // BTC address
     if (devInfo.btcAddress) {
         const btcSection = document.createElement('div');
-        btcSection.style = 'margin-top: 24px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; text-align: center;';
+        btcSection.style = 'padding: 12px; border: 1px solid #ddd; border-radius: 8px; text-align: center; flex-shrink: 0;';
 
         const btcLabel = document.createElement('div');
         btcLabel.className = 'amateur';
@@ -774,7 +642,7 @@ const renderDevProfile = (devId, devInfo) =>  {
         btcLabel.textContent = '₿ Support this developer';
 
         const btcAddr = document.createElement('div');
-        btcAddr.style = 'font-family: monospace; font-size: 0.8em; word-break: break-all; margin-bottom: 8px;';
+        btcAddr.style = 'font-family: monospace; font-size: 0.75em; word-break: break-all; margin-bottom: 8px;';
         btcAddr.textContent = devInfo.btcAddress;
 
         const btcCopy = document.createElement('div');
@@ -791,21 +659,129 @@ const renderDevProfile = (devId, devInfo) =>  {
         btcSection.appendChild(btcLabel);
         btcSection.appendChild(btcAddr);
         btcSection.appendChild(btcCopy);
-        row1Col3.appendChild(btcSection);
+        profileHeader.appendChild(btcSection);
     }
 
-    const row1 = document.createElement('div');
-    row1.style = 'display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid black; padding-bottom: 24px;';
+    container.appendChild(profileHeader);
 
-    const row2 = document.createElement('div');
-    row2.appendChild(gamesSection);
+    // --- Games section ---
+    const gamesHeader = document.createElement('h2');
+    gamesHeader.className = 'amateur';
+    gamesHeader.style = 'margin-bottom: 16px;';
+    gamesHeader.textContent = 'Games';
+    container.appendChild(gamesHeader);
 
-    row1.appendChild(row1Col1);
-    row1.appendChild(row1Col2);
-    row1.appendChild(row1Col3);
+    const gameListEl = document.createElement('div');
+    container.appendChild(gameListEl);
 
-    container.appendChild(row1);
-    container.appendChild(row2);
+    const paginationEl = document.createElement('div');
+    paginationEl.style = 'display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 16px;';
+    container.appendChild(paginationEl);
+
+    let page = 0;
+    const pageSize = 6;
+
+    const renderGameList = () => {
+        clearChildren(gameListEl);
+        clearChildren(paginationEl);
+
+        const loadingEl = document.createElement('div');
+        loadingEl.style = 'text-align: center; color: #888; padding: 24px;';
+        loadingEl.textContent = 'Loading...';
+        gameListEl.appendChild(loadingEl);
+
+        listGames(pageSize, page * pageSize, devId).then((result) => {
+            clearChildren(gameListEl);
+
+            gamesHeader.textContent = `Games (${result.total})`;
+
+            if (result.games.length === 0) {
+                const empty = document.createElement('div');
+                empty.style = 'text-align: center; color: #888; padding: 24px;';
+                empty.textContent = page === 0 ? 'No published games yet' : 'No more games';
+                gameListEl.appendChild(empty);
+            }
+
+            const grid = document.createElement('div');
+            grid.style = 'display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;';
+            gameListEl.appendChild(grid);
+
+            result.games.forEach(game => {
+                const card = document.createElement('a');
+                card.href = `${window.location.origin}/game.html?id=${game.id}`;
+                card.style = 'text-decoration: none; color: inherit; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; display: block; transition: box-shadow 0.15s;';
+                card.onmouseover = () => { card.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)'; };
+                card.onmouseout = () => { card.style.boxShadow = 'none'; };
+
+                if (game.thumbnail) {
+                    const img = document.createElement('img');
+                    img.src = `${ASSET_URL}/${game.thumbnail}`;
+                    img.alt = game.name;
+                    img.style = 'width: 100%; height: 140px; object-fit: cover; display: block; background: #eee;';
+                    card.appendChild(img);
+                } else {
+                    const placeholder = document.createElement('div');
+                    placeholder.style = 'width: 100%; height: 140px; background: #eee; display: flex; align-items: center; justify-content: center; color: #aaa; font-size: 2em;';
+                    placeholder.textContent = '🎮';
+                    card.appendChild(placeholder);
+                }
+
+                const cardBody = document.createElement('div');
+                cardBody.style = 'padding: 10px;';
+
+                const cardTitle = document.createElement('div');
+                cardTitle.className = 'amateur';
+                cardTitle.style = 'font-size: 1.1em; font-weight: bold;';
+                cardTitle.textContent = game.name;
+                cardBody.appendChild(cardTitle);
+
+                if (game.description) {
+                    const cardDesc = document.createElement('div');
+                    cardDesc.style = 'font-size: 0.85em; color: #777; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+                    cardDesc.textContent = game.description;
+                    cardBody.appendChild(cardDesc);
+                }
+
+                card.appendChild(cardBody);
+                grid.appendChild(card);
+            });
+
+            // Pagination
+            clearChildren(paginationEl);
+
+            if (page > 0) {
+                const prevBtn = document.createElement('div');
+                prevBtn.className = 'clickable amateur';
+                prevBtn.style = 'padding: 8px 20px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;';
+                prevBtn.textContent = '← Previous';
+                prevBtn.onclick = () => { page--; renderGameList(); };
+                paginationEl.appendChild(prevBtn);
+            }
+
+            const pageInfo = document.createElement('span');
+            pageInfo.style = 'color: #888; font-size: 0.9em;';
+            const totalPages = Math.ceil(result.total / pageSize);
+            pageInfo.textContent = `Page ${page + 1}` + (totalPages > 1 ? ` of ${totalPages}` : '');
+            paginationEl.appendChild(pageInfo);
+
+            if ((page + 1) * pageSize < result.total) {
+                const nextBtn = document.createElement('div');
+                nextBtn.className = 'clickable amateur';
+                nextBtn.style = 'padding: 8px 20px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;';
+                nextBtn.textContent = 'Next →';
+                nextBtn.onclick = () => { page++; renderGameList(); };
+                paginationEl.appendChild(nextBtn);
+            }
+        }).catch(err => {
+            clearChildren(gameListEl);
+            const errEl = document.createElement('div');
+            errEl.style = 'text-align: center; color: #888; padding: 24px;';
+            errEl.textContent = 'Failed to load games';
+            gameListEl.appendChild(errEl);
+        });
+    };
+
+    renderGameList();
 
     return container;
 };
@@ -1084,8 +1060,9 @@ const renderGames = (games) => {
     }
 };
 
-const getAllGames = (limit = 10, offset = 0) => new Promise((resolve, reject) => {
-    const gamesUrl = `${API_PROTOCOL}://${API_HOST}:${API_PORT}/games?limit=${limit}&offset=${offset}`;
+const getAllGames = (limit = 10, offset = 0, featured = null) => new Promise((resolve, reject) => {
+    const featuredParam = featured ? '&featured=true' : '';
+    const gamesUrl = `${API_PROTOCOL}://${API_HOST}:${API_PORT}/games?limit=${limit}&offset=${offset}${featuredParam}`;
     makeGet(gamesUrl).then((games) => {
         resolve(JSON.parse(games));
     });
