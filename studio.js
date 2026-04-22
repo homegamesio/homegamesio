@@ -466,6 +466,12 @@ const renderGameView = () => {
     assetHeader.appendChild(assetActions);
     assetPanel.appendChild(assetHeader);
 
+    const assetSearchBox = document.createElement('input');
+    assetSearchBox.id = 'asset-search';
+    assetSearchBox.type = 'text';
+    assetSearchBox.placeholder = 'Search assets...';
+    assetPanel.appendChild(assetSearchBox);
+
     const assetListEl = document.createElement('div');
     assetListEl.id = 'asset-list';
     assetPanel.appendChild(assetListEl);
@@ -536,6 +542,8 @@ const renderGameView = () => {
     rightDiv.appendChild(saveBtn);
     bottom.appendChild(rightDiv);
     main.appendChild(bottom);
+
+    attachAssetSearch();
 };
 
 // ---------------------------------------------------------------------------
@@ -1088,6 +1096,10 @@ const loadTemplates = () => {
 };
 loadTemplates();
 
+$('sidebar-header').onclick = () => {
+    $('sidebar').classList.toggle('collapsed');
+};
+
 $('new-game-btn').onclick = () => showModal('new-game-modal', 'new-game-name');
 $('new-game-cancel').onclick = () => hideModal('new-game-modal');
 $('new-game-create').onclick = () => {
@@ -1458,6 +1470,8 @@ let assetList = [];
 let assetPage = 0;
 const ASSET_PAGE_SIZE = 20;
 let assetTotal = 0;
+let assetSearchQuery = '';
+let assetSearchTimer = null;
 let playingAudioEl = null;
 
 const apiUpload = (file, description) => new Promise((resolve, reject) => {
@@ -1480,6 +1494,19 @@ const apiUpload = (file, description) => new Promise((resolve, reject) => {
     xhr.send(form);
 });
 
+// Attach search handler after game view renders (called from renderGameView)
+const attachAssetSearch = () => {
+    const searchBox = $('asset-search');
+    if (!searchBox) return;
+    searchBox.oninput = () => {
+        clearTimeout(assetSearchTimer);
+        assetSearchTimer = setTimeout(() => {
+            assetSearchQuery = searchBox.value.trim();
+            loadAssets(true);
+        }, 300);
+    };
+};
+
 const toggleAssetPanel = () => {
     assetPanelOpen = !assetPanelOpen;
     const panel = $('asset-panel');
@@ -1487,6 +1514,9 @@ const toggleAssetPanel = () => {
     if (panel) {
         if (assetPanelOpen) {
             panel.classList.add('open');
+            assetSearchQuery = '';
+            const searchBox = $('asset-search');
+            if (searchBox) searchBox.value = '';
             loadAssets(true);
         } else {
             panel.classList.remove('open');
@@ -1500,7 +1530,8 @@ const toggleAssetPanel = () => {
 const loadAssets = (reset) => {
     if (reset) { assetPage = 0; assetList = []; }
     const offset = assetPage * ASSET_PAGE_SIZE;
-    api('GET', `/assets?limit=${ASSET_PAGE_SIZE}&offset=${offset}`)
+    const queryParam = assetSearchQuery ? `&query=${encodeURIComponent(assetSearchQuery)}` : '';
+    api('GET', `/assets?limit=${ASSET_PAGE_SIZE}&offset=${offset}${queryParam}`)
         .then(data => {
             const newAssets = data.assets || [];
             assetTotal = data.count || 0;
@@ -1601,6 +1632,40 @@ const renderAssetList = () => {
         badge.className = 'asset-type-badge ' + type;
         badge.textContent = type;
         info.appendChild(badge);
+
+        // Tags (inside info)
+        const tagsRow = document.createElement('div');
+        tagsRow.className = 'asset-tags-row';
+
+        const existingTags = asset.tags || [];
+        existingTags.forEach(tag => {
+            const tagEl = document.createElement('span');
+            tagEl.className = 'asset-tag';
+            tagEl.textContent = tag;
+            tagEl.onclick = (e) => {
+                e.stopPropagation();
+                const newTags = existingTags.filter(t => t !== tag);
+                api('POST', `/assets/${asset.id}/tags`, { tags: newTags }).then(() => loadAssets(true));
+            };
+            tagEl.title = 'Click to remove';
+            tagsRow.appendChild(tagEl);
+        });
+
+        const addTagBtn = document.createElement('span');
+        addTagBtn.className = 'asset-tag-add';
+        addTagBtn.textContent = '+';
+        addTagBtn.title = 'Add tag';
+        addTagBtn.onclick = (e) => {
+            e.stopPropagation();
+            const tag = prompt('Tag name:');
+            if (tag && tag.trim()) {
+                const newTags = [...existingTags, tag.trim().toLowerCase()];
+                api('POST', `/assets/${asset.id}/tags`, { tags: newTags }).then(() => loadAssets(true));
+            }
+        };
+        tagsRow.appendChild(addTagBtn);
+        info.appendChild(tagsRow);
+
         item.appendChild(info);
 
         // Copy ID button
