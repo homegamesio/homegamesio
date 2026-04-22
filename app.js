@@ -154,6 +154,11 @@ const server = http.createServer((req, res) => {
                 res.setHeader('Content-Type', 'text/javascript');
                 const payload = fs.readFileSync(path.join(__dirname, 'homegames-client.js'));
                 res.end(payload);
+            } else if (req.url.startsWith('/play')) {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/html');
+                const payload = fs.readFileSync(path.join(__dirname, 'play.html'));
+                res.end(payload);
             } else if (req.url.startsWith('/studio')) {
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'text/html');

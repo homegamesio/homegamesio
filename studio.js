@@ -58,6 +58,29 @@ const confirmDiscard = () => confirm('You have unsaved changes. Discard them?');
 // Auth
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Token auto-refresh (tokens expire after 15 min, refresh every 12 min)
+// ---------------------------------------------------------------------------
+
+let tokenRefreshInterval = null;
+
+const startTokenRefresh = () => {
+    if (tokenRefreshInterval) clearInterval(tokenRefreshInterval);
+    tokenRefreshInterval = setInterval(() => {
+        if (!userInfo) return;
+        api('POST', '/auth/refresh')
+            .then(data => {
+                if (data.token) {
+                    userInfo.token = data.token;
+                    console.log('Token refreshed');
+                }
+            })
+            .catch(err => {
+                console.error('Token refresh failed:', err);
+            });
+    }, 12 * 60 * 1000); // 12 minutes
+};
+
 const doLogin = () => {
     const username = $('login-username').value.trim();
     const password = $('login-password').value;
@@ -76,6 +99,7 @@ const doLogin = () => {
                 $('studio-app').style.display = 'flex';
                 $('user-info').textContent = userInfo.username;
                 loadGames();
+                startTokenRefresh();
             } else { errorEl.textContent = 'Login failed'; }
         })
         .catch(() => { errorEl.textContent = 'Login failed'; })
@@ -118,6 +142,7 @@ const doSignup = () => {
                 $('studio-app').style.display = 'flex';
                 $('user-info').textContent = userInfo.username;
                 loadGames();
+                startTokenRefresh();
             } else {
                 errorEl.textContent = 'Signup failed';
             }
@@ -203,6 +228,106 @@ const goHome = () => {
 };
 
 $('logo-btn').onclick = goHome;
+
+// ---------------------------------------------------------------------------
+// Profile settings popover (BTC address)
+// ---------------------------------------------------------------------------
+
+$('user-info').onclick = () => {
+    const popover = $('profile-popover');
+    if (popover.classList.contains('visible')) {
+        popover.classList.remove('visible');
+        return;
+    }
+    // Load current profile
+    api('GET', '/profile').then(data => {
+        $('btc-address-input').value = data.btcAddress || '';
+        $('btc-address-status').textContent = '';
+        $('profile-image-status').textContent = '';
+        const preview = $('profile-image-preview');
+        if (data.image) {
+            preview.src = `${API_URL}/assets/${data.image}`;
+            preview.style.display = '';
+        } else {
+            preview.style.display = 'none';
+        }
+        popover.classList.add('visible');
+    }).catch(() => {
+        popover.classList.add('visible');
+    });
+};
+
+// Profile image upload
+$('profile-image-input').onchange = () => {
+    const fileInput = $('profile-image-input');
+    const statusEl = $('profile-image-status');
+    if (!fileInput.files || fileInput.files.length === 0) return;
+
+    const file = fileInput.files[0];
+    if (file.size > 5 * 1024 * 1024) {
+        statusEl.textContent = 'Image must be under 5MB';
+        statusEl.style.color = 'rgba(241, 112, 111, 255)';
+        return;
+    }
+
+    statusEl.textContent = 'Uploading...';
+    statusEl.style.color = '#888';
+
+    // Upload as asset
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_URL}/asset`, true);
+    if (userInfo) xhr.setRequestHeader('Authorization', `Bearer ${userInfo.token}`);
+    const form = new FormData();
+    form.append('file', file);
+    form.append('description', 'Profile image');
+    xhr.onreadystatechange = () => {
+        if (xhr.readyState !== XMLHttpRequest.DONE) return;
+        if (xhr.status >= 200 && xhr.status < 300) {
+            let data;
+            try { data = JSON.parse(xhr.response); } catch (e) {}
+            if (data && data.assetId) {
+                // Set as profile image
+                api('POST', '/profile', { image: data.assetId }).then(() => {
+                    statusEl.textContent = 'Image updated!';
+                    statusEl.style.color = '#A0EB5D';
+                    const preview = $('profile-image-preview');
+                    preview.src = `${API_URL}/assets/${data.assetId}`;
+                    preview.style.display = '';
+                    setTimeout(() => { statusEl.textContent = ''; }, 2000);
+                }).catch(() => {
+                    statusEl.textContent = 'Failed to save';
+                    statusEl.style.color = 'rgba(241, 112, 111, 255)';
+                });
+            }
+        } else {
+            statusEl.textContent = 'Upload failed';
+            statusEl.style.color = 'rgba(241, 112, 111, 255)';
+        }
+    };
+    xhr.send(form);
+};
+
+$('btc-address-save').onclick = () => {
+    const btcAddress = $('btc-address-input').value.trim();
+    const statusEl = $('btc-address-status');
+    statusEl.textContent = 'Saving...';
+    api('POST', '/profile', { btcAddress }).then(() => {
+        statusEl.textContent = 'Saved!';
+        statusEl.style.color = '#A0EB5D';
+        setTimeout(() => { statusEl.textContent = ''; statusEl.style.color = '#888'; }, 2000);
+    }).catch(() => {
+        statusEl.textContent = 'Failed to save';
+        statusEl.style.color = 'rgba(241, 112, 111, 255)';
+    });
+};
+
+// Close popover on outside click
+document.addEventListener('click', (e) => {
+    const popover = $('profile-popover');
+    if (!popover || !popover.classList.contains('visible')) return;
+    if (e.target.closest('#profile-popover') || e.target.closest('#user-info')) return;
+    popover.classList.remove('visible');
+});
 
 // ---------------------------------------------------------------------------
 // Game view
@@ -382,6 +507,14 @@ const renderGameView = () => {
     const previewStatus = document.createElement('div');
     previewStatus.id = 'preview-status';
     previewPanel.appendChild(previewStatus);
+
+    const previewShare = document.createElement('div');
+    previewShare.id = 'preview-share';
+    previewPanel.appendChild(previewShare);
+
+    const previewLogs = document.createElement('div');
+    previewLogs.id = 'preview-logs';
+    previewPanel.appendChild(previewLogs);
 
     editorArea.appendChild(previewPanel);
 
@@ -941,17 +1074,32 @@ const showModal = (id, focusId) => {
 };
 const hideModal = (id) => { $(id).classList.remove('visible'); };
 
+// Load templates into the dropdown
+const loadTemplates = () => {
+    api('GET', '/studio/templates').then(data => {
+        const select = $('new-game-template');
+        (data.templates || []).forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = t.label + ' — ' + t.description;
+            select.appendChild(opt);
+        });
+    }).catch(() => {});
+};
+loadTemplates();
+
 $('new-game-btn').onclick = () => showModal('new-game-modal', 'new-game-name');
 $('new-game-cancel').onclick = () => hideModal('new-game-modal');
 $('new-game-create').onclick = () => {
     const name = $('new-game-name').value.trim();
     const desc = $('new-game-desc').value.trim();
+    const template = $('new-game-template').value || undefined;
     const errorEl = $('new-game-error');
     errorEl.textContent = '';
     if (!name) { errorEl.textContent = 'Game name required'; return; }
     $('new-game-create').disabled = true;
     $('new-game-create').textContent = 'Creating...';
-    api('POST', '/studio/games', { name, description: desc })
+    api('POST', '/studio/games', { name, description: desc, template })
         .then(game => { hideModal('new-game-modal'); loadGames(); selectGame(game); })
         .catch(err => { errorEl.textContent = (err && err.error) || 'Failed to create game'; })
         .finally(() => { $('new-game-create').disabled = false; $('new-game-create').textContent = 'Create'; });
@@ -1133,6 +1281,8 @@ const startPreview = () => {
                     setPreviewStatus('Running (player ' + playerId + ')');
                     if (playBtn) { playBtn.textContent = '↻ Restart'; playBtn.disabled = false; }
                     if (stopBtn) stopBtn.style.display = '';
+                    showPreviewShareLink(wsUrl);
+                    startPreviewLogs(previewSessionId);
                 },
                 onClose: () => {
                     setPreviewStatus('Disconnected');
@@ -1154,6 +1304,107 @@ const startPreview = () => {
     xhr.send(JSON.stringify({ files }));
 };
 
+const showPreviewShareLink = (wsUrl) => {
+    const shareEl = $('preview-share');
+    if (!shareEl) return;
+    const playUrl = `${window.location.origin}/play?ws=${encodeURIComponent(wsUrl)}`;
+    shareEl.innerHTML = '';
+
+    const linkInput = document.createElement('input');
+    linkInput.readOnly = true;
+    linkInput.value = playUrl;
+    linkInput.className = 'preview-share-input';
+    linkInput.onclick = () => linkInput.select();
+
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = 'Copy';
+    copyBtn.className = 'preview-share-copy';
+    copyBtn.onclick = () => {
+        navigator.clipboard.writeText(playUrl).then(() => {
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+        });
+    };
+
+    shareEl.appendChild(linkInput);
+    shareEl.appendChild(copyBtn);
+};
+
+const clearPreviewShareLink = () => {
+    const shareEl = $('preview-share');
+    if (shareEl) shareEl.innerHTML = '';
+};
+
+// ---------------------------------------------------------------------------
+// Preview log streaming
+// ---------------------------------------------------------------------------
+
+let previewLogSource = null;
+
+const startPreviewLogs = (sessionId) => {
+    stopPreviewLogs();
+
+    const logsEl = $('preview-logs');
+    if (!logsEl) return;
+    logsEl.innerHTML = '';
+
+    try {
+        previewLogSource = new EventSource(`${HOMENAMES_URL}/sessions/${sessionId}/logs`);
+
+        previewLogSource.onmessage = (event) => {
+            let data;
+            try { data = JSON.parse(event.data); } catch (e) { return; }
+
+            const line = document.createElement('div');
+            line.className = 'log-line log-' + (data.level || 'log');
+
+            const ts = document.createElement('span');
+            ts.className = 'log-ts';
+            if (data.timestamp) {
+                try {
+                    const d = new Date(data.timestamp);
+                    ts.textContent = d.toLocaleTimeString() + ' ';
+                } catch (e) {
+                    ts.textContent = '';
+                }
+            }
+
+            const msg = document.createElement('span');
+            msg.className = 'log-msg';
+            msg.textContent = data.message || '';
+
+            line.appendChild(ts);
+            line.appendChild(msg);
+            logsEl.appendChild(line);
+
+            // Auto-scroll to bottom
+            logsEl.scrollTop = logsEl.scrollHeight;
+        };
+
+        previewLogSource.onerror = () => {
+            // SSE will auto-reconnect, but if the session is dead, stop
+            if (previewLogSource && previewLogSource.readyState === EventSource.CLOSED) {
+                stopPreviewLogs();
+            }
+        };
+    } catch (e) {
+        console.error('Failed to start log stream:', e);
+    }
+};
+
+const stopPreviewLogs = () => {
+    if (previewLogSource) {
+        previewLogSource.close();
+        previewLogSource = null;
+    }
+};
+
+const clearPreviewLogs = () => {
+    stopPreviewLogs();
+    const logsEl = $('preview-logs');
+    if (logsEl) logsEl.innerHTML = '';
+};
+
 const stopPreview = () => {
     if (previewClient) {
         previewClient.stop();
@@ -1169,6 +1420,8 @@ const stopPreview = () => {
     }
 
     setPreviewStatus('');
+    clearPreviewShareLink();
+    clearPreviewLogs();
     resetPreviewButtons();
 };
 

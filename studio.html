@@ -32,6 +32,12 @@
             #studio-header { display: flex; justify-content: space-between; align-items: center; padding: 0 16px; background: #16213e; border-bottom: 1px solid #333; height: 44px; flex-shrink: 0; }
             #studio-header .logo { font-size: 1.1em; color: rgba(148, 210, 229, 255); cursor: pointer; text-decoration: none; }
             #studio-header .user-info { color: #666; font-size: 0.85em; }
+            .profile-popover { display: none; position: absolute; top: 44px; right: 16px; background: #16213e; border: 1px solid #444; border-radius: 6px; padding: 12px; z-index: 50; width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+            .profile-popover.visible { display: block; }
+            .profile-popover label { display: block; color: #888; font-size: 0.78em; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+            .profile-popover input { flex: 1; padding: 6px 8px; background: #0a0a1a; border: 1px solid #444; border-radius: 3px; color: #eee; font-family: monospace; font-size: 0.85em; }
+            .profile-popover button { padding: 6px 12px; background: #A0EB5D; color: #1a1a2e; border: none; border-radius: 3px; cursor: pointer; font-weight: bold; font-size: 0.85em; font-family: inherit; }
+            .profile-popover button:hover { background: #8cd94f; }
 
             #studio-body { display: flex; flex: 1; overflow: hidden; }
 
@@ -155,6 +161,20 @@
             #preview-controls button.stop-btn { background: rgba(241, 112, 111, 255); color: #fff; border-color: rgba(241, 112, 111, 255); }
             #preview-container { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #000; }
             #preview-status { padding: 4px 10px; border-top: 1px solid #333; font-size: 0.78em; color: #555; flex-shrink: 0; min-height: 24px; }
+            #preview-share { padding: 4px 10px; display: flex; gap: 4px; flex-shrink: 0; }
+            .preview-share-input { flex: 1; padding: 3px 6px; background: #0a0a1a; border: 1px solid #444; border-radius: 3px; color: #aaa; font-family: monospace; font-size: 0.75em; }
+            .preview-share-copy { padding: 3px 10px; background: #A0EB5D; color: #1a1a2e; border: none; border-radius: 3px; cursor: pointer; font-weight: bold; font-size: 0.75em; font-family: inherit; }
+            .preview-share-copy:hover { background: #8cd94f; }
+
+            /* Log panel */
+            #preview-logs { flex: 1; overflow-y: auto; background: #0a0a1a; font-family: monospace; font-size: 0.75em; min-height: 0; border-top: 1px solid #333; }
+            .log-line { padding: 1px 8px; white-space: pre-wrap; word-break: break-all; border-bottom: 1px solid #111; }
+            .log-ts { color: #555; }
+            .log-log .log-msg { color: #aaa; }
+            .log-debug .log-msg { color: #888; }
+            .log-warn .log-msg { color: rgba(255, 247, 142, 255); }
+            .log-error { background: rgba(241, 112, 111, 0.08); }
+            .log-error .log-msg { color: rgba(241, 112, 111, 255); }
             .preview-toggle { font-size: 0.8em; padding: 3px 10px; border-radius: 10px; background: #333; color: #aaa; cursor: pointer; border: none; font-family: inherit; margin-left: 8px; }
             .preview-toggle:hover { background: #444; color: #fff; }
             .preview-toggle.active { background: rgba(148, 210, 229, 255); color: #1a1a2e; }
@@ -276,7 +296,24 @@
         <div id="studio-app">
             <div id="studio-header">
                 <span class="logo" id="logo-btn">⌂ Homegames Studio</span>
-                <span class="user-info" id="user-info"></span>
+                <div style="display:flex;align-items:center;gap:16px;">
+                    <a href="/" style="color:#888;font-size:0.85em;text-decoration:none;">homegames.io</a>
+                    <span class="user-info" id="user-info" style="cursor:pointer;" title="Profile settings"></span>
+                </div>
+                <div id="profile-popover" class="profile-popover">
+                    <label>Profile Image</label>
+                    <div style="display:flex;gap:4px;align-items:center;">
+                        <img id="profile-image-preview" style="width:32px;height:32px;border-radius:4px;object-fit:cover;display:none;border:1px solid #444;" />
+                        <input type="file" id="profile-image-input" accept="image/*" style="flex:1;font-size:0.8em;" />
+                    </div>
+                    <div id="profile-image-status" style="font-size:0.75em;color:#888;min-height:16px;margin-top:2px;"></div>
+                    <label style="margin-top:8px;">BTC Address</label>
+                    <div style="display:flex;gap:4px;">
+                        <input type="text" id="btc-address-input" placeholder="Your Bitcoin address" />
+                        <button id="btc-address-save">Save</button>
+                    </div>
+                    <div id="btc-address-status" style="font-size:0.75em;color:#888;min-height:16px;margin-top:2px;"></div>
+                </div>
             </div>
             <div id="studio-body">
                 <div id="sidebar">
@@ -295,6 +332,10 @@
                 <h2>New Game</h2>
                 <input type="text" id="new-game-name" placeholder="Game name">
                 <input type="text" id="new-game-desc" placeholder="Description (optional)">
+                <label style="color:#888;font-size:0.8em;margin-top:4px;">Template</label>
+                <select id="new-game-template" style="padding:8px;background:#16213e;color:#eee;border:1px solid #444;border-radius:4px;font-family:inherit;font-size:14px;">
+                    <option value="">Blank (no template)</option>
+                </select>
                 <div class="modal-error" id="new-game-error"></div>
                 <div class="modal-buttons">
                     <button class="modal-btn secondary" id="new-game-cancel">Cancel</button>

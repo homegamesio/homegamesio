@@ -590,67 +590,12 @@ const loadGameSessions = (gameId, listEl) => {
 };
 
 const connectToSession = (sessionData) => {
-    // sessionData: { wsUrl, sessionId, port }
     const wsUrl = sessionData.wsUrl;
-
     if (!wsUrl) {
         console.error('No WebSocket URL in session data');
         return;
     }
-
-    // Replace the page content with game container
-    const contentEl = document.getElementById('content');
-    clearChildren(contentEl);
-
-    const backBtn = document.createElement('div');
-    backBtn.innerHTML = '← Back';
-    backBtn.className = 'clickable amateur';
-    backBtn.style = 'padding: 12px 24px; cursor: pointer; color: #A0EB5D;';
-    backBtn.onclick = () => {
-        if (window._hgClient) {
-            window._hgClient.stop();
-            window._hgClient = null;
-        }
-        const urlParams = new URLSearchParams(window.location.search);
-        const gameParam = urlParams.get('id');
-        if (gameParam) showGamePage(gameParam);
-    };
-
-    const gameContainer = document.createElement('div');
-    gameContainer.id = 'game-container';
-    gameContainer.style = 'width: 100%; height: 80vh; background: #000;';
-
-    const statusEl = document.createElement('div');
-    statusEl.style = 'text-align: center; padding: 12px; color: #888;';
-    statusEl.innerHTML = 'Connecting...';
-
-    contentEl.appendChild(backBtn);
-    contentEl.appendChild(gameContainer);
-    contentEl.appendChild(statusEl);
-
-    // Use HomegamesClient library
-    if (typeof HomegamesClient === 'undefined') {
-        statusEl.innerHTML = 'Game client library not loaded';
-        return;
-    }
-
-    const client = new HomegamesClient({
-        containerId: 'game-container',
-        wsUrl: wsUrl,
-        onReady: (playerId) => {
-            statusEl.innerHTML = 'Playing as player ' + playerId;
-        },
-        onClose: () => {
-            statusEl.innerHTML = 'Disconnected';
-        },
-        onError: (err) => {
-            statusEl.innerHTML = 'Connection error';
-            console.error('Game client error:', err);
-        },
-    });
-
-    window._hgClient = client;
-    client.start();
+    window.open(`/play?ws=${encodeURIComponent(wsUrl)}`, '_blank');
 };
 
 const renderDevProfile = (devId, devInfo) =>  {
@@ -818,6 +763,36 @@ const renderDevProfile = (devId, devInfo) =>  {
 
     const row1Col3 = document.createElement('div');
     row1Col3.style = 'text-align: center';
+
+    if (devInfo.btcAddress) {
+        const btcSection = document.createElement('div');
+        btcSection.style = 'margin-top: 24px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; text-align: center;';
+
+        const btcLabel = document.createElement('div');
+        btcLabel.className = 'amateur';
+        btcLabel.style = 'font-size: 0.9em; color: #888; margin-bottom: 6px;';
+        btcLabel.textContent = '₿ Support this developer';
+
+        const btcAddr = document.createElement('div');
+        btcAddr.style = 'font-family: monospace; font-size: 0.8em; word-break: break-all; margin-bottom: 8px;';
+        btcAddr.textContent = devInfo.btcAddress;
+
+        const btcCopy = document.createElement('div');
+        btcCopy.className = 'clickable';
+        btcCopy.style = 'display: inline-block; background: #f7931a; color: white; padding: 4px 16px; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: bold;';
+        btcCopy.textContent = 'Copy Address';
+        btcCopy.onclick = () => {
+            navigator.clipboard.writeText(devInfo.btcAddress).then(() => {
+                btcCopy.textContent = 'Copied!';
+                setTimeout(() => { btcCopy.textContent = 'Copy Address'; }, 1500);
+            });
+        };
+
+        btcSection.appendChild(btcLabel);
+        btcSection.appendChild(btcAddr);
+        btcSection.appendChild(btcCopy);
+        row1Col3.appendChild(btcSection);
+    }
 
     const row1 = document.createElement('div');
     row1.style = 'display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid black; padding-bottom: 24px;';
