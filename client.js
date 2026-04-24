@@ -509,6 +509,18 @@ const renderGamePage = (gameId, gameDetails) => {
             versionSelect.appendChild(opt);
         });
 
+        // View Code link
+        const viewCodeLink = document.createElement('a');
+        viewCodeLink.style = 'display: block; margin-top: 8px; font-size: 0.9em; color: rgba(148, 210, 229, 255);';
+        viewCodeLink.textContent = '</> View Source';
+        viewCodeLink.target = '_blank';
+        viewCodeLink.href = `/view?game=${gameId}&sha=${versionSelect.value}`;
+        versionSection.appendChild(viewCodeLink);
+
+        versionSelect.onchange = () => {
+            viewCodeLink.href = `/view?game=${gameId}&sha=${versionSelect.value}`;
+        };
+
         // Load active sessions
         loadGameSessions(gameId, sessionList);
 

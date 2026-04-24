@@ -94,10 +94,11 @@ const doLogin = () => {
     api('POST', '/auth/login', { username, password, type: 'login' })
         .then(data => {
             if (data.token) {
-                userInfo = { username: data.username, token: data.token };
+                userInfo = { username: data.username, token: data.token, isAdmin: data.isAdmin || false };
                 $('studio-login').style.display = 'none';
                 $('studio-app').style.display = 'flex';
                 $('user-info').textContent = userInfo.username;
+                if (userInfo.isAdmin) $('admin-btn').style.display = '';
                 loadGames();
                 startTokenRefresh();
             } else { errorEl.textContent = 'Login failed'; }
@@ -1250,8 +1251,108 @@ $('new-file-create').onclick = createNewFile;
 $('new-file-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createNewFile(); });
 
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { hideModal('new-game-modal'); hideModal('new-file-modal'); }
+    if (e.key === 'Escape') { hideModal('new-game-modal'); hideModal('new-file-modal'); hideModal('admin-modal'); }
 });
+
+// ---------------------------------------------------------------------------
+// Admin panel
+// ---------------------------------------------------------------------------
+
+let adminPage = 1;
+const ADMIN_PAGE_SIZE = 10;
+
+$('admin-btn').onclick = () => {
+    adminPage = 1;
+    showModal('admin-modal');
+    loadAdminMessages();
+};
+
+$('admin-close').onclick = () => hideModal('admin-modal');
+$('admin-tab-messages').onclick = () => { adminPage = 1; loadAdminMessages(); };
+
+const loadAdminMessages = () => {
+    const content = $('admin-content');
+    const pagination = $('admin-pagination');
+    content.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px;">Loading...</div>';
+    pagination.innerHTML = '';
+
+    api('GET', `/admin/support_messages?page=${adminPage}&limit=${ADMIN_PAGE_SIZE}`)
+        .then(data => {
+            const messages = data.requests || [];
+            content.innerHTML = '';
+
+            if (messages.length === 0) {
+                content.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px;">No pending messages</div>';
+                return;
+            }
+
+            messages.forEach(msg => {
+                const el = document.createElement('div');
+                el.className = 'admin-msg';
+
+                const meta = document.createElement('div');
+                meta.className = 'msg-meta';
+                const date = new Date(msg.created || msg.id);
+                meta.innerHTML = `<span>${date.toLocaleString()}</span><span>${msg.status || 'PENDING'}</span>`;
+                el.appendChild(meta);
+
+                if (msg.email) {
+                    const email = document.createElement('div');
+                    email.className = 'msg-email';
+                    email.textContent = msg.email;
+                    el.appendChild(email);
+                }
+
+                const body = document.createElement('div');
+                body.className = 'msg-body';
+                body.textContent = msg.message || '';
+                el.appendChild(body);
+
+                if (msg.status === 'PENDING') {
+                    const ackDiv = document.createElement('div');
+                    ackDiv.className = 'msg-ack';
+                    const ackBtn = document.createElement('button');
+                    ackBtn.className = 'msg-ack-btn';
+                    ackBtn.textContent = '✓ Acknowledge';
+                    ackBtn.onclick = () => {
+                        api('POST', '/admin/acknowledge', { messageId: msg.id }).then(() => {
+                            el.classList.add('acknowledged');
+                            ackBtn.textContent = 'Acknowledged';
+                            ackBtn.disabled = true;
+                        }).catch(() => {
+                            ackBtn.textContent = 'Failed';
+                        });
+                    };
+                    ackDiv.appendChild(ackBtn);
+                    el.appendChild(ackDiv);
+                }
+
+                content.appendChild(el);
+            });
+
+            // Pagination
+            pagination.innerHTML = '';
+            if (adminPage > 1) {
+                const prev = document.createElement('span');
+                prev.className = 'vp-nav';
+                prev.textContent = '← Newer';
+                prev.style = 'cursor:pointer;';
+                prev.onclick = () => { adminPage--; loadAdminMessages(); };
+                pagination.appendChild(prev);
+            }
+            if (messages.length >= ADMIN_PAGE_SIZE) {
+                const next = document.createElement('span');
+                next.className = 'vp-nav';
+                next.textContent = 'Older →';
+                next.style = 'cursor:pointer;';
+                next.onclick = () => { adminPage++; loadAdminMessages(); };
+                pagination.appendChild(next);
+            }
+        })
+        .catch(err => {
+            content.innerHTML = '<div style="text-align:center;color:var(--accent-red);padding:24px;">Failed to load messages (admin access required)</div>';
+        });
+};
 
 // ---------------------------------------------------------------------------
 // Clone popover

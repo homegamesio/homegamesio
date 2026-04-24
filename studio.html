@@ -239,6 +239,14 @@
             .modal-btn.secondary { background: var(--border); color: var(--text-secondary); }
             .modal-btn.secondary:hover { background: var(--border-light); }
             .modal-error { color: rgba(241, 112, 111, 255); font-size: 0.85em; min-height: 18px; margin-top: 4px; }
+            .admin-msg { padding: 10px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 8px; font-size: 0.85em; }
+            .admin-msg .msg-meta { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.8em; margin-bottom: 4px; }
+            .admin-msg .msg-body { color: var(--text-primary); white-space: pre-wrap; word-break: break-word; }
+            .admin-msg .msg-email { color: var(--accent-blue); font-size: 0.8em; }
+            .admin-msg .msg-ack { margin-top: 6px; }
+            .admin-msg .msg-ack-btn { font-size: 0.78em; padding: 2px 10px; background: var(--accent-green); color: var(--badge-head-text); border: none; border-radius: 3px; cursor: pointer; font-family: inherit; }
+            .admin-msg .msg-ack-btn:hover { background: var(--accent-green-hover); }
+            .admin-msg.acknowledged { opacity: 0.5; }
 
             /* Preview panel */
             #preview-panel { width: 0; background: var(--bg-deep); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: width 0.2s ease; }
@@ -396,6 +404,7 @@
                 <span class="logo" id="logo-btn">⌂ Homegames Studio</span>
                 <div style="display:flex;align-items:center;gap:16px;">
                     <a href="/" style="color:var(--text-muted);font-size:0.85em;text-decoration:none;">homegames.io</a>
+                    <span id="admin-btn" style="display:none;cursor:pointer;font-size:0.85em;color:var(--accent-red);font-weight:bold;" title="Admin panel">⚙ Admin</span>
                     <span id="theme-toggle" style="cursor:pointer;font-size:1.1em;" title="Toggle light/dark mode">☀</span>
                     <span class="user-info" id="user-info" style="cursor:pointer;" title="Profile settings"></span>
                 </div>
@@ -452,6 +461,21 @@
                     <button class="modal-btn secondary" id="new-file-cancel">Cancel</button>
                     <button class="modal-btn primary" id="new-file-create">Create</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Admin modal -->
+        <div class="modal-overlay" id="admin-modal">
+            <div class="modal-box" style="width:600px;max-height:80vh;display:flex;flex-direction:column;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                    <h2 style="margin:0;">Admin</h2>
+                    <span id="admin-close" style="cursor:pointer;font-size:1.2em;color:var(--text-muted);">✕</span>
+                </div>
+                <div style="display:flex;gap:8px;margin-bottom:12px;">
+                    <button class="modal-btn primary" id="admin-tab-messages" style="flex:1;">Support Messages</button>
+                </div>
+                <div id="admin-content" style="flex:1;overflow-y:auto;"></div>
+                <div id="admin-pagination" style="display:flex;justify-content:center;gap:12px;margin-top:8px;"></div>
             </div>
         </div>
 
