@@ -147,12 +147,14 @@ const server = http.createServer((req, res) => {
             } else if (req.url === '/socket-worker.js') {
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'text/javascript');
-                const payload = fs.readFileSync(path.join(__dirname, 'socket-worker.js'));
+                const workerPath = path.join(__dirname, 'node_modules', 'homegames-client', 'src', 'socket-worker.js');
+                const payload = fs.readFileSync(workerPath);
                 res.end(payload);
             } else if (req.url === '/homegames-client.js') {
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'text/javascript');
-                const payload = fs.readFileSync(path.join(__dirname, 'homegames-client.js'));
+                const clientPath = path.join(__dirname, 'node_modules', 'homegames-client', 'dist', 'homegames-client.js');
+                const payload = fs.readFileSync(clientPath);
                 res.end(payload);
             } else if (req.url.startsWith('/view')) {
                 res.statusCode = 200;
