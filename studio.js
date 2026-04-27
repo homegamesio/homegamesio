@@ -1690,7 +1690,7 @@ const _doStartPreview = (files) => {
 const showPreviewShareLink = (wsUrl) => {
     const shareEl = $('preview-share');
     if (!shareEl) return;
-    const playUrl = `${window.location.origin}/play?ws=${encodeURIComponent(wsUrl)}`;
+    const playUrl = `${window.location.origin}/play.html?ws=${encodeURIComponent(wsUrl)}`;
     shareEl.innerHTML = '';
 
     const linkInput = document.createElement('input');
