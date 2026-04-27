@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 const API_URL = 'https://api.homegames.io';//'http://localhost:80';
-const HOMENAMES_URL = 'https://api.homegames.io:7400';//'https://api.homegames.io';
+const HOMENAMES_URL = 'https://api.homegames.io/homenames';
 
 // ---------------------------------------------------------------------------
 // State

@@ -537,7 +537,7 @@ const renderGamePage = (gameId, gameDetails) => {
         createBtn.style.display = 'none';
         statusMsg.innerHTML = 'Starting session...';
 
-        makePost(`${window.HOMENAMES_URL}/sessions`, { gameId, commitSha }).then(sessionData => {
+        makePost(`${API_URL}/sessions`, { gameId, commitSha }).then(sessionData => {
             statusMsg.innerHTML = '';
             createBtn.style.display = 'inline-block';
             // Refresh session list
