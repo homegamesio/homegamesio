@@ -1,9 +1,9 @@
-window.API_PROTOCOL = 'http';//window.origin && window.origin.startsWith('https') ? 'https' : 'http';
-window.API_HOST = 'localhost';//'api.homegames.io';//'api.homegames.io';//'api.homegames.io';//window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
-window.API_PORT = 80;
+window.API_PROTOCOL = window.origin && window.origin.startsWith('https') ? 'https' : 'http';
+window.API_HOST = 'api.homegames.io';//'api.homegames.io';//'api.homegames.io';//window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
+window.API_PORT = 443;
 
 window.API_URL = `${window.API_PROTOCOL}://${window.API_HOST}:${window.API_PORT}`;
-window.HOMENAMES_URL = 'https://api.homegames.io';
+window.HOMENAMES_URL = 'https://api.homegames.io:7400';
 
 const marked = require('marked');   
 
