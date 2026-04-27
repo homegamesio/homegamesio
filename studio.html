@@ -2,6 +2,7 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
         <title>Homegames Studio</title>
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
         <link rel="manifest" href="/site.webmanifest">
@@ -130,7 +131,7 @@
             .version-badge.history { background: rgba(255, 247, 142, 255); color: var(--badge-head-text); }
             .clone-btn { font-size: 0.8em; padding: 3px 10px; border-radius: 10px; background: var(--border); color: var(--text-secondary); cursor: pointer; border: none; font-family: inherit; }
             .clone-btn:hover { background: var(--border-light); color: #fff; }
-            #clone-popover { display: none; position: absolute; top: 44px; right: 252px; background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 6px; padding: 12px; z-index: 50; width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+            #clone-popover { display: none; position: absolute; top: 44px; right: 252px; background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 6px; padding: 12px; z-index: 50; width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); overflow: hidden; }
             #clone-popover.visible { display: block; }
             #thumbnail-popover { display: none; position: absolute; top: 44px; right: 160px; background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 6px; padding: 12px; z-index: 50; width: 320px; max-height: 400px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
             #thumbnail-popover.visible { display: block; }
@@ -145,7 +146,10 @@
             #clone-popover input { flex: 1; padding: 6px 8px; background: var(--bg-deep); border: 1px solid var(--border-light); border-radius: 3px; color: var(--text-primary); font-family: monospace; font-size: 0.85em; }
             #clone-popover .copy-btn { padding: 6px 12px; background: var(--accent-green); color: var(--badge-head-text); border: none; border-radius: 3px; cursor: pointer; font-weight: bold; font-size: 0.85em; font-family: inherit; }
             #clone-popover .copy-btn:hover { background: var(--accent-green-hover); }
-            #clone-popover .clone-hint { color: var(--text-dim); font-size: 0.78em; line-height: 1.4; }
+            #clone-popover .clone-hint { color: var(--text-dim); font-size: 0.78em; line-height: 1.4; word-break: break-all; overflow-wrap: break-word; }
+            #clone-popover .clone-cmd { display: block; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 3px; padding: 6px 8px; margin: 8px 0; font-family: monospace; font-size: 0.9em; color: var(--text-secondary); word-break: break-all; overflow-wrap: break-word; user-select: all; }
+            #clone-popover .download-btn { display: block; width: 100%; padding: 8px; margin-top: 10px; background: var(--accent-blue); color: var(--badge-head-text); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85em; font-family: inherit; text-align: center; }
+            #clone-popover .download-btn:hover { opacity: 0.85; }
 
             /* Editor layout */
             #editor-area { display: flex; flex: 1; overflow: hidden; }
@@ -369,6 +373,108 @@
             /* Loading spinner */
             .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #444; border-top-color: var(--accent-green); border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
             @keyframes spin { to { transform: rotate(360deg); } }
+
+            /* Mobile tab bar — hidden on desktop */
+            #mobile-tab-bar { display: none; }
+
+            /* ============================================================= */
+            /* Mobile layout (<768px)                                        */
+            /* ============================================================= */
+            @media (max-width: 768px) {
+                /* Header */
+                #studio-header { padding: 0 8px; height: 40px; }
+                #studio-header .logo { font-size: 0.9em; }
+                #studio-header .user-info { font-size: 0.75em; }
+
+                /* Body becomes vertical */
+                #studio-body { flex-direction: column; }
+
+                /* Hide all panels by default — mobile tab bar toggles them */
+                #sidebar { display: none; position: fixed; top: 40px; left: 0; right: 0; bottom: 48px; width: 100% !important; z-index: 30; border-right: none; }
+                #sidebar.mobile-visible { display: flex; }
+                #sidebar.collapsed { width: 100% !important; }
+                #sidebar.collapsed #game-list, #sidebar.collapsed #new-game-btn { display: flex; }
+                #sidebar.collapsed #sidebar-header .sidebar-label { display: inline; }
+                #sidebar-toggle { display: none; }
+
+                #main-content { flex: 1; min-height: 0; }
+
+                /* File tree */
+                #file-tree { display: none; position: fixed; top: 40px; left: 0; right: 0; bottom: 48px; width: 100% !important; z-index: 30; }
+                #file-tree.mobile-visible { display: flex; }
+
+                /* Editor */
+                #editor-area { flex-direction: column; }
+                #editor-pane { min-width: 0; }
+                #editor-textarea, #editor-highlight { font-size: 13px; line-height: 1.5; }
+
+                /* Game header */
+                #game-header { flex-wrap: wrap; gap: 4px; padding: 6px 8px; }
+                .game-desc { display: none; }
+                #clone-popover, #thumbnail-popover { width: calc(100vw - 32px); right: 16px; left: 16px; }
+
+                /* Version panel */
+                #version-panel { display: none; position: fixed; top: 40px; left: 0; right: 0; bottom: 48px; width: 100% !important; z-index: 30; }
+                #version-panel.mobile-visible { display: flex; }
+
+                /* Preview panel — full screen on mobile */
+                #preview-panel { display: none; position: fixed; top: 40px; left: 0; right: 0; bottom: 48px; width: 100% !important; z-index: 30; }
+                #preview-panel.open { width: 100% !important; }
+                #preview-panel.mobile-visible { display: flex; }
+
+                /* Asset panel */
+                #asset-panel { display: none; position: fixed; top: 40px; left: 0; right: 0; bottom: 48px; width: 100% !important; z-index: 30; }
+                #asset-panel.open { width: 100% !important; }
+                #asset-panel.mobile-visible { display: flex; }
+
+                /* Bottom bar — hide save bar, use mobile tab bar instead */
+                #bottom-bar { display: none; }
+
+                /* Mobile tab bar */
+                #mobile-tab-bar {
+                    display: flex;
+                    position: fixed;
+                    bottom: 0; left: 0; right: 0;
+                    height: 48px;
+                    background: var(--bg-secondary);
+                    border-top: 1px solid var(--border);
+                    z-index: 40;
+                    justify-content: space-around;
+                    align-items: center;
+                }
+                #mobile-tab-bar .mtab {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    color: var(--text-dim);
+                    font-size: 0.65em;
+                    cursor: pointer;
+                    padding: 4px 0;
+                    gap: 2px;
+                    -webkit-tap-highlight-color: transparent;
+                }
+                #mobile-tab-bar .mtab .mtab-icon { font-size: 1.6em; }
+                #mobile-tab-bar .mtab.active { color: var(--accent-green); }
+
+                /* Modals */
+                .modal-box { width: calc(100vw - 32px); max-width: 380px; }
+                .modal-box input, .modal-box select { font-size: 16px; } /* prevent iOS zoom */
+
+                /* Profile popover */
+                .profile-popover { width: calc(100vw - 32px); right: 16px; left: 16px; }
+
+                /* Draw overlay */
+                .draw-box { width: calc(100vw - 32px); }
+                .draw-canvas-wrapper { width: 100% !important; height: auto !important; aspect-ratio: 1; }
+
+                /* Record overlay */
+                .record-box { width: calc(100vw - 32px); }
+
+                /* Welcome pane */
+                #welcome-pane { font-size: 0.9em; padding: 20px; text-align: center; }
+            }
         </style>
     </head>
     <body>
@@ -432,6 +538,13 @@
                 <div id="main-content">
                     <div id="welcome-pane">Select a game or create a new one</div>
                 </div>
+            </div>
+            <div id="mobile-tab-bar">
+                <div class="mtab" data-tab="games"><span class="mtab-icon">☰</span>Games</div>
+                <div class="mtab active" data-tab="code"><span class="mtab-icon">✎</span>Code</div>
+                <div class="mtab" data-tab="files"><span class="mtab-icon">📁</span>Files</div>
+                <div class="mtab" data-tab="preview"><span class="mtab-icon">▶</span>Preview</div>
+                <div class="mtab" data-tab="save"><span class="mtab-icon">💾</span>Save</div>
             </div>
         </div>
 

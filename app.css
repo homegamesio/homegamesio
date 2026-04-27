@@ -58,7 +58,7 @@
     background: #fbfff2;
     display: grid;
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr 8fr 1fr;
+    grid-template-rows: 1fr 8fr;
     height: 100vh;
     width: 100vw;
 }
@@ -94,25 +94,6 @@
     background: #fbfff2;
     width: 100%;
     overflow-y: scroll;
-}
-
-#footer {
-    width: 100%;
-    background: rgba(148, 210, 229, 255);
-    text-align: center;
-    line-height: 10vh;
-    min-height: 10vh;
-    max-height: 10vh;
-    position: fixed;
-    bottom: 0;
-}
-
-#footer:hover {
-    background: rgba(255, 247, 142, 255);
-}
-
-#footer h1 {
-    margin: 0;
 }
 
 #links {

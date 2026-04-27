@@ -3,7 +3,7 @@ window.API_HOST = 'localhost';//'api.homegames.io';//'api.homegames.io';//'api.h
 window.API_PORT = 80;
 
 window.API_URL = `${window.API_PROTOCOL}://${window.API_HOST}:${window.API_PORT}`;
-window.HOMENAMES_URL = 'http://localhost:7400';
+window.HOMENAMES_URL = 'https://api.homegames.io';
 
 const marked = require('marked');   
 
@@ -587,7 +587,15 @@ const loadGameSessions = (gameId, listEl) => {
             joinBtn.className = 'clickable';
             joinBtn.style = 'background: #A0EB5D; color: #333; padding: 4px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;';
             joinBtn.onclick = () => {
-                const wsUrl = `ws://${window.HOMENAMES_URL.replace(/^https?:\/\//, '').replace(/:\d+$/, '')}:${s.port}`;
+                // Prefer wsUrl from server (includes correct wss:// path-based proxy URL)
+                let wsUrl = s.wsUrl;
+                if (!wsUrl) {
+                    const homenamesHost = window.HOMENAMES_URL.replace(/^https?:\/\//, '').replace(/:\d+$/, '');
+                    const isSecure = window.HOMENAMES_URL.startsWith('https');
+                    wsUrl = isSecure
+                        ? `wss://${homenamesHost}/session/${s.port}`
+                        : `ws://${homenamesHost}:${s.port}`;
+                }
                 connectToSession({ wsUrl, sessionId: s.id, port: s.port }, row.closest('#content') || document.getElementById('content'));
             };
 

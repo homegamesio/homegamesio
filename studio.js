@@ -2,8 +2,8 @@
 // Homegames Studio
 // ---------------------------------------------------------------------------
 
-const API_URL = 'http://localhost:80';
-const HOMENAMES_URL = 'http://localhost:7400';
+const API_URL = 'https://api.homegames.io';//'http://localhost:80';
+const HOMENAMES_URL = 'http://localhost:7400';//'https://api.homegames.io';
 
 // ---------------------------------------------------------------------------
 // State
@@ -708,6 +708,14 @@ const loadFiles = () => {
             }
             renderFileTree();
             setStatus('');
+
+            // Auto-open index.js if it exists and no file is currently open
+            if (!currentFile) {
+                const indexFile = fileTree.find(f => f.path === 'index.js');
+                if (indexFile) {
+                    openFile(indexFile);
+                }
+            }
         })
         .catch(err => {
             console.error('Failed to load files', err);
@@ -1396,6 +1404,7 @@ const showClonePopover = (info) => {
 
     const url = info.authenticatedUrl || info.cloneUrl;
 
+    // Clone URL section
     const label = document.createElement('label');
     label.textContent = 'Clone URL';
     popover.appendChild(label);
@@ -1419,12 +1428,27 @@ const showClonePopover = (info) => {
     box.appendChild(copyBtn);
     popover.appendChild(box);
 
+    const cmd = document.createElement('code');
+    cmd.className = 'clone-cmd';
+    cmd.textContent = `git clone ${url}`;
+    popover.appendChild(cmd);
+
     const hint = document.createElement('div');
     hint.className = 'clone-hint';
-    hint.innerHTML = `<strong>git clone ${url}</strong><br><br>Push changes to trigger updates in Studio. The clone URL includes your access token — don't share it.`;
+    hint.textContent = 'Push changes to trigger updates in Studio. The clone URL includes your access token\u2009—\u2009don\u2019t share it.';
     popover.appendChild(hint);
 
-
+    // Download ZIP button
+    const dlBtn = document.createElement('button');
+    dlBtn.className = 'download-btn';
+    dlBtn.textContent = '⤓ Download ZIP';
+    dlBtn.onclick = () => {
+        // Build the Forgejo archive URL (strip auth credentials from the clone URL)
+        const archiveUrl = url.replace(/\.git$/, '') + '/archive/main.zip';
+        const cleanUrl = archiveUrl.replace(/\/\/[^@]+@/, '//');
+        window.open(cleanUrl, '_blank');
+    };
+    popover.appendChild(dlBtn);
 };
 
 // Close popovers when clicking outside
@@ -1549,20 +1573,62 @@ const getPreviewFiles = () => {
         files[filePath] = openFiles[filePath].content;
     }
     if (Object.keys(files).length === 0) return null;
-    if (!files['index.js']) {
-        // If index.js isn't open, we can't preview
-        return null;
-    }
+    if (!files['index.js']) return null;
     return files;
 };
 
-const startPreview = () => {
-    const files = getPreviewFiles();
-    if (!files) {
-        setPreviewStatus('Open index.js to preview');
+// Fetch ALL files for a version (or HEAD) and return as a { path: content } map.
+// Used for previewing previous versions where files aren't in openFiles.
+const fetchAllFilesForPreview = () => new Promise((resolve, reject) => {
+    if (!currentGame) { reject('No game selected'); return; }
+
+    // For HEAD with open files, use what we have
+    if (!viewingVersion && Object.keys(openFiles).length > 0 && openFiles['index.js']) {
+        const files = {};
+        for (const filePath in openFiles) files[filePath] = openFiles[filePath].content;
+        resolve(files);
         return;
     }
 
+    // Fetch all file contents from the API
+    const ref = viewingVersion ? viewingVersion.sha : undefined;
+    const filesToFetch = fileTree.filter(f => f.path.endsWith('.js') || f.path.endsWith('.json'));
+    if (!filesToFetch.find(f => f.path === 'index.js')) {
+        reject('No index.js found');
+        return;
+    }
+
+    const files = {};
+    let fetched = 0;
+    filesToFetch.forEach(f => {
+        const refParam = ref ? `&ref=${ref}` : '';
+        api('GET', `/studio/games/${currentGame.id}/file?path=${encodeURIComponent(f.path)}${refParam}`)
+            .then(data => {
+                files[f.path] = data.content ? atob(data.content) : '';
+                fetched++;
+                if (fetched === filesToFetch.length) resolve(files);
+            })
+            .catch(() => {
+                fetched++;
+                if (fetched === filesToFetch.length) resolve(files);
+            });
+    });
+});
+
+const startPreview = () => {
+    // Try quick path first (open files), fall back to fetching all files
+    const quickFiles = getPreviewFiles();
+    if (quickFiles) {
+        _doStartPreview(quickFiles);
+    } else {
+        setPreviewStatus('Loading files...');
+        fetchAllFilesForPreview()
+            .then(files => _doStartPreview(files))
+            .catch(err => setPreviewStatus('No index.js found'));
+    }
+};
+
+const _doStartPreview = (files) => {
     stopPreview();
 
     setPreviewStatus('Starting session...');
@@ -2012,8 +2078,13 @@ const handleAssetFiles = (files) => {
         apiUpload(files[i], files[i].name)
             .then(() => uploadNext(i + 1))
             .catch(err => {
+                let msg = 'Upload failed';
+                try {
+                    const parsed = typeof err === 'string' ? JSON.parse(err) : err;
+                    if (parsed && parsed.error) msg = parsed.error;
+                } catch (e) {}
                 console.error('Upload failed', err);
-                setStatus('Upload failed');
+                setStatus(msg);
             });
     };
     uploadNext(0);
@@ -2355,3 +2426,66 @@ $('rec-pause').onclick = pauseRecording;
 $('rec-stop').onclick = stopRecording;
 $('rec-save').onclick = saveRecording;
 $('rec-cancel').onclick = closeRecordOverlay;
+
+// ---------------------------------------------------------------------------
+// Mobile tab bar
+// ---------------------------------------------------------------------------
+(() => {
+    const tabBar = document.getElementById('mobile-tab-bar');
+    if (!tabBar) return;
+
+    const PANEL_MAP = {
+        games: 'sidebar',
+        files: 'file-tree',
+        preview: 'preview-panel',
+    };
+
+    const clearMobileVisible = () => {
+        ['sidebar', 'file-tree', 'version-panel', 'preview-panel', 'asset-panel'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('mobile-visible');
+        });
+    };
+
+    tabBar.addEventListener('click', (e) => {
+        const tab = e.target.closest('.mtab');
+        if (!tab) return;
+
+        const tabName = tab.dataset.tab;
+
+        // Update active state
+        tabBar.querySelectorAll('.mtab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        // Handle tab actions
+        if (tabName === 'code') {
+            // Show editor (default state — just hide overlays)
+            clearMobileVisible();
+        } else if (tabName === 'save') {
+            // Trigger save
+            clearMobileVisible();
+            const saveBtn = document.getElementById('save-btn');
+            if (saveBtn && !saveBtn.disabled) saveBtn.click();
+            // Flash back to code tab
+            setTimeout(() => {
+                tabBar.querySelector('[data-tab="code"]').classList.add('active');
+                tab.classList.remove('active');
+            }, 300);
+        } else if (tabName === 'preview') {
+            clearMobileVisible();
+            const panel = document.getElementById('preview-panel');
+            if (panel) {
+                panel.classList.add('open', 'mobile-visible');
+                // Auto-start preview if not running
+                const playBtn = document.getElementById('preview-play-btn');
+                if (playBtn && !document.getElementById('preview-container')?.children.length) {
+                    playBtn.click();
+                }
+            }
+        } else if (PANEL_MAP[tabName]) {
+            clearMobileVisible();
+            const panel = document.getElementById(PANEL_MAP[tabName]);
+            if (panel) panel.classList.add('mobile-visible');
+        }
+    });
+})();

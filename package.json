@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/prosif/homegamesio#readme",
   "dependencies": {
+    "homegames-client": "file:../homegames-client",
     "marked": "^14.1.2"
   },
   "devDependencies": {
