@@ -615,7 +615,7 @@ const connectToSession = (sessionData) => {
         console.error('No WebSocket URL in session data');
         return;
     }
-    window.open(`/play?ws=${encodeURIComponent(wsUrl)}`, '_blank');
+    window.open(`/play.html?ws=${encodeURIComponent(wsUrl)}`, '_blank');
 };
 
 const renderDevProfile = (devId, devInfo) => {
