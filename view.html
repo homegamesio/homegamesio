@@ -1,0 +1,170 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Homegames — View Source</title>
+        <style>
+            @font-face { font-family: 'amateur'; src: url('/amateur.ttf'); }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: 'amateur', monospace; background: #1a1a2e; color: #eee; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+            #view-header { display: flex; justify-content: space-between; align-items: center; padding: 0 16px; background: #16213e; border-bottom: 1px solid #333; height: 44px; flex-shrink: 0; }
+            #view-header .logo { color: rgba(148, 210, 229, 255); font-size: 1.1em; text-decoration: none; }
+            #view-header .game-info { color: #888; font-size: 0.85em; }
+            #view-header .game-info a { color: rgba(241, 112, 111, 255); text-decoration: none; }
+
+            #view-body { display: flex; flex: 1; overflow: hidden; }
+
+            #view-file-tree { width: 240px; background: #0f3460; border-right: 1px solid #333; overflow-y: auto; flex-shrink: 0; }
+            #view-file-tree-header { padding: 8px 12px; color: #666; font-size: 0.75em; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #333; }
+            .view-file-item { padding: 5px 12px; cursor: pointer; font-size: 0.82em; color: #99a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; }
+            .view-file-item:hover { background: #16213e; color: #ddd; }
+            .view-file-item.active { background: #1a1a2e; color: #A0EB5D; }
+
+            #view-editor { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+            #view-tab { padding: 4px 12px; background: #16213e; border-bottom: 1px solid #333; font-size: 0.8em; color: #eee; height: 32px; line-height: 24px; flex-shrink: 0; }
+            #view-code-wrap { flex: 1; position: relative; overflow: hidden; }
+            #view-highlight { position: absolute; top: 0; left: 0; right: 0; bottom: 0; padding: 12px; margin: 0; background: #0a0a1a; color: #eee; font-family: monospace; font-size: 14px; line-height: 1.6; tab-size: 2; overflow: auto; white-space: pre-wrap; word-wrap: break-word; }
+            #view-highlight code { font-family: inherit; font-size: inherit; }
+            #view-placeholder { flex: 1; display: flex; align-items: center; justify-content: center; color: #555; font-size: 1em; background: #0a0a1a; }
+
+            .hl-keyword { color: #c678dd; }
+            .hl-string { color: #98c379; }
+            .hl-number { color: #d19a66; }
+            .hl-comment { color: #5c6370; font-style: italic; }
+            .hl-function { color: #61afef; }
+            .hl-operator { color: #56b6c2; }
+            .hl-regex { color: #e06c75; }
+
+            #view-status { padding: 4px 16px; background: #16213e; border-top: 1px solid #333; font-size: 0.78em; color: #666; flex-shrink: 0; height: 28px; }
+        </style>
+    </head>
+    <body>
+        <div id="view-header">
+            <a href="/" class="logo">⌂ Homegames</a>
+            <div class="game-info" id="game-info"></div>
+        </div>
+        <div id="view-body">
+            <div id="view-file-tree">
+                <div id="view-file-tree-header">Files</div>
+                <div id="view-file-list"></div>
+            </div>
+            <div id="view-editor">
+                <div id="view-tab"></div>
+                <div id="view-code-wrap" style="display:none;">
+                    <pre id="view-highlight"><code id="view-highlight-code"></code></pre>
+                </div>
+                <div id="view-placeholder">Select a file to view</div>
+            </div>
+        </div>
+        <div id="view-status" id="view-status"></div>
+    </body>
+    <script>
+        const API_URL = 'http://localhost:80';
+
+        const params = new URLSearchParams(window.location.search);
+        const gameId = params.get('game');
+        const commitSha = params.get('sha');
+
+        const $ = (id) => document.getElementById(id);
+
+        // --- Syntax highlighter (same as Studio) ---
+        const highlightJS = (code) => {
+            const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const tokens = [];
+            const re = /\/\/[^\n]*|\/\*[\s\S]*?\*\/|`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\/(?:[^/\\]|\\.)+\/[gimsuy]*|\b(?:const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|new|this|class|extends|super|import|export|default|from|of|in|typeof|instanceof|try|catch|finally|throw|async|await|yield|static|get|set|null|undefined|true|false|NaN|Infinity)\b|\b\d+\.?\d*(?:e[+-]?\d+)?\b|[{}()[\];,]|=>|\.\.\.|\?\.|[+\-*/%=!<>&|^~?:]+|[a-zA-Z_$][a-zA-Z0-9_$]*/g;
+            let match, lastIndex = 0;
+            while ((match = re.exec(code)) !== null) {
+                if (match.index > lastIndex) tokens.push(esc(code.slice(lastIndex, match.index)));
+                const t = match[0];
+                let cls = '';
+                if (t.startsWith('//') || t.startsWith('/*')) cls = 'hl-comment';
+                else if (t.startsWith('"') || t.startsWith("'") || t.startsWith('`')) cls = 'hl-string';
+                else if (t.startsWith('/') && t.length > 1 && !t.startsWith('//') && !t.startsWith('/*')) cls = 'hl-regex';
+                else if (/^(?:const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|new|this|class|extends|super|import|export|default|from|of|in|typeof|instanceof|try|catch|finally|throw|async|await|yield|static|get|set|null|undefined|true|false|NaN|Infinity)$/.test(t)) cls = 'hl-keyword';
+                else if (/^\d/.test(t)) cls = 'hl-number';
+                else if (/^[a-zA-Z_$]/.test(t)) { cls = code[re.lastIndex] === '(' ? 'hl-function' : ''; }
+                else if (/^[+\-*/%=!<>&|^~?:]+$/.test(t) || t === '=>') cls = 'hl-operator';
+                tokens.push(cls ? `<span class="${cls}">${esc(t)}</span>` : esc(t));
+                lastIndex = re.lastIndex;
+            }
+            if (lastIndex < code.length) tokens.push(esc(code.slice(lastIndex)));
+            return tokens.join('');
+        };
+
+        // --- API helper ---
+        const apiGet = (path) => new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', `${API_URL}${path}`, true);
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        try { resolve(JSON.parse(xhr.response)); } catch (e) { resolve(xhr.response); }
+                    } else { reject(xhr.response); }
+                }
+            };
+            xhr.send();
+        });
+
+        // --- Main ---
+        if (!gameId || !commitSha) {
+            $('view-placeholder').textContent = 'Missing game or version parameters';
+        } else {
+            // Load game info
+            apiGet(`/games/${gameId}`).then(data => {
+                const game = data.game || {};
+                $('game-info').innerHTML = `<a href="/game.html?id=${gameId}">${game.name || gameId}</a> @ ${commitSha.substring(0, 7)}`;
+            }).catch(() => {
+                $('game-info').textContent = commitSha.substring(0, 7);
+            });
+
+            // Load file tree at this commit
+            // Use the public game versions file tree endpoint
+            // We need a public endpoint for this — use the game detail + forgejo info
+            apiGet(`/games/${gameId}/source-tree?ref=${commitSha}`).then(data => {
+                const files = (data.tree || []).filter(e => e.type === 'blob');
+                files.sort((a, b) => a.path.localeCompare(b.path));
+
+                const fileList = $('view-file-list');
+                fileList.innerHTML = '';
+
+                files.forEach(file => {
+                    const el = document.createElement('div');
+                    el.className = 'view-file-item';
+                    el.textContent = file.path;
+                    el.title = file.path;
+                    el.onclick = () => {
+                        // Deselect all
+                        fileList.querySelectorAll('.view-file-item').forEach(f => f.classList.remove('active'));
+                        el.classList.add('active');
+                        loadFile(gameId, file.path, commitSha);
+                    };
+                    fileList.appendChild(el);
+                });
+
+                $('view-status').textContent = `${files.length} files`;
+            }).catch(err => {
+                $('view-placeholder').textContent = 'Failed to load file tree';
+            });
+        }
+
+        const loadFile = (gameId, filePath, ref) => {
+            $('view-tab').textContent = filePath;
+            $('view-placeholder').style.display = 'none';
+            $('view-code-wrap').style.display = '';
+            $('view-highlight-code').textContent = 'Loading...';
+
+            apiGet(`/games/${gameId}/source?path=${encodeURIComponent(filePath)}&ref=${ref}`).then(data => {
+                const content = data.content ? atob(data.content) : '';
+                const isJS = filePath.endsWith('.js') || filePath.endsWith('.mjs');
+                const codeEl = $('view-highlight-code');
+                codeEl.innerHTML = isJS ? highlightJS(content) : content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                if (!codeEl.innerHTML.endsWith('\n')) codeEl.innerHTML += '\n';
+                $('view-status').textContent = filePath;
+            }).catch(err => {
+                $('view-highlight-code').textContent = 'Failed to load file';
+            });
+        };
+    </script>
+</html>
