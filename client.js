@@ -3,7 +3,7 @@ window.API_HOST = 'api.homegames.io';//'api.homegames.io';//'api.homegames.io';/
 window.API_PORT = 443;
 
 window.API_URL = `${window.API_PROTOCOL}://${window.API_HOST}:${window.API_PORT}`;
-window.HOMENAMES_URL = 'https://api.homegames.io:7400';
+window.HOMENAMES_URL = 'https://api.homegames.io/homenames';
 
 const marked = require('marked');   
 
@@ -514,11 +514,11 @@ const renderGamePage = (gameId, gameDetails) => {
         viewCodeLink.style = 'display: block; margin-top: 8px; font-size: 0.9em; color: rgba(148, 210, 229, 255);';
         viewCodeLink.textContent = '</> View Source';
         viewCodeLink.target = '_blank';
-        viewCodeLink.href = `/view?game=${gameId}&sha=${versionSelect.value}`;
+        viewCodeLink.href = `/view.html?game=${gameId}&sha=${versionSelect.value}`;
         versionSection.appendChild(viewCodeLink);
 
         versionSelect.onchange = () => {
-            viewCodeLink.href = `/view?game=${gameId}&sha=${versionSelect.value}`;
+            viewCodeLink.href = `/view.html?game=${gameId}&sha=${versionSelect.value}`;
         };
 
         // Load active sessions
