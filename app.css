@@ -95,6 +95,10 @@
     overflow-y: scroll;
 }
 
+#info-content {
+    padding: 0 5%;
+}
+
 #links {
     clear: both;
     text-align: center;
@@ -137,6 +141,7 @@ body {
     padding-top: 20px;
     display: inline-block;
     width: 100%;
+    margin-bottom: 36px;
 }
 
 #logo {
