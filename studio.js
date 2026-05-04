@@ -733,14 +733,33 @@ const renderFileTree = () => {
         list.innerHTML = '<div class="file-tree-empty">No files yet</div>';
         return;
     }
+    // Track which folder paths we've already rendered headers for
+    const renderedFolders = new Set();
     fileTree.forEach(file => {
+        const parts = file.path.split('/');
+        // Render folder headers for each ancestor directory we haven't shown yet
+        if (parts.length > 1) {
+            for (let i = 1; i < parts.length; i++) {
+                const folderPath = parts.slice(0, i).join('/');
+                if (!renderedFolders.has(folderPath)) {
+                    renderedFolders.add(folderPath);
+                    const folderEl = document.createElement('div');
+                    folderEl.className = 'file-item folder';
+                    const folderDepth = i - 1;
+                    folderEl.style.paddingLeft = (10 + folderDepth * 14) + 'px';
+                    folderEl.textContent = '📁 ' + parts[i - 1];
+                    folderEl.title = folderPath;
+                    list.appendChild(folderEl);
+                }
+            }
+        }
         const el = document.createElement('div');
         const isActive = currentFile && currentFile.path === file.path;
         const isDirty = !viewingVersion && openFiles[file.path]?.dirty;
         el.className = 'file-item' + (isActive ? ' active' : '') + (isDirty ? ' dirty' : '');
-        const depth = file.path.split('/').length - 1;
+        const depth = parts.length - 1;
         el.style.paddingLeft = (10 + depth * 14) + 'px';
-        el.textContent = file.path.split('/').pop();
+        el.textContent = parts[parts.length - 1];
         el.title = file.path;
         el.onclick = () => openFile(file);
         list.appendChild(el);
@@ -1565,40 +1584,37 @@ const togglePreviewPanel = () => {
     }
 };
 
-const getPreviewFiles = () => {
-    // Gather all open files as a { path: content } map for multi-file preview.
-    // Uses the latest in-memory content (including unsaved edits).
-    const files = {};
-    for (const filePath in openFiles) {
-        files[filePath] = openFiles[filePath].content;
-    }
-    if (Object.keys(files).length === 0) return null;
-    if (!files['index.js']) return null;
-    return files;
-};
-
-// Fetch ALL files for a version (or HEAD) and return as a { path: content } map.
-// Used for previewing previous versions where files aren't in openFiles.
+// Fetch ALL files for preview and return as a { path: content } map.
+// For HEAD, uses in-memory openFiles content (including unsaved edits) where
+// available and fetches the rest from the API. For versions, fetches everything.
 const fetchAllFilesForPreview = () => new Promise((resolve, reject) => {
     if (!currentGame) { reject('No game selected'); return; }
 
-    // For HEAD with open files, use what we have
-    if (!viewingVersion && Object.keys(openFiles).length > 0 && openFiles['index.js']) {
-        const files = {};
-        for (const filePath in openFiles) files[filePath] = openFiles[filePath].content;
-        resolve(files);
-        return;
-    }
-
-    // Fetch all file contents from the API
     const ref = viewingVersion ? viewingVersion.sha : undefined;
-    const filesToFetch = fileTree.filter(f => f.path.endsWith('.js') || f.path.endsWith('.json'));
-    if (!filesToFetch.find(f => f.path === 'index.js')) {
+    const allFiles = fileTree.filter(f => f.type === 'blob');
+    if (!allFiles.find(f => f.path === 'index.js')) {
         reject('No index.js found');
         return;
     }
 
     const files = {};
+
+    // For HEAD, populate from in-memory openFiles (picks up unsaved edits)
+    const filesToFetch = [];
+    allFiles.forEach(f => {
+        if (!viewingVersion && openFiles[f.path]) {
+            files[f.path] = openFiles[f.path].content;
+        } else {
+            filesToFetch.push(f);
+        }
+    });
+
+    // If everything was already in memory, resolve immediately
+    if (filesToFetch.length === 0) {
+        resolve(files);
+        return;
+    }
+
     let fetched = 0;
     filesToFetch.forEach(f => {
         const refParam = ref ? `&ref=${ref}` : '';
@@ -1608,24 +1624,17 @@ const fetchAllFilesForPreview = () => new Promise((resolve, reject) => {
                 fetched++;
                 if (fetched === filesToFetch.length) resolve(files);
             })
-            .catch(() => {
-                fetched++;
-                if (fetched === filesToFetch.length) resolve(files);
+            .catch((err) => {
+                reject('Failed to load file: ' + f.path);
             });
     });
 });
 
 const startPreview = () => {
-    // Try quick path first (open files), fall back to fetching all files
-    const quickFiles = getPreviewFiles();
-    if (quickFiles) {
-        _doStartPreview(quickFiles);
-    } else {
-        setPreviewStatus('Loading files...');
-        fetchAllFilesForPreview()
-            .then(files => _doStartPreview(files))
-            .catch(err => setPreviewStatus('No index.js found'));
-    }
+    setPreviewStatus('Loading files...');
+    fetchAllFilesForPreview()
+        .then(files => _doStartPreview(files))
+        .catch(err => setPreviewStatus(err || 'Failed to load files'));
 };
 
 const _doStartPreview = (files) => {
