@@ -282,24 +282,69 @@
             .preview-toggle:hover { background: var(--border-light); color: #fff; }
             .preview-toggle.active { background: rgba(148, 210, 229, 255); color: var(--badge-head-text); }
 
-            /* Asset panel */
-            #asset-panel { width: 0; background: var(--bg-active); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: width 0.2s ease; }
-            #asset-panel.open { width: 320px; }
-            #asset-panel-header { padding: 6px 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-            #asset-panel-header span { color: var(--text-dim); font-size: 0.75em; text-transform: uppercase; letter-spacing: 1px; }
-            #asset-panel-actions { display: flex; gap: 6px; }
-            #asset-panel-actions button { font-size: 0.72em; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--border-light); cursor: pointer; font-family: inherit; background: var(--bg-secondary); color: var(--text-secondary); }
-            #asset-panel-actions button:hover { background: var(--bg-hover); color: var(--text-primary); }
-            .asset-toggle { font-size: 0.8em; padding: 3px 10px; border-radius: 10px; background: var(--border); color: var(--text-secondary); cursor: pointer; border: none; font-family: inherit; margin-left: 8px; }
-            .asset-toggle:hover { background: var(--border-light); color: #fff; }
-            .asset-toggle.active { background: rgba(255, 247, 142, 255); color: var(--badge-head-text); }
+            /* Asset modal */
+            .asset-modal-box { background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 10px; width: 90vw; max-width: 1100px; height: 85vh; display: flex; flex-direction: column; overflow: hidden; }
+            .asset-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+            .asset-modal-header-actions { display: flex; align-items: center; gap: 8px; }
+            .asset-modal-action-btn { font-size: 0.82em; padding: 5px 14px; border-radius: 4px; border: 1px solid var(--border-light); cursor: pointer; font-family: inherit; background: var(--bg-active); color: var(--text-secondary); }
+            .asset-modal-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+            .asset-modal-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap; gap: 8px; }
+            .asset-modal-tabs { display: flex; gap: 6px; }
+            .asset-modal-tab { padding: 6px 16px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-deep); color: var(--text-dim); cursor: pointer; font-family: inherit; font-size: 0.82em; }
+            .asset-modal-tab:hover { color: var(--text-primary); background: var(--bg-secondary); }
+            .asset-modal-tab.active { background: var(--bg-active); color: var(--logo-color); font-weight: bold; border-color: var(--logo-color); }
+            .asset-modal-filters { display: flex; gap: 8px; align-items: center; }
+            .nsfw-toggle { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.82em; color: var(--text-dim); user-select: none; white-space: nowrap; }
+            .nsfw-toggle input { accent-color: var(--accent-red, #e44); cursor: pointer; }
+            .asset-modal-search { padding: 6px 10px; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); font-family: monospace; font-size: 0.85em; width: 240px; }
+            .asset-modal-search:focus { border-color: var(--logo-color); outline: none; }
+            .asset-modal-type-filter { padding: 6px 10px; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); font-family: inherit; font-size: 0.82em; }
+            .asset-modal-drop-zone { border: 2px dashed var(--border); border-radius: 8px; margin: 12px 20px 0; padding: 16px; text-align: center; color: var(--text-faint); font-size: 0.85em; cursor: pointer; transition: border-color 0.15s, color 0.15s; flex-shrink: 0; }
+            .asset-modal-drop-zone:hover, .asset-modal-drop-zone.drag-over { border-color: var(--accent-green); color: var(--accent-green); }
+            .asset-modal-drop-zone.hidden { display: none; }
+            .asset-modal-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+            .asset-modal-grid { padding: 16px 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; align-content: start; }
+            .asset-modal-card { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; display: flex; flex-direction: column; }
+            .asset-modal-card:hover { border-color: var(--accent-blue); box-shadow: 0 2px 8px rgba(148, 210, 229, 0.15); }
+            .asset-modal-card-preview { height: 140px; display: flex; align-items: center; justify-content: center; background: var(--bg-deep); overflow: hidden; }
+            .asset-modal-card-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+            .asset-modal-card-preview .type-badge { font-size: 2em; color: var(--accent-blue); }
+            .asset-modal-card-body { padding: 10px 12px; flex: 1; display: flex; flex-direction: column; gap: 4px; }
+            .asset-modal-card-name { font-size: 0.9em; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .asset-modal-card-author { font-size: 0.75em; color: var(--text-dim); }
+            .asset-modal-card-desc { font-size: 0.78em; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .asset-modal-card-footer { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; border-top: 1px solid var(--border-subtle); }
+            .asset-modal-card-type { font-size: 0.7em; padding: 2px 6px; border-radius: 3px; background: var(--border); color: var(--text-muted); }
+            .asset-modal-card-type.image { background: rgba(148, 210, 229, 0.2); color: var(--accent-blue); }
+            .asset-modal-card-type.audio { background: rgba(160, 235, 93, 0.2); color: var(--accent-green); }
+            .asset-modal-card-type.font { background: rgba(255, 247, 142, 0.2); color: var(--accent-yellow); }
+            .asset-modal-card-actions { display: flex; gap: 4px; }
+            .asset-modal-card-actions button { font-size: 0.68em; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--border-light); cursor: pointer; font-family: inherit; background: var(--bg-secondary); color: var(--text-secondary); }
+            .asset-modal-card-actions button:hover { background: var(--bg-hover); color: var(--text-primary); }
+            .asset-modal-card .public-badge { position: absolute; top: 6px; left: 6px; font-size: 0.6em; padding: 1px 5px; border-radius: 3px; background: rgba(160, 235, 93, 0.2); color: var(--accent-green); }
+            .asset-modal-card-preview { position: relative; }
+            .asset-modal-card-delete { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 4px; border: none; background: rgba(241, 112, 111, 0.85); color: #fff; font-size: 14px; line-height: 24px; text-align: center; cursor: pointer; opacity: 0; transition: opacity 0.15s; z-index: 2; padding: 0; }
+            .asset-modal-card:hover .asset-modal-card-delete { opacity: 1; }
+            .asset-modal-card-delete:hover { background: rgba(241, 112, 111, 1); }
+            .asset-modal-card-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+            .asset-modal-card-tags .asset-tag { font-size: 0.65em; padding: 1px 5px; border-radius: 3px; background: rgba(148, 210, 229, 0.15); color: var(--accent-blue); }
+            .asset-modal-load-more { padding: 8px 20px; text-align: center; flex-shrink: 0; }
+            .asset-modal-load-more button { font-size: 0.82em; padding: 6px 20px; border-radius: 4px; border: 1px solid var(--border-light); cursor: pointer; font-family: inherit; background: var(--bg-secondary); color: var(--text-secondary); }
+            .asset-modal-load-more button:hover { background: var(--bg-hover); color: var(--text-primary); }
+            .asset-modal-empty { grid-column: 1 / -1; text-align: center; color: var(--text-faint); padding: 48px 24px; font-size: 1em; }
 
-            /* Asset list */
-            #asset-search { width: calc(100% - 16px); margin: 6px 8px; padding: 5px 8px; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 3px; color: var(--text-primary); font-family: monospace; font-size: 0.8em; flex-shrink: 0; }
-            #asset-search:focus { border-color: var(--logo-color); outline: none; }
-            #asset-list { flex: 1; overflow-y: auto; padding: 4px 0; }
-            .asset-item { display: flex; align-items: flex-start; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border-subtle); font-size: 0.82em; }
-            .asset-item:hover { background: var(--bg-secondary); }
+            .nsfw-badge { display: inline-block; background: var(--accent-red, #e44); color: #fff; font-size: 0.65em; font-weight: 700; padding: 2px 7px; border-radius: 4px; vertical-align: middle; margin-left: 8px; letter-spacing: 0.5px; }
+            #asset-detail-preview { min-height: 120px; display: flex; align-items: center; justify-content: center; margin: 12px 0; background: var(--bg-deep); border-radius: 6px; border: 1px solid var(--border-subtle); overflow: hidden; }
+            #asset-detail-preview img { max-width: 100%; max-height: 200px; object-fit: contain; }
+            #asset-detail-meta { font-size: 0.82em; color: var(--text-dim); line-height: 1.5; margin-bottom: 10px; word-break: break-all; }
+            #asset-detail-desc { margin-top: 4px; }
+            #asset-detail-public-status { font-size: 0.85em; margin: 8px 0; color: var(--text-secondary); }
+            .asset-detail-tags { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; min-height: 28px; margin: 4px 0 4px; }
+            .asset-detail-tag { font-size: 0.78em; padding: 2px 8px; border-radius: 3px; background: rgba(148, 210, 229, 0.15); color: var(--accent-blue); display: inline-flex; align-items: center; gap: 4px; }
+            .asset-detail-tag .tag-remove { cursor: pointer; color: var(--text-dim); font-size: 1.1em; line-height: 1; }
+            .asset-detail-tag .tag-remove:hover { color: var(--accent-red); }
+            .asset-detail-tag-add { font-size: 0.78em; padding: 2px 8px; border-radius: 3px; border: 1px dashed var(--border-light); color: var(--text-faint); cursor: pointer; }
+            .asset-detail-tag-add:hover { border-color: var(--accent-green); color: var(--accent-green); }
             .asset-thumb { width: 36px; height: 36px; border-radius: 3px; object-fit: cover; background: var(--bg-deep); flex-shrink: 0; margin-top: 2px; }
             .asset-audio-thumb { width: 36px; height: 36px; border-radius: 3px; background: var(--bg-deep); flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--accent-green); font-size: 1.2em; }
             .asset-audio-thumb:hover { background: var(--bg-secondary); }
@@ -422,11 +467,6 @@
                 #preview-panel.open { width: 100% !important; }
                 #preview-panel.mobile-visible { display: flex; }
 
-                /* Asset panel */
-                #asset-panel { display: none; position: fixed; top: 40px; left: 0; right: 0; bottom: 48px; width: 100% !important; z-index: 30; }
-                #asset-panel.open { width: 100% !important; }
-                #asset-panel.mobile-visible { display: flex; }
-
                 /* Bottom bar — hide save bar, use mobile tab bar instead */
                 #bottom-bar { display: none; }
 
@@ -472,6 +512,14 @@
                 /* Record overlay */
                 .record-box { width: calc(100vw - 32px); }
 
+                /* Asset modal mobile */
+                .asset-modal-box { width: calc(100vw - 16px); height: 90vh; border-radius: 8px; }
+                .asset-modal-toolbar { flex-direction: column; align-items: stretch; }
+                .asset-modal-filters { flex-direction: column; }
+                .asset-modal-search { width: 100%; }
+                .asset-modal-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; padding: 10px; }
+                .asset-modal-card-preview { height: 100px; }
+
                 /* Welcome pane */
                 #welcome-pane { font-size: 0.9em; padding: 20px; text-align: center; }
             }
@@ -509,6 +557,7 @@
             <div id="studio-header">
                 <span class="logo" id="logo-btn">⌂ Homegames Studio</span>
                 <div style="display:flex;align-items:center;gap:16px;">
+                    <span id="header-asset-btn" class="clickable" style="font-size:0.85em;color:var(--accent-yellow);cursor:pointer;" title="Asset Manager">🎨 Assets</span>
                     <a href="/" style="color:var(--text-muted);font-size:0.85em;text-decoration:none;">homegames.io</a>
                     <span id="admin-btn" style="display:none;cursor:pointer;font-size:0.85em;color:var(--accent-red);font-weight:bold;" title="Admin panel">⚙ Admin</span>
                     <span id="theme-toggle" style="cursor:pointer;font-size:1.1em;" title="Toggle light/dark mode">☀</span>
@@ -565,6 +614,61 @@
             </div>
         </div>
 
+        <div class="modal-overlay" id="asset-detail-modal" style="z-index:110;">
+            <div class="modal-box" style="width:480px;max-width:calc(100vw - 32px);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <h2 id="asset-detail-title" style="margin:0;">Asset</h2>
+                    <span id="asset-detail-close" class="clickable" style="font-size:1.2em;color:var(--text-muted);">✕</span>
+                </div>
+                <div id="asset-detail-preview"></div>
+                <div id="asset-detail-meta"></div>
+                <label style="color:var(--text-dim);font-size:0.8em;">Description (catalog, max 80 chars)</label>
+                <input type="text" id="asset-detail-desc" maxlength="80" placeholder="Short description">
+                <label style="color:var(--text-dim);font-size:0.8em;margin-top:8px;">Tags</label>
+                <div id="asset-detail-tags" class="asset-detail-tags"></div>
+                <div id="asset-detail-public-status"></div>
+                <div class="modal-error" id="asset-detail-error"></div>
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn secondary" id="asset-detail-open">Open file</button>
+                    <button type="button" class="modal-btn secondary" id="asset-detail-copy">Copy ID</button>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn primary" id="asset-detail-publish">Publish to catalog</button>
+                    <button type="button" class="modal-btn secondary" id="asset-detail-save">Save description</button>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn secondary" id="asset-detail-delete" style="background:rgba(241,112,111,0.9);color:#fff;">Delete asset</button>
+                    <button type="button" class="modal-btn secondary" id="asset-detail-dismiss">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Asset delete confirmation modal -->
+        <div class="modal-overlay" id="asset-delete-confirm-modal" style="z-index:120;">
+            <div class="modal-box" style="width:400px;max-width:calc(100vw - 32px);">
+                <h2 style="color:var(--accent-red);margin-bottom:12px;">Delete Asset</h2>
+                <p id="asset-delete-confirm-text" style="color:var(--text-secondary);font-size:0.9em;line-height:1.5;margin-bottom:6px;"></p>
+                <p style="color:var(--text-dim);font-size:0.8em;margin-bottom:14px;">This cannot be undone.</p>
+                <div class="modal-error" id="asset-delete-confirm-error"></div>
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn secondary" id="asset-delete-confirm-cancel">Cancel</button>
+                    <button type="button" class="modal-btn primary" id="asset-delete-confirm-ok" style="background:rgba(241,112,111,0.9);color:#fff;">Delete</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="description-modal">
+            <div class="modal-box" style="width:480px;max-width:calc(100vw - 32px);">
+                <h2>Game Description</h2>
+                <textarea id="description-modal-input" placeholder="Describe your game..." style="width:100%;min-height:100px;resize:vertical;font-family:inherit;font-size:0.9em;padding:8px;background:var(--bg-deep);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);"></textarea>
+                <div class="modal-error" id="description-modal-error"></div>
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn secondary" id="description-modal-cancel">Cancel</button>
+                    <button type="button" class="modal-btn primary" id="description-modal-save">Save</button>
+                </div>
+            </div>
+        </div>
+
         <div class="modal-overlay" id="new-file-modal">
             <div class="modal-box">
                 <h2>New File</h2>
@@ -589,6 +693,41 @@
                 </div>
                 <div id="admin-content" style="flex:1;overflow-y:auto;"></div>
                 <div id="admin-pagination" style="display:flex;justify-content:center;gap:12px;margin-top:8px;"></div>
+            </div>
+        </div>
+
+        <!-- Asset modal (full-screen) -->
+        <div class="modal-overlay" id="asset-modal">
+            <div class="asset-modal-box">
+                <div class="asset-modal-header">
+                    <h2 style="margin:0;color:var(--logo-color);">Assets</h2>
+                    <div class="asset-modal-header-actions">
+                        <button type="button" class="asset-modal-action-btn" id="asset-modal-draw-btn">✏ Draw</button>
+                        <button type="button" class="asset-modal-action-btn" id="asset-modal-record-btn">🎤 Record</button>
+                        <span id="asset-modal-close" class="clickable" style="font-size:1.4em;color:var(--text-muted);margin-left:12px;">✕</span>
+                    </div>
+                </div>
+                <div class="asset-modal-toolbar">
+                    <div class="asset-modal-tabs" id="asset-modal-tabs">
+                        <button type="button" class="asset-modal-tab active" data-tab="mine">My Assets</button>
+                        <button type="button" class="asset-modal-tab" data-tab="public">Public Catalog</button>
+                    </div>
+                    <div class="asset-modal-filters">
+                        <label id="asset-modal-nsfw-toggle" class="nsfw-toggle" style="display:none;"><input type="checkbox" id="asset-modal-nsfw-cb"><span>NSFW</span></label>
+                        <input type="text" id="asset-modal-search" placeholder="Search assets..." class="asset-modal-search">
+                        <select id="asset-modal-type-filter" class="asset-modal-type-filter">
+                            <option value="">All types</option>
+                            <option value="image">Images</option>
+                            <option value="audio">Audio</option>
+                            <option value="font">Fonts</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="asset-modal-drop-zone" class="asset-modal-drop-zone">Drop files here or click to upload</div>
+                <div id="asset-modal-scroll" class="asset-modal-scroll">
+                    <div id="asset-modal-grid" class="asset-modal-grid"></div>
+                    <div id="asset-modal-load-more" class="asset-modal-load-more"></div>
+                </div>
             </div>
         </div>
 

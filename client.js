@@ -1,11 +1,11 @@
-window.API_PROTOCOL = window.origin && window.origin.startsWith('https') ? 'https' : 'http';
+window.API_PROTOCOL = 'https';//window.origin && window.origin.startsWith('https') ? 'https' : 'http';
 window.API_HOST = 'api.homegames.io';//'api.homegames.io';//'api.homegames.io';//window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
 window.API_PORT = 443;
 
 window.API_URL = `${window.API_PROTOCOL}://${window.API_HOST}:${window.API_PORT}`;
 window.HOMENAMES_URL = 'https://api.homegames.io/homenames';
 
-const marked = require('marked');   
+
 
 const ASSET_API_ENDPOINT = '/assets';
 
@@ -52,28 +52,31 @@ const makeGet = (endpoint, headers, isBlob) => new Promise((resolve, reject) => 
     xhr.send();
 });
 
-const makeDelete = (endpoint)  => new Promise((resolve, reject) => {
-    var xhr = new XMLHttpRequest();
-    xhr.open("DELETE", endpoint, true);
-    console.log('posting to ' + endpoint);
+const makeDelete = (endpoint) => new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('DELETE', endpoint, true);
 
     if (window.hgUserInfo) {
         xhr.setRequestHeader('Authorization', `Bearer ${window.hgUserInfo.token}`);
     }
- 
+
     xhr.onreadystatechange = () => {
         if (xhr.readyState === XMLHttpRequest.DONE) {
-            if (xhr.status === 200) {
-                if (notJson) {
-                    resolve(xhr.response);
-                } else {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                if (!xhr.response) {
+                    resolve(null);
+                    return;
+                }
+                try {
                     resolve(JSON.parse(xhr.response));
+                } catch (e) {
+                    resolve(xhr.response);
                 }
             } else {
-                reject(xhr.response)
+                reject(xhr.response);
             }
         }
-    }
+    };
 
     xhr.send('');
 });
@@ -109,82 +112,17 @@ const makePost = (endpoint, payload, notJson, useAuth)  => new Promise((resolve,
     xhr.send(JSON.stringify(payload));
 });
 
-const loadPodcasts = () => {
-    const podcastContentDiv = document.getElementById('podcast-content');
-    const podcastLeftButtonDiv = document.getElementById('podcast-left-button');
-    const podcastRightButtonDiv = document.getElementById('podcast-right-button');
-
-    const renderPodcasts = (data) => {
-        clearChildren(podcastContentDiv);
-        const list = document.createElement('ul');
-        for (let i in data) {
-            const ep = data[i];
-            const el = document.createElement('li');
-            const textEl = document.createElement('span');
-            textEl.innerHTML = 'Ep.' + ep.episode + ' - ';
-
-            el.appendChild(textEl);
-
-            if (ep.audio) {
-                const audioLink = document.createElement('a');
-                audioLink.href = '' + ep.audio;
-                audioLink.innerHTML = ' MP3 ';
-                el.appendChild(audioLink);
-            }
-
-            if (ep.video) {
-                const videoLink = document.createElement('a');
-                videoLink.href = '' + ep.video;
-                videoLink.innerHTML = ' MP4 ';
-                el.appendChild(videoLink);
-            }
-
-            list.appendChild(el);
-        }
-        podcastContentDiv.appendChild(list);
-    }
-
-    makeGet(`https://api.homegames.io/podcast?limit=10&offset=${(window.podcastPage - 1) * 10}`).then(_data => {
-        const data = JSON.parse(_data);
-        clearChildren(podcastContentDiv);
-        if (window.podcastPage < 2) {
-            podcastLeftButtonDiv.setAttribute('hidden', '');
-        } else {
-            podcastLeftButtonDiv.removeAttribute('hidden');
-        }
-
-        const last = data[data.length - 1];
-        if (last && last.episode === 0) {
-            podcastRightButtonDiv.setAttribute('hidden', '');
-        } else {
-            podcastRightButtonDiv.removeAttribute('hidden');            
-        }
-
-        renderPodcasts(data);
-    });
-}
-
-window.loadPodcasts = loadPodcasts;
-
 const formatDate = (date) => {
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const ting = new Date(date);
     return `${months[ting.getMonth()]} ${ting.getDate()}, ${ting.getFullYear()}`;
 };
 
-const getMapData = () => new Promise((resolve, reject) => {
-    makeGet(`${API_URL}/map`).then((mapData) => {
-        resolve(JSON.parse(mapData));
-    });
-});
-
-
-
 const simpleDiv = (text) => {
     const div = document.createElement('div');
 
     if (text) {
-        div.innerHTML = text;
+        div.textContent = text;
     }
 
     return div;
@@ -202,8 +140,6 @@ const loaderBlack = () => {
     el.className = 'loading-black';
     return el;
 };
-
-
 
 const modals = {
     'download': {
@@ -299,7 +235,7 @@ const modals = {
 
                 const showMessage = (message) => {
                     container.style = 'text-align: center; font-size: xx-large';
-                    container.innerHTML = message;
+                    container.textContent = message;
                 }
 
                 makePost(`${API_URL}/contact`, {
@@ -369,26 +305,6 @@ const getDeveloperProfile = (devId) => new Promise((resolve, reject) => {
     });
 });
 
-const getBlogInfo = (limit, offset, includeMostRecent) => new Promise((resolve, reject) => {
-    makeGet(`${API_PROTOCOL}://${API_HOST}:${API_PORT}/blog?limit=${limit}&offset=${offset}&includeMostRecent=${includeMostRecent}`).then(resolve).catch((err) => {
-        console.log('errororororor');
-        console.log(err);
-    });
-});
-
-const getBlogContent = (id) => new Promise((resolve, reject) => {
-    makeGet(`${API_PROTOCOL}://${API_HOST}:${API_PORT}/blog/${id}`).then(resolve).catch((err) => {
-        console.log('errororororor');
-        console.log(err);
-    });
-});
-
-const searchBlogContent = (query, limit, offset) => new Promise((resolve, reject) => {
-    makeGet(`${API_PROTOCOL}://${API_HOST}:${API_PORT}/blog?limit=${limit}&offset=${offset}&query=${query}`).then(resolve).catch((err) => {
-        console.log('errororororor');
-        console.log(err);
-    });
-});
 
 const renderGamePage = (gameId, gameDetails) => {
     const container = document.createElement('div');
@@ -413,7 +329,7 @@ const renderGamePage = (gameId, gameDetails) => {
     const by = document.createElement('span');
     by.innerHTML = 'by';
     const authorLink = document.createElement('a');
-    authorLink.innerHTML = gameDetails?.game?.developerId;
+    authorLink.textContent = gameDetails?.game?.developerId;
     authorLink.href = `${window.location.origin}/dev.html?id=${gameDetails?.game?.developerId}`;
     authorLink.style = 'color: #F1706F; text-decoration: none; margin-left: 6px;';
     author.appendChild(by);
@@ -428,14 +344,76 @@ const renderGamePage = (gameId, gameDetails) => {
 
     const gameTitle = document.createElement('h1');
     gameTitle.className = 'amateur';
-    gameTitle.innerHTML = gameDetails?.game?.name || 'Unknown game';
+    gameTitle.textContent = gameDetails?.game?.name || 'Unknown game';
 
     const description = document.createElement('div');
-    description.innerHTML = gameDetails?.game?.description || 'No description available';
+    description.textContent = gameDetails?.game?.description || 'No description available';
     description.style = 'margin-top: 24px;';
 
     col2.appendChild(gameTitle);
     col2.appendChild(description);
+
+    const isAdmin = window.isHgAdmin && window.isHgAdmin();
+    const isOwner = window.hgUserInfo && window.hgUserInfo.username === gameDetails?.game?.developerId;
+
+    if (isAdmin || isOwner) {
+        const actionBar = document.createElement('div');
+        actionBar.style = 'grid-column: 1 / -1; margin-bottom: 8px; padding: 12px 16px; border: 1px solid ' + (isAdmin ? 'rgba(241, 112, 111, 0.6)' : '#ddd') + '; border-radius: 8px; background: ' + (isAdmin ? 'rgba(241, 112, 111, 0.08)' : '#fafafa') + '; display: flex; align-items: center; justify-content: space-between; gap: 12px;';
+
+        const label = document.createElement('span');
+        label.className = 'amateur';
+        label.style = 'color: ' + (isAdmin ? '#F1706F' : '#555') + ';';
+        label.textContent = isAdmin ? 'Admin' : 'Your Game';
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.textContent = 'Delete game';
+        deleteBtn.className = 'clickable amateur';
+        deleteBtn.style = 'background: #F1706F; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 1em;';
+        deleteBtn.onclick = () => {
+            const gameName = gameDetails?.game?.name || gameId;
+            if (!confirm(`Permanently delete "${gameName}" and all of its versions? This cannot be undone.`)) return;
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = 'Deleting...';
+            makeDelete(`${API_URL}/games/${gameId}`).then(() => {
+                window.location.href = '/catalog.html';
+            }).catch((err) => {
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = 'Delete game';
+                alert('Failed to delete game');
+                console.error(err);
+            });
+        };
+
+        const btnGroup = document.createElement('div');
+        btnGroup.style = 'display: flex; gap: 8px;';
+
+        if (isAdmin) {
+            const featureBtn = document.createElement('button');
+            featureBtn.type = 'button';
+            featureBtn.className = 'clickable amateur';
+            featureBtn.style = 'background: #f7931a; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 1em;';
+            featureBtn.textContent = gameDetails?.game?.featured ? '★ Unfeature' : '☆ Feature';
+            featureBtn.onclick = () => {
+                featureBtn.disabled = true;
+                makePost(`${API_URL}/admin/games/${gameId}/feature`, {}).then((data) => {
+                    const result = typeof data === 'string' ? JSON.parse(data) : data;
+                    featureBtn.textContent = result.featured ? '★ Unfeature' : '☆ Feature';
+                    featureBtn.disabled = false;
+                }).catch((err) => {
+                    featureBtn.disabled = false;
+                    alert('Failed to toggle featured');
+                    console.error(err);
+                });
+            };
+            btnGroup.appendChild(featureBtn);
+        }
+
+        btnGroup.appendChild(deleteBtn);
+        actionBar.appendChild(label);
+        actionBar.appendChild(btnGroup);
+        container.insertBefore(actionBar, container.firstChild);
+    }
 
     // --- Column 3: Play section ---
     const col3 = document.createElement('div');
@@ -579,7 +557,7 @@ const loadGameSessions = (gameId, listEl) => {
             row.style = 'display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 6px;';
 
             const info = document.createElement('div');
-            info.innerHTML = `Session #${s.id} — ${s.playerCount || 0} player(s)`;
+            info.textContent = `Session #${s.id} — ${s.playerCount || 0} player(s)`;
             info.style = 'font-size: 0.9em;';
 
             const joinBtn = document.createElement('div');
@@ -632,6 +610,11 @@ const renderDevProfile = (devId, devInfo) => {
         image.alt = 'profile image';
         image.style = 'width: 120px; height: 120px; border-radius: 8px; object-fit: cover; flex-shrink: 0;';
         profileHeader.appendChild(image);
+    } else {
+        const placeholder = document.createElement('div');
+        placeholder.style = 'width: 120px; height: 120px; border-radius: 8px; background: #eee; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #aaa; font-size: 0.8em; text-align: center;';
+        placeholder.textContent = 'No profile image';
+        profileHeader.appendChild(placeholder);
     }
 
     const profileInfo = document.createElement('div');
@@ -642,28 +625,80 @@ const renderDevProfile = (devId, devInfo) => {
     title.textContent = devId;
     profileInfo.appendChild(title);
 
+    if (devInfo.created) {
+        const joined = document.createElement('div');
+        joined.style = 'margin-top: 4px; font-size: 0.85em; color: #888;';
+        joined.textContent = 'Joined ' + new Date(devInfo.created).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+        profileInfo.appendChild(joined);
+    }
+
     if (devInfo.description) {
         const desc = document.createElement('div');
         desc.style = 'margin-top: 8px; color: #555;';
-        desc.innerHTML = devInfo.description;
+        desc.textContent = devInfo.description;
         profileInfo.appendChild(desc);
     }
 
     profileHeader.appendChild(profileInfo);
 
-    // BTC address
+    container.appendChild(profileHeader);
+
+    // --- Admin controls ---
+    if (window.isHgAdmin && window.isHgAdmin()) {
+        const adminBar = document.createElement('div');
+        adminBar.style = 'display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border: 1px solid rgba(241, 112, 111, 0.6); border-radius: 8px; background: rgba(241, 112, 111, 0.08); margin-bottom: 24px;';
+
+        const adminLabel = document.createElement('span');
+        adminLabel.className = 'amateur';
+        adminLabel.style = 'color: #F1706F;';
+        adminLabel.textContent = 'Admin';
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'clickable amateur';
+        deleteBtn.style = 'background: #F1706F; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 1em;';
+        deleteBtn.textContent = 'Delete developer';
+        deleteBtn.onclick = () => {
+            if (!confirm(`Permanently delete developer "${devId}" and all of their games, assets, and data? This cannot be undone.`)) return;
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = 'Deleting...';
+            const xhr = new XMLHttpRequest();
+            xhr.open('DELETE', `${API_URL}/admin/developers/${devId}`, true);
+            if (window.hgUserInfo) xhr.setRequestHeader('Authorization', `Bearer ${window.hgUserInfo.token}`);
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        window.location.href = '/catalog.html';
+                    } else {
+                        deleteBtn.disabled = false;
+                        deleteBtn.textContent = 'Delete developer';
+                        alert('Failed to delete developer');
+                    }
+                }
+            };
+            xhr.send();
+        };
+
+        adminBar.appendChild(adminLabel);
+        adminBar.appendChild(deleteBtn);
+        container.appendChild(adminBar);
+    }
+
+    // --- BTC address section ---
+    const btcSection = document.createElement('div');
+    btcSection.style = 'padding: 16px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 24px;';
+
+    const btcHeader = document.createElement('div');
+    btcHeader.className = 'amateur';
+    btcHeader.style = 'font-size: 1em; margin-bottom: 8px;';
+    btcHeader.textContent = 'BTC Address';
+    btcSection.appendChild(btcHeader);
+
     if (devInfo.btcAddress) {
-        const btcSection = document.createElement('div');
-        btcSection.style = 'padding: 12px; border: 1px solid #ddd; border-radius: 8px; text-align: center; flex-shrink: 0;';
-
-        const btcLabel = document.createElement('div');
-        btcLabel.className = 'amateur';
-        btcLabel.style = 'font-size: 0.9em; color: #888; margin-bottom: 6px;';
-        btcLabel.textContent = '₿ Support this developer';
-
         const btcAddr = document.createElement('div');
-        btcAddr.style = 'font-family: monospace; font-size: 0.75em; word-break: break-all; margin-bottom: 8px;';
+        btcAddr.style = 'font-family: monospace; font-size: 0.85em; word-break: break-all; margin-bottom: 8px;';
         btcAddr.textContent = devInfo.btcAddress;
+        btcSection.appendChild(btcAddr);
 
         const btcCopy = document.createElement('div');
         btcCopy.className = 'clickable';
@@ -675,14 +710,15 @@ const renderDevProfile = (devId, devInfo) => {
                 setTimeout(() => { btcCopy.textContent = 'Copy Address'; }, 1500);
             });
         };
-
-        btcSection.appendChild(btcLabel);
-        btcSection.appendChild(btcAddr);
         btcSection.appendChild(btcCopy);
-        profileHeader.appendChild(btcSection);
+    } else {
+        const btcEmpty = document.createElement('div');
+        btcEmpty.style = 'font-size: 0.85em; color: #888;';
+        btcEmpty.textContent = 'This developer has not configured a BTC address yet';
+        btcSection.appendChild(btcEmpty);
     }
 
-    container.appendChild(profileHeader);
+    container.appendChild(btcSection);
 
     // --- Games section ---
     const gamesHeader = document.createElement('h2');
@@ -690,6 +726,15 @@ const renderDevProfile = (devId, devInfo) => {
     gamesHeader.style = 'margin-bottom: 16px;';
     gamesHeader.textContent = 'Games';
     container.appendChild(gamesHeader);
+
+    const nsfwToggle = document.createElement('label');
+    nsfwToggle.style = 'display: inline-flex; align-items: center; gap: 6px; font-size: 0.85em; color: #888; cursor: pointer; user-select: none; margin-bottom: 16px;';
+    const nsfwCb = document.createElement('input');
+    nsfwCb.type = 'checkbox';
+    nsfwCb.style = 'cursor: pointer; accent-color: #e44;';
+    nsfwToggle.appendChild(nsfwCb);
+    nsfwToggle.appendChild(document.createTextNode('Include NSFW content'));
+    container.appendChild(nsfwToggle);
 
     const gameListEl = document.createElement('div');
     container.appendChild(gameListEl);
@@ -701,6 +746,8 @@ const renderDevProfile = (devId, devInfo) => {
     let page = 0;
     const pageSize = 6;
 
+    nsfwCb.onchange = () => { page = 0; renderGameList(); };
+
     const renderGameList = () => {
         clearChildren(gameListEl);
         clearChildren(paginationEl);
@@ -710,7 +757,7 @@ const renderDevProfile = (devId, devInfo) => {
         loadingEl.textContent = 'Loading...';
         gameListEl.appendChild(loadingEl);
 
-        listGames(pageSize, page * pageSize, devId).then((result) => {
+        listGames(pageSize, page * pageSize, devId, nsfwCb.checked).then((result) => {
             clearChildren(gameListEl);
 
             gamesHeader.textContent = `Games (${result.total})`;
@@ -995,10 +1042,11 @@ const handleDownload = (stable) => {
 
 window.handleDownload = handleDownload;
 
-const listGames = (limit = 10, offset = 0, author = null) => new Promise((resolve, reject) => { 
+const listGames = (limit = 10, offset = 0, author = null, includeNsfw = false) => new Promise((resolve, reject) => { 
     const authorQuery = author ? `&author=${author}` : '';
+    const nsfwQuery = includeNsfw ? '&includeNsfw=true' : '';
     
-    const gameUrl = `${API_PROTOCOL}://${API_HOST}:${API_PORT}/games?limit=${limit}&offset=${offset}${authorQuery}`;
+    const gameUrl = `${API_PROTOCOL}://${API_HOST}:${API_PORT}/games?limit=${limit}&offset=${offset}${authorQuery}${nsfwQuery}`;
     
     makeGet(gameUrl).then((_games) => {
         resolve(JSON.parse(_games));
@@ -1080,15 +1128,35 @@ const renderGames = (games) => {
     }
 };
 
-const getAllGames = (limit = 10, offset = 0, featured = null) => new Promise((resolve, reject) => {
+const getAllGames = (limit = 10, offset = 0, featured = null, includeNsfw = false) => new Promise((resolve, reject) => {
     const featuredParam = featured ? '&featured=true' : '';
-    const gamesUrl = `${API_PROTOCOL}://${API_HOST}:${API_PORT}/games?limit=${limit}&offset=${offset}${featuredParam}`;
+    const nsfwParam = includeNsfw ? '&includeNsfw=true' : '';
+    const gamesUrl = `${API_PROTOCOL}://${API_HOST}:${API_PORT}/games?limit=${limit}&offset=${offset}${featuredParam}${nsfwParam}`;
     makeGet(gamesUrl).then((games) => {
         resolve(JSON.parse(games));
     });
 });
 
 window.getAllGames = getAllGames;
+
+const getPublicAssets = (limit = 10, offset = 0, query = '', type = '') => new Promise((resolve, reject) => {
+    const params = new URLSearchParams({
+        limit: String(limit),
+        offset: String(offset),
+    });
+    if (query) {
+        params.set('query', query);
+    }
+    if (type) {
+        params.set('type', type);
+    }
+    const assetsUrl = `${API_PROTOCOL}://${API_HOST}:${API_PORT}/catalog/assets?${params.toString()}`;
+    makeGet(assetsUrl).then((data) => {
+        resolve(JSON.parse(data));
+    }).catch(reject);
+});
+
+window.getPublicAssets = getPublicAssets;
 
 const showDeveloperProfile = (devId) => {
     const contentEl = document.getElementById('content');
@@ -1103,225 +1171,7 @@ const showDeveloperProfile = (devId) => {
     }); 
 };
 
-const showBlogContent = (initialPage = 0, pageSize = 5) => {
-    let page = initialPage;
-    const contentEl = document.getElementById('content');
-    clearChildren(contentEl);
-    contentEl.appendChild(loaderBlack());
-    getBlogInfo(pageSize, (page * pageSize), true).then(_blogInfo => {
-        clearChildren(contentEl);
-        const blogInfo = JSON.parse(_blogInfo);
 
-        const navigationContainer = document.createElement('div');
-        navigationContainer.style = 'display: grid; grid-template-columns: 2fr 3fr; border-bottom: 1px solid black;'
-
-        const searchBox = document.createElement('input');
-        searchBox.style = 'margin-left: 24px; margin-right: 24px; margin-top: 72px; margin-bottom: 72px;';
-        searchBox.type = 'text';
-        searchBox.placeholder = 'Find a post';
-        navigationContainer.appendChild(searchBox);
-
-        const blogListContainer = document.createElement('div');
-        blogListContainer.style = 'display: grid; grid-template-columns: 1fr 2fr 1fr';
-
-        const prevButtonWrapper = document.createElement('div');
-        const nextButtonWrapper = document.createElement('div');
-
-        const prevButton = document.createElement('div');
-
-        prevButton.className = 'clickable';
-
-        if (page - 1 < 0) {
-            prevButton.classList.add('hidden');
-        } 
-        prevButton.style = 'text-align: right; font-size: 72px; margin-top: 24px;'
-        prevButton.onclick = () => {
-            // prev page
-        }
-        prevButton.innerHTML = String.fromCodePoint(8592);
-
-        const nextButton = document.createElement('div');
-        nextButton.className = 'clickable';
-        nextButton.style = 'text-align: left; font-size: 72px; margin-top: 24px;'
-
-        if ((page + 1) * pageSize > blogInfo.count) {
-            nextButton.classList.add('hidden');
-        }
-
-        nextButton.onclick = () => {
-            // prev page
-        }
-        nextButton.innerHTML = String.fromCodePoint(8594);
-
-        const currentContentContainer = document.createElement('div');
-        currentContentContainer.style = 'margin: 24px;';
-
-        const currentContent = document.createElement('div');
-        const currentTitle = document.createElement('h1');
-        const publishedBy = document.createElement('h3');
-        const publishedByLink = document.createElement('a');
-        publishedByLink.target = '_blank';
-
-
-        publishedBy.appendChild(publishedByLink);
-
-        const publishedDate = document.createElement('div');
-
-        currentContentContainer.appendChild(currentTitle);
-        currentContentContainer.appendChild(publishedBy);
-        currentContentContainer.appendChild(publishedDate);
-
-        currentContentContainer.appendChild(currentContent);
-
-        let selectedBlogEntryId = blogInfo.mostRecent.id;
-        let selectedBlogEntryEl = null;
-
-        const setBlogContent = (blog) => {
-            selectedBlogEntryId = blog.id;
-            currentContent.innerHTML = marked.parse(blog.content); 
-            currentTitle.innerHTML = blog.title || 'No title available';
-
-            publishedByLink.innerHTML = `Published by ${blog.publishedBy}`;
-            publishedByLink.href = `/dev.html?id=${blog.publishedBy}`;
-
-            publishedDate.innerHTML = formatDate(blog.created);
-        }
-
-        setBlogContent(blogInfo.mostRecent);
-
-        const renderBlogList = (data) => { 
-            clearChildren(blogListContainer);
-            const blogList = document.createElement('ul');
-            blogList.style = 'text-align: center; list-style-type: none; height: 240px; max-height: 240px; padding: 0';
-            data.posts.forEach(p => {
-                const el = document.createElement('li');
-                el.style = 'margin: 12px; font-size: large; text-decoration: underline; line-height: 24px; max-height: 48px; overflow: hidden';
-                el.className = 'clickable';
-                if (p.id == selectedBlogEntryId) {
-                    el.classList.add('selected');
-                    selectedBlogEntryEl = el;
-                }
-                // const link = document.createElement('a');
-                // link.href = `/blog.html?id=${p.id}`;
-                el.innerHTML = (p.title || 'No title available') + ' - ' + (p.created ? formatDate(p.created) : 'No date available');
-                el.onclick = () => {
-                    if (selectedBlogEntryEl) {
-                        selectedBlogEntryEl.classList.remove('selected');
-                    }
-                    selectedBlogEntryEl = el;
-                    selectedBlogEntryEl.classList.add('selected');
-                    getBlogContent(p.id).then(blogContent => {
-                        setBlogContent(JSON.parse(blogContent));
-                    });
-                }
-                // el.appendChild(link);
-                blogList.appendChild(el);
-            });
-            if (page - 1 < 0) {
-                prevButton.classList.add('hidden');
-            } else {
-                prevButton.classList.remove('hidden');
-            } 
-
-            if ((page + 1) * pageSize >= data.count) {
-                nextButton.classList.add('hidden');
-            } else {
-                nextButton.classList.remove('hidden');
-            }
-            prevButtonWrapper.appendChild(prevButton);
-            nextButtonWrapper.appendChild(nextButton);
-            blogListContainer.appendChild(prevButtonWrapper);
-            blogListContainer.appendChild(blogList);
-            blogListContainer.appendChild(nextButtonWrapper);
-
-            prevButton.onclick = () => {
-                if (page - 1 < 0) {
-                    return;
-                }
-                page--;
-                getBlogInfo(pageSize, (page * pageSize), false).then(_blogInfo => {
-                    renderBlogList(JSON.parse(_blogInfo));
-
-                    if (page - 1 < 0) {
-                        prevButton.classList.add('hidden');
-                    } else {
-                        prevButton.classList.remove('hidden');
-                    } 
-
-                    if ((page + 1) * pageSize >= data.count) {
-                        nextButton.classList.add('hidden');
-                    } else {
-                        nextButton.classList.remove('hidden');
-                    }
-
-                });
-
-            };
-
-            nextButton.onclick = () => {
-                if ((page + 1 * pageSize) > data.count) {
-                    return;
-                }
-                page++;
-                getBlogInfo(pageSize, (page * pageSize), false).then(_blogInfo => {
-                    renderBlogList(JSON.parse(_blogInfo));
-                    if (page - 1 < 0) {
-                        prevButton.classList.add('hidden');
-                    } else {
-                        prevButton.classList.remove('hidden');
-                    } 
-
-                    if ((page + 1) * pageSize >= data.count) {
-                        nextButton.classList.add('hidden');
-                    } else {
-                        nextButton.classList.remove('hidden');
-                    }
-                });
-            }
-        }
-
-        renderBlogList(blogInfo);
-
-        searchBox.oninput = (e) => {
-            console.log('tf ' + e.target.value);
-            page = 0;
-            if (e.target.value) {
-                searchBlogContent(e.target.value, pageSize, (page * pageSize)).then((_results) => {
-                    const results = JSON.parse(_results);
-                    renderBlogList(results);
-                });
-            } else {
-                renderBlogList(blogInfo);
-            }
-        }
-
-        navigationContainer.appendChild(blogListContainer);
-        contentEl.appendChild(navigationContainer);
-
-        contentEl.appendChild(currentContentContainer);
-
-        console.log('dsfjkdsf');
-        console.log(blogInfo);
-        // const devInfo = JSON.parse(_devInfo);
-        // const devProfile = renderDevProfile(devId, devInfo);
-        // contentEl.appendChild(devProfile);
-        // contentEl.removeAttribute('hidden');
-    }); 
-};
-
-// const searchBlogContent = (query) => {
-//     const contentEl = document.getElementById('content');
-//     clearChildren(contentEl);
-//     contentEl.appendChild(loaderBlack());
-//     getDeveloperProfile(devId).then(_devInfo => {
-//         clearChildren(contentEl);
-//         const devInfo = JSON.parse(_devInfo);
-//         const devProfile = renderDevProfile(devId, devInfo);
-//         contentEl.appendChild(devProfile);
-//         contentEl.removeAttribute('hidden');
-//     }); 
-// };
-window.showBlogContent = showBlogContent;
 window.showDeveloperProfile = showDeveloperProfile;
 
 const showGamePage = (gameId) => {
@@ -1458,4 +1308,74 @@ window.loadMap = () => {
 };
 
 window.showGamePage = showGamePage;
+
+// ---------------------------------------------------------------------------
+// Admin (browser console: adminLogin('username', 'password'))
+// ---------------------------------------------------------------------------
+
+const HG_ADMIN_STORAGE_KEY = 'hgAdminSession';
+
+const enableAdminFeatures = () => {
+    window.hgAdminEnabled = true;
+    document.documentElement.setAttribute('data-hg-admin', '');
+};
+
+const disableAdminFeatures = () => {
+    window.hgAdminEnabled = false;
+    window.hgUserInfo = null;
+    document.documentElement.removeAttribute('data-hg-admin');
+    try {
+        sessionStorage.removeItem(HG_ADMIN_STORAGE_KEY);
+    } catch (e) {}
+};
+
+const persistAdminSession = () => {
+    try {
+        sessionStorage.setItem(HG_ADMIN_STORAGE_KEY, JSON.stringify(window.hgUserInfo));
+    } catch (e) {}
+};
+
+const restoreAdminSession = () => {
+    try {
+        const raw = sessionStorage.getItem(HG_ADMIN_STORAGE_KEY);
+        if (!raw) return;
+        const info = JSON.parse(raw);
+        if (info && info.token && info.isAdmin) {
+            window.hgUserInfo = info;
+            enableAdminFeatures();
+        }
+    } catch (e) {}
+};
+
+console.log('wot mate');
+const adminLogin = (username, password) => makePost(`${API_URL}/auth/login`, {
+    username,
+    password,
+    type: 'login',
+}).then((data) => {
+    if (!data || !data.token) {
+        return Promise.reject(new Error('Login failed'));
+    }
+    if (!data.isAdmin) {
+        return Promise.reject(new Error('Account is not an admin'));
+    }
+    window.hgUserInfo = {
+        username: data.username,
+        token: data.token,
+        isAdmin: true,
+    };
+    enableAdminFeatures();
+    persistAdminSession();
+    console.log(`Admin session enabled for ${data.username}`);
+    return window.hgUserInfo;
+});
+
+window.adminLogin = adminLogin;
+window.adminLogout = () => {
+    disableAdminFeatures();
+    console.log('Admin session ended');
+};
+window.isHgAdmin = () => !!(window.hgAdminEnabled && window.hgUserInfo && window.hgUserInfo.isAdmin);
+
+restoreAdminSession();
 

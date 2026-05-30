@@ -2,6 +2,7 @@
 // Homegames Studio
 // ---------------------------------------------------------------------------
 
+//const API_URL = 'http://localhost';
 const API_URL = 'https://api.homegames.io';//'http://localhost:80';
 const HOMENAMES_URL = 'https://api.homegames.io/homenames';
 
@@ -217,7 +218,7 @@ const selectGame = (game) => {
     loadFiles();
     loadVersions();
     loadPublishStatuses();
-    if (assetPanelOpen) loadAssets(true);
+
 };
 
 const goHome = () => {
@@ -229,6 +230,7 @@ const goHome = () => {
 };
 
 $('logo-btn').onclick = goHome;
+$('header-asset-btn').onclick = () => openAssetModal();
 
 // ---------------------------------------------------------------------------
 // Profile settings popover (BTC address)
@@ -379,18 +381,38 @@ const renderGameView = () => {
     previewToggle.id = 'preview-toggle-btn';
     previewToggle.onclick = togglePreviewPanel;
 
-    const assetToggle = document.createElement('button');
-    assetToggle.className = 'asset-toggle' + (assetPanelOpen ? ' active' : '');
-    assetToggle.textContent = '🎨 Assets';
-    assetToggle.id = 'asset-toggle-btn';
-    assetToggle.onclick = toggleAssetPanel;
+    const deleteGameBtn = document.createElement('button');
+    deleteGameBtn.className = 'clone-btn';
+    deleteGameBtn.style = 'color:var(--accent-red, #e44);';
+    deleteGameBtn.textContent = '🗑 Delete';
+    deleteGameBtn.onclick = () => {
+        if (!confirm(`Permanently delete "${currentGame.name}" and all of its versions? This cannot be undone.`)) return;
+        deleteGameBtn.disabled = true;
+        deleteGameBtn.textContent = 'Deleting...';
+        api('DELETE', `/games/${currentGame.id}`).then(() => {
+            currentGame = null;
+            loadGames();
+            goHome();
+            setStatus('Game deleted');
+        }).catch(() => {
+            deleteGameBtn.disabled = false;
+            deleteGameBtn.textContent = '🗑 Delete';
+            setStatus('Failed to delete game');
+        });
+    };
+
+    const descBtn = document.createElement('button');
+    descBtn.className = 'clone-btn';
+    descBtn.textContent = '✏ Description';
+    descBtn.onclick = () => showDescriptionModal();
 
     const rightHeader = document.createElement('div');
     rightHeader.style = 'display:flex;align-items:center;gap:8px';
-    rightHeader.appendChild(assetToggle);
     rightHeader.appendChild(previewToggle);
+    rightHeader.appendChild(descBtn);
     rightHeader.appendChild(thumbBtn);
     rightHeader.appendChild(cloneBtn);
+    rightHeader.appendChild(deleteGameBtn);
     header.appendChild(rightHeader);
     main.appendChild(header);
 
@@ -478,42 +500,6 @@ const renderGameView = () => {
     versionPanel.appendChild(vpFooter);
     editorArea.appendChild(versionPanel);
 
-    // Asset panel
-    const assetPanel = document.createElement('div');
-    assetPanel.id = 'asset-panel';
-    if (assetPanelOpen) assetPanel.classList.add('open');
-
-    const assetHeader = document.createElement('div');
-    assetHeader.id = 'asset-panel-header';
-    assetHeader.innerHTML = '<span>Assets</span>';
-    const assetActions = document.createElement('div');
-    assetActions.id = 'asset-panel-actions';
-
-    const drawBtn = document.createElement('button');
-    drawBtn.textContent = '✏ Draw';
-    drawBtn.onclick = openDrawOverlay;
-    assetActions.appendChild(drawBtn);
-
-    const recordBtn = document.createElement('button');
-    recordBtn.textContent = '🎤 Record';
-    recordBtn.onclick = openRecordOverlay;
-    assetActions.appendChild(recordBtn);
-
-    assetHeader.appendChild(assetActions);
-    assetPanel.appendChild(assetHeader);
-
-    const assetSearchBox = document.createElement('input');
-    assetSearchBox.id = 'asset-search';
-    assetSearchBox.type = 'text';
-    assetSearchBox.placeholder = 'Search assets...';
-    assetPanel.appendChild(assetSearchBox);
-
-    const assetListEl = document.createElement('div');
-    assetListEl.id = 'asset-list';
-    assetPanel.appendChild(assetListEl);
-
-    editorArea.appendChild(assetPanel);
-
     // Preview panel
     const previewPanel = document.createElement('div');
     previewPanel.id = 'preview-panel';
@@ -570,6 +556,13 @@ const renderGameView = () => {
     bottom.appendChild(statusMsg);
     const rightDiv = document.createElement('div');
     rightDiv.id = 'bottom-right';
+    rightDiv.style = 'display:flex;align-items:center;gap:8px;';
+    const commitInput = document.createElement('input');
+    commitInput.type = 'text';
+    commitInput.id = 'commit-msg';
+    commitInput.placeholder = 'Commit message (optional)';
+    commitInput.style = 'padding:4px 8px;font-size:0.82em;font-family:inherit;background:var(--bg-deep);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);width:220px;';
+    rightDiv.appendChild(commitInput);
     const saveBtn = document.createElement('button');
     saveBtn.id = 'save-btn';
     saveBtn.textContent = 'Save Version';
@@ -579,7 +572,7 @@ const renderGameView = () => {
     bottom.appendChild(rightDiv);
     main.appendChild(bottom);
 
-    attachAssetSearch();
+    initAssetDetailModal();
 };
 
 // ---------------------------------------------------------------------------
@@ -902,9 +895,12 @@ const saveVersion = () => {
     btn.textContent = 'Saving...';
     setStatus(`Committing ${dirtyFiles.length} file(s)...`);
 
+    const commitMsgEl = $('commit-msg');
+    const commitMsg = (commitMsgEl && commitMsgEl.value.trim()) || `Update ${dirtyFiles.length} file(s)`;
+
     api('POST', `/studio/games/${currentGame.id}/save`, {
         files: dirtyFiles,
-        message: `Update ${dirtyFiles.length} file(s)`,
+        message: commitMsg,
     })
     .then(result => {
         if (result.files) {
@@ -914,6 +910,7 @@ const saveVersion = () => {
             if (data.dirty) { data.dirty = false; data.original = data.content; }
         }
         btn.textContent = 'Save Version';
+        if (commitMsgEl) commitMsgEl.value = '';
         updateSaveButton();
         renderTabs();
         renderFileTree();
@@ -1277,8 +1274,42 @@ $('new-file-cancel').onclick = () => hideModal('new-file-modal');
 $('new-file-create').onclick = createNewFile;
 $('new-file-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createNewFile(); });
 
+// Description modal
+const showDescriptionModal = () => {
+    const input = $('description-modal-input');
+    const errEl = $('description-modal-error');
+    if (input) input.value = currentGame?.description || '';
+    if (errEl) errEl.textContent = '';
+    showModal('description-modal');
+};
+
+$('description-modal-cancel').onclick = () => hideModal('description-modal');
+$('description-modal-save').onclick = () => {
+    const input = $('description-modal-input');
+    const errEl = $('description-modal-error');
+    const desc = (input?.value || '').trim();
+    if (!desc) {
+        if (errEl) errEl.textContent = 'Description cannot be empty';
+        return;
+    }
+    const saveBtn = $('description-modal-save');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    api('POST', `/games/${currentGame.id}/update`, { description: desc }).then((data) => {
+        const result = typeof data === 'string' ? JSON.parse(data) : data;
+        currentGame.description = desc;
+        hideModal('description-modal');
+        setStatus('Description updated');
+    }).catch((err) => {
+        if (errEl) errEl.textContent = 'Failed to save description';
+    }).finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save';
+    });
+};
+
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { hideModal('new-game-modal'); hideModal('new-file-modal'); hideModal('admin-modal'); }
+    if (e.key === 'Escape') { hideModal('new-game-modal'); hideModal('new-file-modal'); hideModal('admin-modal'); hideModal('description-modal'); closeAssetModal(); hideModal('asset-delete-confirm-modal'); }
 });
 
 // ---------------------------------------------------------------------------
@@ -1842,17 +1873,59 @@ const setPreviewStatus = (msg) => {
 };
 
 // ---------------------------------------------------------------------------
-// Asset Panel
+// Asset Modal
 // ---------------------------------------------------------------------------
 
-let assetPanelOpen = false;
+let assetModalOpen = false;
+let assetModalTab = 'mine';
 let assetList = [];
 let assetPage = 0;
 const ASSET_PAGE_SIZE = 20;
 let assetTotal = 0;
 let assetSearchQuery = '';
+let assetTypeFilter = '';
 let assetSearchTimer = null;
 let playingAudioEl = null;
+
+const isAssetOwnedByUser = (asset) => !!(userInfo && asset && asset.developerId === userInfo.username);
+
+const updateAssetModalChrome = () => {
+    const isMine = assetModalTab === 'mine';
+    document.querySelectorAll('.asset-modal-tab').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.tab === assetModalTab);
+    });
+    const drawBtn = $('asset-modal-draw-btn');
+    const recordBtn = $('asset-modal-record-btn');
+    if (drawBtn) drawBtn.style.display = isMine ? '' : 'none';
+    if (recordBtn) recordBtn.style.display = isMine ? '' : 'none';
+    const typeFilter = $('asset-modal-type-filter');
+    if (typeFilter) typeFilter.style.display = isMine ? 'none' : '';
+    const dropZone = $('asset-modal-drop-zone');
+    if (dropZone) {
+        if (isMine) { dropZone.classList.remove('hidden'); } else { dropZone.classList.add('hidden'); }
+    }
+    const nsfwToggle = $('asset-modal-nsfw-toggle');
+    if (nsfwToggle) nsfwToggle.style.display = isMine ? 'none' : '';
+    const searchBox = $('asset-modal-search');
+    if (searchBox) {
+        searchBox.placeholder = isMine
+            ? 'Search my assets...'
+            : 'Search public assets...';
+    }
+};
+
+const setAssetModalTab = (tab) => {
+    if (assetModalTab === tab) return;
+    assetModalTab = tab;
+    assetSearchQuery = '';
+    assetTypeFilter = '';
+    const searchBox = $('asset-modal-search');
+    const typeFilter = $('asset-modal-type-filter');
+    if (searchBox) searchBox.value = '';
+    if (typeFilter) typeFilter.value = '';
+    updateAssetModalChrome();
+    loadAssetModal(true);
+};
 
 const apiUpload = (file, description) => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -1874,56 +1947,91 @@ const apiUpload = (file, description) => new Promise((resolve, reject) => {
     xhr.send(form);
 });
 
-// Attach search handler after game view renders (called from renderGameView)
-const attachAssetSearch = () => {
-    const searchBox = $('asset-search');
-    if (!searchBox) return;
+const bindAssetModalSearch = () => {
+    const searchBox = $('asset-modal-search');
+    if (!searchBox || searchBox.dataset.bound) return;
+    searchBox.dataset.bound = '1';
     searchBox.oninput = () => {
         clearTimeout(assetSearchTimer);
         assetSearchTimer = setTimeout(() => {
             assetSearchQuery = searchBox.value.trim();
-            loadAssets(true);
+            loadAssetModal(true);
         }, 300);
     };
-};
-
-const toggleAssetPanel = () => {
-    assetPanelOpen = !assetPanelOpen;
-    const panel = $('asset-panel');
-    const btn = $('asset-toggle-btn');
-    if (panel) {
-        if (assetPanelOpen) {
-            panel.classList.add('open');
-            assetSearchQuery = '';
-            const searchBox = $('asset-search');
-            if (searchBox) searchBox.value = '';
-            loadAssets(true);
-        } else {
-            panel.classList.remove('open');
-        }
+    const typeFilter = $('asset-modal-type-filter');
+    if (typeFilter && !typeFilter.dataset.bound) {
+        typeFilter.dataset.bound = '1';
+        typeFilter.onchange = () => {
+            assetTypeFilter = typeFilter.value;
+            loadAssetModal(true);
+        };
     }
-    if (btn) {
-        btn.className = 'asset-toggle' + (assetPanelOpen ? ' active' : '');
+    const nsfwCb = $('asset-modal-nsfw-cb');
+    if (nsfwCb && !nsfwCb.dataset.bound) {
+        nsfwCb.dataset.bound = '1';
+        nsfwCb.onchange = () => {
+            loadAssetModal(true);
+        };
     }
 };
 
-const loadAssets = (reset) => {
+const openAssetModal = () => {
+    assetModalOpen = true;
+    assetSearchQuery = '';
+    assetTypeFilter = '';
+    const searchBox = $('asset-modal-search');
+    const typeFilter = $('asset-modal-type-filter');
+    const nsfwCb = $('asset-modal-nsfw-cb');
+    if (searchBox) searchBox.value = '';
+    if (typeFilter) typeFilter.value = '';
+    if (nsfwCb) nsfwCb.checked = false;
+    updateAssetModalChrome();
+    bindAssetModalSearch();
+    initAssetModalEvents();
+    initAssetDetailModal();
+    showModal('asset-modal');
+    loadAssetModal(true);
+};
+
+const closeAssetModal = () => {
+    assetModalOpen = false;
+    hideModal('asset-modal');
+    if (playingAudioEl) { playingAudioEl.pause(); playingAudioEl = null; }
+};
+
+const loadAssetModal = (reset) => {
     if (reset) { assetPage = 0; assetList = []; }
     const offset = assetPage * ASSET_PAGE_SIZE;
     const queryParam = assetSearchQuery ? `&query=${encodeURIComponent(assetSearchQuery)}` : '';
-    api('GET', `/assets?limit=${ASSET_PAGE_SIZE}&offset=${offset}${queryParam}`)
-        .then(data => {
+    const typeParam = assetTypeFilter ? `&type=${encodeURIComponent(assetTypeFilter)}` : '';
+    const isPublic = assetModalTab === 'public';
+    const nsfwCb = $('asset-modal-nsfw-cb');
+    const nsfwParam = (isPublic && nsfwCb && nsfwCb.checked) ? '&includeNsfw=true' : '';
+    const endpoint = isPublic
+        ? `/catalog/assets?limit=${ASSET_PAGE_SIZE}&offset=${offset}${queryParam}${typeParam}${nsfwParam}`
+        : `/assets?limit=${ASSET_PAGE_SIZE}&offset=${offset}${queryParam}`;
+
+    // Public catalog doesn't require auth — use raw fetch when not logged in
+    const req = (!userInfo && isPublic)
+        ? fetch(`${API_URL}${endpoint}`).then(r => r.json())
+        : api('GET', endpoint);
+
+    req.then(data => {
             const newAssets = data.assets || [];
             assetTotal = data.count || 0;
             if (reset) { assetList = newAssets; } else { assetList = assetList.concat(newAssets); }
-            renderAssetList();
+            renderAssetGrid();
         })
         .catch(err => {
             console.error('Failed to load assets', err);
+            setStatus('Failed to load assets');
         });
 };
 
+const loadAssets = (reset) => loadAssetModal(reset);
+
 const getAssetType = (asset) => {
+    if (asset.assetType) return asset.assetType;
     const t = (asset.type || '').toLowerCase();
     if (t.startsWith('image')) return 'image';
     if (t.startsWith('audio')) return 'audio';
@@ -1931,147 +2039,478 @@ const getAssetType = (asset) => {
     return 'other';
 };
 
-const renderAssetList = () => {
-    const list = $('asset-list');
-    if (!list) return;
-    list.innerHTML = '';
+let assetDetailCurrent = null;
 
-    // Drop zone
-    const dropZone = document.createElement('div');
-    dropZone.className = 'asset-drop-zone';
-    dropZone.id = 'asset-drop-zone';
-    dropZone.textContent = 'Drop files here or click to upload';
-    dropZone.onclick = () => {
-        const inp = document.createElement('input');
-        inp.type = 'file';
-        inp.accept = 'image/*,audio/*';
-        inp.multiple = true;
-        inp.onchange = () => { handleAssetFiles(inp.files); };
-        inp.click();
-    };
-    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-    dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('drag-over'); });
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('drag-over');
-        handleAssetFiles(e.dataTransfer.files);
+const formatAssetSize = (bytes) => {
+    if (!bytes && bytes !== 0) return '—';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const updateAssetDetailPublishUi = () => {
+    const publishBtn = $('asset-detail-publish');
+    const statusEl = $('asset-detail-public-status');
+    if (!assetDetailCurrent || !publishBtn || !statusEl) return;
+    const isPublic = !!assetDetailCurrent.public;
+    publishBtn.textContent = isPublic ? 'Unpublish from catalog' : 'Publish to catalog';
+    statusEl.textContent = isPublic
+        ? 'Listed in the public asset catalog.'
+        : 'Not listed in the public asset catalog.';
+    statusEl.style.color = isPublic ? 'var(--accent-green)' : 'var(--text-dim)';
+};
+
+const openAssetDetailModal = (asset) => {
+    assetDetailCurrent = { ...asset };
+    const title = $('asset-detail-title');
+    const preview = $('asset-detail-preview');
+    const meta = $('asset-detail-meta');
+    const descInput = $('asset-detail-desc');
+    const errEl = $('asset-detail-error');
+    if (!preview || !meta || !descInput) return;
+
+    if (title) {
+        title.textContent = asset.name || 'Asset';
+        if (asset.nsfw) {
+            const badge = document.createElement('span');
+            badge.className = 'nsfw-badge';
+            badge.textContent = 'NSFW';
+            title.appendChild(badge);
+        }
+    }
+    descInput.value = asset.description || '';
+    if (errEl) errEl.textContent = '';
+
+    preview.innerHTML = '';
+    const type = getAssetType(asset);
+    const assetUrl = `${API_URL}/assets/${asset.id}`;
+
+    if (type === 'image') {
+        const img = document.createElement('img');
+        img.src = assetUrl;
+        img.alt = asset.name || '';
+        preview.appendChild(img);
+    } else if (type === 'audio') {
+        const audio = document.createElement('audio');
+        audio.controls = true;
+        audio.src = assetUrl;
+        audio.style = 'width:100%;';
+        preview.appendChild(audio);
+    } else {
+        const label = document.createElement('div');
+        label.style = 'padding:24px;color:var(--text-dim);';
+        label.textContent = type === 'font' ? 'Font file' : 'File preview unavailable';
+        preview.appendChild(label);
+    }
+
+    const createdStr = asset.created ? new Date(asset.created).toLocaleString() : '—';
+    meta.innerHTML = `
+        <div><strong>Uploader:</strong> ${asset.developerId || '—'}</div>
+        <div><strong>ID:</strong> ${asset.id}</div>
+        <div><strong>Type:</strong> ${type}</div>
+        <div><strong>Size:</strong> ${formatAssetSize(asset.size)}</div>
+        <div><strong>Uploaded:</strong> ${createdStr}</div>
+    `;
+
+    setAssetDetailEditable(isAssetOwnedByUser(asset));
+    renderAssetDetailTags();
+    updateAssetDetailPublishUi();
+    showModal('asset-detail-modal');
+};
+
+const closeAssetDetailModal = () => {
+    assetDetailCurrent = null;
+    hideModal('asset-detail-modal');
+};
+
+const syncAssetDetailInList = (assetId, updates) => {
+    const idx = assetList.findIndex((a) => a.id === assetId);
+    if (idx >= 0) {
+        assetList[idx] = { ...assetList[idx], ...updates };
+    }
+    if (assetDetailCurrent && assetDetailCurrent.id === assetId) {
+        assetDetailCurrent = { ...assetDetailCurrent, ...updates };
+        setAssetDetailEditable(isAssetOwnedByUser(assetDetailCurrent));
+    }
+};
+
+const setAssetDetailEditable = (editable) => {
+    const descInput = $('asset-detail-desc');
+    const saveBtn = $('asset-detail-save');
+    const publishBtn = $('asset-detail-publish');
+    const deleteBtn = $('asset-detail-delete');
+    if (descInput) descInput.disabled = !editable;
+    if (saveBtn) saveBtn.style.display = editable ? '' : 'none';
+    if (publishBtn) publishBtn.style.display = editable ? '' : 'none';
+    if (deleteBtn) deleteBtn.style.display = editable ? '' : 'none';
+};
+
+const renderAssetDetailTags = () => {
+    const container = $('asset-detail-tags');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const editable = isAssetOwnedByUser(assetDetailCurrent);
+    const tags = (assetDetailCurrent && assetDetailCurrent.tags) || [];
+
+    tags.forEach(tag => {
+        const el = document.createElement('span');
+        el.className = 'asset-detail-tag';
+        el.textContent = tag;
+        if (editable) {
+            const removeBtn = document.createElement('span');
+            removeBtn.className = 'tag-remove';
+            removeBtn.textContent = '✕';
+            removeBtn.onclick = () => {
+                const newTags = tags.filter(t => t !== tag);
+                api('POST', `/assets/${assetDetailCurrent.id}/tags`, { tags: newTags })
+                    .then(() => {
+                        assetDetailCurrent.tags = newTags;
+                        syncAssetDetailInList(assetDetailCurrent.id, { tags: newTags });
+                        renderAssetDetailTags();
+                        renderAssetGrid();
+                    });
+            };
+            el.appendChild(removeBtn);
+        }
+        container.appendChild(el);
     });
-    list.appendChild(dropZone);
+
+    if (editable) {
+        const addBtn = document.createElement('span');
+        addBtn.className = 'asset-detail-tag-add';
+        addBtn.textContent = '+ Add tag';
+        addBtn.onclick = () => {
+            const tag = prompt('Tag name:');
+            if (tag && tag.trim()) {
+                const newTags = [...tags, tag.trim().toLowerCase()];
+                api('POST', `/assets/${assetDetailCurrent.id}/tags`, { tags: newTags })
+                    .then(() => {
+                        assetDetailCurrent.tags = newTags;
+                        syncAssetDetailInList(assetDetailCurrent.id, { tags: newTags });
+                        renderAssetDetailTags();
+                        renderAssetGrid();
+                    });
+            }
+        };
+        container.appendChild(addBtn);
+    }
+
+    if (!editable && tags.length === 0) {
+        const none = document.createElement('span');
+        none.style = 'color:var(--text-faint);font-size:0.8em;';
+        none.textContent = 'No tags';
+        container.appendChild(none);
+    }
+};
+
+const initAssetDetailModal = () => {
+    const modal = $('asset-detail-modal');
+    if (!modal || modal.dataset.bound) return;
+    modal.dataset.bound = '1';
+
+    $('asset-detail-close').onclick = closeAssetDetailModal;
+    $('asset-detail-dismiss').onclick = closeAssetDetailModal;
+    modal.onclick = (e) => {
+        if (e.target === modal) closeAssetDetailModal();
+    };
+
+    $('asset-detail-open').onclick = () => {
+        if (!assetDetailCurrent) return;
+        window.open(`${API_URL}/assets/${assetDetailCurrent.id}`, '_blank');
+    };
+
+    $('asset-detail-copy').onclick = () => {
+        if (!assetDetailCurrent) return;
+        navigator.clipboard.writeText(assetDetailCurrent.id).then(() => {
+            setStatus('Asset ID copied');
+        });
+    };
+
+    $('asset-detail-save').onclick = () => {
+        if (!assetDetailCurrent) return;
+        const errEl = $('asset-detail-error');
+        const description = $('asset-detail-desc').value.trim();
+        if (errEl) errEl.textContent = '';
+        api('POST', `/assets/${assetDetailCurrent.id}/meta`, { description })
+            .then((result) => {
+                syncAssetDetailInList(assetDetailCurrent.id, { description: result.description ?? description });
+                renderAssetGrid();
+                setStatus('Description saved');
+            })
+            .catch((err) => {
+                if (errEl) errEl.textContent = (err && err.error) ? err.error : 'Failed to save';
+            });
+    };
+
+    $('asset-detail-publish').onclick = () => {
+        if (!assetDetailCurrent) return;
+        const errEl = $('asset-detail-error');
+        const publishBtn = $('asset-detail-publish');
+        const nextPublic = !assetDetailCurrent.public;
+        if (errEl) errEl.textContent = '';
+        publishBtn.disabled = true;
+        api('POST', `/assets/${assetDetailCurrent.id}/meta`, { public: nextPublic })
+            .then(() => {
+                syncAssetDetailInList(assetDetailCurrent.id, { public: nextPublic });
+                updateAssetDetailPublishUi();
+                renderAssetGrid();
+                setStatus(nextPublic ? 'Asset published to catalog' : 'Asset removed from catalog');
+            })
+            .catch((err) => {
+                if (errEl) errEl.textContent = (err && err.error) ? err.error : 'Failed to update';
+            })
+            .finally(() => { publishBtn.disabled = false; });
+    };
+
+    $('asset-detail-delete').onclick = () => {
+        if (!assetDetailCurrent) return;
+        const name = assetDetailCurrent.name || assetDetailCurrent.id;
+        if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+        const errEl = $('asset-detail-error');
+        const deleteBtn = $('asset-detail-delete');
+        if (errEl) errEl.textContent = '';
+        deleteBtn.disabled = true;
+        api('DELETE', `/assets/${assetDetailCurrent.id}`)
+            .then(() => {
+                closeAssetDetailModal();
+                loadAssets(true);
+                setStatus('Asset deleted');
+            })
+            .catch((err) => {
+                if (errEl) errEl.textContent = (err && err.error) ? err.error : 'Failed to delete';
+            })
+            .finally(() => { deleteBtn.disabled = false; });
+    };
+};
+
+let pendingDeleteAsset = null;
+
+const confirmDeleteAsset = (asset) => {
+    pendingDeleteAsset = asset;
+    const textEl = $('asset-delete-confirm-text');
+    const errEl = $('asset-delete-confirm-error');
+    const okBtn = $('asset-delete-confirm-ok');
+    if (textEl) textEl.textContent = `Permanently delete "${asset.name || asset.id}"?`;
+    if (errEl) errEl.textContent = '';
+    if (okBtn) okBtn.disabled = false;
+    showModal('asset-delete-confirm-modal');
+};
+
+const cancelDeleteAsset = () => {
+    pendingDeleteAsset = null;
+    hideModal('asset-delete-confirm-modal');
+};
+
+const executeDeleteAsset = () => {
+    if (!pendingDeleteAsset) return;
+    const asset = pendingDeleteAsset;
+    const errEl = $('asset-delete-confirm-error');
+    const okBtn = $('asset-delete-confirm-ok');
+    if (okBtn) okBtn.disabled = true;
+    if (errEl) errEl.textContent = '';
+    api('DELETE', `/assets/${asset.id}`)
+        .then(() => {
+            pendingDeleteAsset = null;
+            hideModal('asset-delete-confirm-modal');
+            loadAssets(true);
+            setStatus('Asset deleted');
+        })
+        .catch((err) => {
+            if (errEl) errEl.textContent = (err && err.error) ? err.error : 'Failed to delete';
+            if (okBtn) okBtn.disabled = false;
+        });
+};
+
+// Wire up confirm-delete modal buttons
+$('asset-delete-confirm-cancel').onclick = cancelDeleteAsset;
+$('asset-delete-confirm-ok').onclick = executeDeleteAsset;
+$('asset-delete-confirm-modal').onclick = (e) => { if (e.target === $('asset-delete-confirm-modal')) cancelDeleteAsset(); };
+
+const renderAssetGrid = () => {
+    const grid = $('asset-modal-grid');
+    const loadMoreContainer = $('asset-modal-load-more');
+    if (!grid) return;
+    grid.innerHTML = '';
+    if (loadMoreContainer) loadMoreContainer.innerHTML = '';
+
+    const isMineTab = assetModalTab === 'mine';
 
     if (assetList.length === 0) {
         const empty = document.createElement('div');
-        empty.className = 'asset-empty';
-        empty.textContent = 'No assets yet. Upload files, draw, or record audio.';
-        list.appendChild(empty);
+        empty.className = 'asset-modal-empty';
+        empty.textContent = isMineTab
+            ? 'No assets yet. Upload files, draw, or record audio.'
+            : 'No public assets found.';
+        grid.appendChild(empty);
+        return;
     }
 
     assetList.forEach(asset => {
-        const item = document.createElement('div');
-        item.className = 'asset-item';
+        const card = document.createElement('div');
+        card.className = 'asset-modal-card';
+        card.onclick = () => openAssetDetailModal(asset);
 
         const type = getAssetType(asset);
 
-        // Thumbnail
+        // Preview
+        const preview = document.createElement('div');
+        preview.className = 'asset-modal-card-preview';
         if (type === 'image') {
             const img = document.createElement('img');
-            img.className = 'asset-thumb';
             img.src = `${API_URL}/assets/${asset.id}`;
             img.alt = asset.name || '';
             img.onerror = () => { img.style.display = 'none'; };
-            item.appendChild(img);
-        } else if (type === 'audio') {
-            const audioThumb = document.createElement('div');
-            audioThumb.className = 'asset-audio-thumb';
-            audioThumb.textContent = '▶';
-            audioThumb.onclick = () => {
-                if (playingAudioEl) { playingAudioEl.pause(); playingAudioEl = null; audioThumb.textContent = '▶'; return; }
-                const audio = new Audio(`${API_URL}/assets/${asset.id}`);
-                playingAudioEl = audio;
-                audioThumb.textContent = '■';
-                audio.onended = () => { playingAudioEl = null; audioThumb.textContent = '▶'; };
-                audio.onerror = () => { playingAudioEl = null; audioThumb.textContent = '▶'; };
-                audio.play();
-            };
-            item.appendChild(audioThumb);
+            preview.appendChild(img);
         } else {
-            const placeholder = document.createElement('div');
-            placeholder.className = 'asset-audio-thumb';
-            placeholder.textContent = '?';
-            item.appendChild(placeholder);
+            const badge = document.createElement('div');
+            badge.className = 'type-badge';
+            badge.textContent = type === 'audio' ? '🔊' : type === 'font' ? 'Aa' : '📄';
+            preview.appendChild(badge);
+        }
+        if (asset.public) {
+            const pubBadge = document.createElement('span');
+            pubBadge.className = 'public-badge';
+            pubBadge.textContent = 'public';
+            preview.appendChild(pubBadge);
+        }
+        if (isAssetOwnedByUser(asset)) {
+            const delBtn = document.createElement('button');
+            delBtn.className = 'asset-modal-card-delete';
+            delBtn.textContent = '✕';
+            delBtn.title = 'Delete asset';
+            delBtn.onclick = (e) => {
+                e.stopPropagation();
+                confirmDeleteAsset(asset);
+            };
+            preview.appendChild(delBtn);
+        }
+        card.appendChild(preview);
+
+        // Body
+        const body = document.createElement('div');
+        body.className = 'asset-modal-card-body';
+
+        const nameEl = document.createElement('div');
+        nameEl.className = 'asset-modal-card-name';
+        nameEl.textContent = asset.name || asset.id;
+        nameEl.title = asset.id;
+        body.appendChild(nameEl);
+
+        if (!isMineTab && asset.developerId) {
+            const author = document.createElement('div');
+            author.className = 'asset-modal-card-author';
+            author.textContent = asset.developerId;
+            body.appendChild(author);
         }
 
-        // Info
-        const info = document.createElement('div');
-        info.className = 'asset-info';
-        const name = document.createElement('span');
-        name.className = 'asset-name';
-        name.textContent = asset.name || asset.id;
-        name.title = asset.id;
-        info.appendChild(name);
-        const badge = document.createElement('span');
-        badge.className = 'asset-type-badge ' + type;
-        badge.textContent = type;
-        info.appendChild(badge);
-
-        // Tags (inside info)
-        const tagsRow = document.createElement('div');
-        tagsRow.className = 'asset-tags-row';
+        if (asset.description) {
+            const desc = document.createElement('div');
+            desc.className = 'asset-modal-card-desc';
+            desc.textContent = asset.description;
+            body.appendChild(desc);
+        }
 
         const existingTags = asset.tags || [];
-        existingTags.forEach(tag => {
-            const tagEl = document.createElement('span');
-            tagEl.className = 'asset-tag';
-            tagEl.textContent = tag;
-            tagEl.onclick = (e) => {
-                e.stopPropagation();
-                const newTags = existingTags.filter(t => t !== tag);
-                api('POST', `/assets/${asset.id}/tags`, { tags: newTags }).then(() => loadAssets(true));
-            };
-            tagEl.title = 'Click to remove';
-            tagsRow.appendChild(tagEl);
-        });
+        if (existingTags.length > 0) {
+            const tagsRow = document.createElement('div');
+            tagsRow.className = 'asset-modal-card-tags';
+            existingTags.forEach(tag => {
+                const tagEl = document.createElement('span');
+                tagEl.className = 'asset-tag';
+                tagEl.textContent = tag;
+                tagsRow.appendChild(tagEl);
+            });
+            body.appendChild(tagsRow);
+        }
 
-        const addTagBtn = document.createElement('span');
-        addTagBtn.className = 'asset-tag-add';
-        addTagBtn.textContent = '+';
-        addTagBtn.title = 'Add tag';
-        addTagBtn.onclick = (e) => {
-            e.stopPropagation();
-            const tag = prompt('Tag name:');
-            if (tag && tag.trim()) {
-                const newTags = [...existingTags, tag.trim().toLowerCase()];
-                api('POST', `/assets/${asset.id}/tags`, { tags: newTags }).then(() => loadAssets(true));
-            }
-        };
-        tagsRow.appendChild(addTagBtn);
-        info.appendChild(tagsRow);
+        card.appendChild(body);
 
-        item.appendChild(info);
+        // Footer
+        const footer = document.createElement('div');
+        footer.className = 'asset-modal-card-footer';
 
-        // Copy ID button
+        const typeBadge = document.createElement('span');
+        typeBadge.className = 'asset-modal-card-type ' + type;
+        typeBadge.textContent = type;
+        footer.appendChild(typeBadge);
+
+        const actions = document.createElement('div');
+        actions.className = 'asset-modal-card-actions';
+
         const copyBtn = document.createElement('button');
-        copyBtn.className = 'asset-copy-btn';
+        copyBtn.type = 'button';
         copyBtn.textContent = 'Copy ID';
-        copyBtn.onclick = () => {
+        copyBtn.onclick = (e) => {
+            e.stopPropagation();
             navigator.clipboard.writeText(asset.id).then(() => {
                 copyBtn.textContent = 'Copied!';
                 setTimeout(() => { copyBtn.textContent = 'Copy ID'; }, 1500);
             });
         };
-        item.appendChild(copyBtn);
+        actions.appendChild(copyBtn);
 
-        list.appendChild(item);
+        footer.appendChild(actions);
+        card.appendChild(footer);
+
+        grid.appendChild(card);
     });
 
     // Load more button
-    if (assetList.length < assetTotal) {
-        const loadMoreDiv = document.createElement('div');
-        loadMoreDiv.id = 'asset-load-more';
+    if (loadMoreContainer && assetList.length < assetTotal) {
         const loadMoreBtn = document.createElement('button');
         loadMoreBtn.textContent = 'Load more';
-        loadMoreBtn.onclick = () => { assetPage++; loadAssets(false); };
-        loadMoreDiv.appendChild(loadMoreBtn);
-        list.appendChild(loadMoreDiv);
+        loadMoreBtn.onclick = () => { assetPage++; loadAssetModal(false); };
+        loadMoreContainer.appendChild(loadMoreBtn);
+    }
+};
+
+let assetModalEventsInitialized = false;
+const initAssetModalEvents = () => {
+    if (assetModalEventsInitialized) return;
+    assetModalEventsInitialized = true;
+
+    // Close button
+    const closeBtn = $('asset-modal-close');
+    if (closeBtn) closeBtn.onclick = closeAssetModal;
+
+    // Click overlay to close
+    const modal = $('asset-modal');
+    if (modal) modal.onclick = (e) => { if (e.target === modal) closeAssetModal(); };
+
+    // Tabs
+    const tabs = $('asset-modal-tabs');
+    if (tabs) {
+        tabs.onclick = (e) => {
+            const btn = e.target.closest('.asset-modal-tab');
+            if (btn && btn.dataset.tab) setAssetModalTab(btn.dataset.tab);
+        };
+    }
+
+    // Draw / Record buttons
+    const drawBtn = $('asset-modal-draw-btn');
+    if (drawBtn) drawBtn.onclick = openDrawOverlay;
+    const recordBtn = $('asset-modal-record-btn');
+    if (recordBtn) recordBtn.onclick = openRecordOverlay;
+
+    // Drop zone
+    const dropZone = $('asset-modal-drop-zone');
+    if (dropZone) {
+        dropZone.onclick = () => {
+            const inp = document.createElement('input');
+            inp.type = 'file';
+            inp.accept = 'image/*,audio/*,font/*';
+            inp.multiple = true;
+            inp.onchange = () => { handleAssetFiles(inp.files); };
+            inp.click();
+        };
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('drag-over'); });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            handleAssetFiles(e.dataTransfer.files);
+        });
     }
 };
 
@@ -2450,7 +2889,7 @@ $('rec-cancel').onclick = closeRecordOverlay;
     };
 
     const clearMobileVisible = () => {
-        ['sidebar', 'file-tree', 'version-panel', 'preview-panel', 'asset-panel'].forEach(id => {
+        ['sidebar', 'file-tree', 'version-panel', 'preview-panel'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.remove('mobile-visible');
         });

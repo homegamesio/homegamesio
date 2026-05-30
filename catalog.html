@@ -22,11 +22,15 @@
                     <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png"></img></div>
                 </div>
                 <div id="content">
-                    <div style="text-align: center; display: flex; justify-content: center; align-items: center; gap: 12px; padding: 12px;">
+                    <div style="text-align: center; display: flex; justify-content: center; align-items: center; gap: 12px; padding: 12px; flex-wrap: wrap;">
                         <input type="text" id="search-box" placeholder="Find a game" style="height: 40px; padding: 5px; width: 300px;"></input>
                         <label class="amateur" style="cursor: pointer; font-size: 1.1em;">
                             <input type="checkbox" id="featured-filter" style="margin-right: 4px;" />
                             ★ Featured
+                        </label>
+                        <label style="cursor: pointer; font-size: 0.85em; color: #888; display: inline-flex; align-items: center; gap: 5px; user-select: none;">
+                            <input type="checkbox" id="nsfw-filter" style="accent-color: #e44; cursor: pointer;" />
+                            Include NSFW
                         </label>
                     </div>
                     <div id="catalog"></div>
@@ -38,93 +42,107 @@
     <script>
         const contentDiv = document.getElementById('catalog');
         const searchBox = document.getElementById('search-box');
+        const featuredCheckbox = document.getElementById('featured-filter');
+        const nsfwCheckbox = document.getElementById('nsfw-filter');
 
         const searchParams = new URLSearchParams(window.location.search);
         let page = (searchParams && searchParams.get('page')) ? Number(searchParams.get('page')) : 1;
         const pageSize = 6;
+
         const renderCatalogGames = (data, _page = 1) => {
             const games = data.games;
-            const pageCount = data.pageCount;
+            const total = data.total || 0;
+            const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
             clearChildren(contentDiv);
 
             const container = document.createElement('div');
-            container.id = 'catalog-container';
+            container.style = 'display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 960px; margin: 0 auto; padding: 0 16px;';
+
+            if (games.length === 0) {
+                const empty = document.createElement('div');
+                empty.style = 'grid-column: 1 / -1; text-align: center; color: #888; padding: 48px;';
+                empty.textContent = 'No games found';
+                container.appendChild(empty);
+            }
 
             games.forEach(game => {
-                const gameEl = document.createElement('a');
-                gameEl.href = `${window.location.origin}/game.html?id=${game.id}`;
-                gameEl.style = 'text-align: center; text-decoration: none';
-                
-                const titleEl = document.createElement('h1');
-                titleEl.innerHTML = game.name;
-                titleEl.className = 'amateur';
+                const card = document.createElement('a');
+                card.href = `${window.location.origin}/game.html?id=${game.id}`;
+                card.style = 'text-decoration: none; color: inherit; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; display: block; transition: box-shadow 0.15s;';
+                card.onmouseover = () => { card.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)'; };
+                card.onmouseout = () => { card.style.boxShadow = 'none'; };
 
-                const authorEl = document.createElement('h3');
-                authorEl.innerHTML = game.createdBy;
-                authorEl.className = 'amateur';
-
-                const thumbnailEl = document.createElement('div');
                 if (game.thumbnail) {
-                    const imageContainer = document.createElement('img');
-                    imageContainer.style = 'max-height: 200px; max-width: 300px; min-height: 200px';
-                    imageContainer.setAttribute('src', window.API_URL + '/assets/' + game.thumbnail);
-                    gameEl.appendChild(imageContainer);
+                    const img = document.createElement('img');
+                    img.src = window.API_URL + '/assets/' + game.thumbnail;
+                    img.alt = game.name;
+                    img.style = 'width: 100%; height: 160px; object-fit: cover; display: block; background: #eee;';
+                    card.appendChild(img);
+                } else {
+                    const placeholder = document.createElement('div');
+                    placeholder.style = 'width: 100%; height: 160px; background: #eee; display: flex; align-items: center; justify-content: center; color: #aaa; font-size: 2em;';
+                    placeholder.textContent = '🎮';
+                    card.appendChild(placeholder);
                 }
-                gameEl.appendChild(titleEl);
 
-                container.appendChild(gameEl);
+                const body = document.createElement('div');
+                body.style = 'padding: 10px;';
+                const title = document.createElement('div');
+                title.className = 'amateur';
+                title.style = 'font-size: 1.1em; font-weight: bold;';
+                title.textContent = game.name;
+                body.appendChild(title);
+                const desc = document.createElement('div');
+                desc.style = 'font-size: 0.85em; color: #777; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+                desc.textContent = game.description || 'No description available';
+                body.appendChild(desc);
+                card.appendChild(body);
+
+                container.appendChild(card);
             });
             contentDiv.appendChild(container);
 
-            const buttonContainer = document.createElement('div');
-            buttonContainer.style = 'height: 10%; display: grid; grid-template-columns: 1fr 1fr;';
+            // Pagination
+            const paginationEl = document.createElement('div');
+            paginationEl.style = 'display: flex; justify-content: center; align-items: center; gap: 16px; padding: 24px;';
+
             if (_page > 1) {
-                const leftButton = document.createElement('div');
-                leftButton.style = 'text-align: left; font-size: 8vw; padding: 24px;';
-                leftButton.className = 'clickable';
-
-                leftButton.innerHTML = String.fromCodePoint(8592);
-                leftButton.onclick = () => {
-                    const newPage = _page ? _page - 1 : 1;
-                    getAllGames(pageSize, Math.max(newPage - 1, 0)).then((_data) => {
-                        renderCatalogGames(_data, newPage);
-                    });
-                };
-                buttonContainer.appendChild(leftButton);
+                const prevBtn = document.createElement('button');
+                prevBtn.className = 'clickable amateur';
+                prevBtn.style = 'padding: 8px 20px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; background: #fff; font-size: 1em; font-family: inherit;';
+                prevBtn.textContent = 'Previous';
+                prevBtn.onclick = () => { page = _page - 1; refreshCatalog(); };
+                paginationEl.appendChild(prevBtn);
             }
 
-            if ((_page || 1) < pageCount) {
-                const rightButton = document.createElement('div');
-                rightButton.className = 'clickable';
-                rightButton.style = 'text-align: right; font-size: 8vw; padding: 24px;';
+            const pageInfo = document.createElement('span');
+            pageInfo.style = 'color: #888; font-size: 0.9em;';
+            pageInfo.textContent = 'Page ' + _page + (pageCount > 1 ? ' of ' + pageCount : '');
+            paginationEl.appendChild(pageInfo);
 
-                rightButton.innerHTML = String.fromCodePoint(8594);
-
-                rightButton.onclick = () => {
-                    const newPage = _page ? _page + 1 : 2;
-                    getAllGames(pageSize, (newPage - 1) * pageSize).then((_data) => {
-                        renderCatalogGames(_data, newPage);
-                    });
-                };
-                buttonContainer.appendChild(rightButton);
+            if (_page < pageCount) {
+                const nextBtn = document.createElement('button');
+                nextBtn.className = 'clickable amateur';
+                nextBtn.style = 'padding: 8px 20px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; background: #fff; font-size: 1em; font-family: inherit;';
+                nextBtn.textContent = 'Next';
+                nextBtn.onclick = () => { page = _page + 1; refreshCatalog(); };
+                paginationEl.appendChild(nextBtn);
             }
 
-            contentDiv.appendChild(buttonContainer);
+            contentDiv.appendChild(paginationEl);
         };
-
-        const featuredCheckbox = document.getElementById('featured-filter');
 
         const refreshCatalog = () => {
             const query = searchBox.value.trim();
             const featured = featuredCheckbox.checked;
+            const includeNsfw = nsfwCheckbox.checked;
             if (query) {
-                const featuredParam = featured ? '&featured=true' : '';
                 searchGames(query, pageSize, (page - 1) * pageSize).then((data) => {
                     renderCatalogGames(data, page);
                 });
             } else {
-                getAllGames(pageSize, (page - 1) * pageSize, featured || null).then((data) => {
+                getAllGames(pageSize, (page - 1) * pageSize, featured || null, includeNsfw).then((data) => {
                     renderCatalogGames(data, page);
                 });
             }
@@ -138,6 +156,11 @@
         };
 
         featuredCheckbox.onchange = () => {
+            page = 1;
+            refreshCatalog();
+        };
+
+        nsfwCheckbox.onchange = () => {
             page = 1;
             refreshCatalog();
         };

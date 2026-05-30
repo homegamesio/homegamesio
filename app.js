@@ -124,10 +124,20 @@ const server = http.createServer((req, res) => {
                 res.setHeader("Content-Type", "text/html");
                 const payload = fs.readFileSync(path.join(__dirname, 'game.html'));
                 res.end(payload);
+            } else if (req.url.startsWith('/self-hosting')) {
+                res.statusCode = 200;
+                res.setHeader("Content-Type", "text/html");
+                const payload = fs.readFileSync(path.join(__dirname, 'self-hosting.html'));
+                res.end(payload);
             } else if (req.url.startsWith('/catalog')) {
                 res.statusCode = 200;
                 res.setHeader("Content-Type", 'text/html');
                 const payload = fs.readFileSync(path.join(__dirname, 'catalog.html'));
+                res.end(payload);
+            } else if (req.url.startsWith('/asset-catalog')) {
+                res.statusCode = 200;
+                res.setHeader("Content-Type", 'text/html');
+                const payload = fs.readFileSync(path.join(__dirname, 'asset-catalog.html'));
                 res.end(payload);
             } else if (req.url.startsWith('/terms')) {
                 res.statusCode = 200;
