@@ -7,8 +7,206 @@
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
         <link rel="manifest" href="/site.webmanifest">
         <style>
-            #content h1, #content h2 {
+            .landing-section {
+                max-width: 860px;
+                margin: 0 auto;
+                padding: 0 24px;
+            }
+
+            /* Hero */
+            .hero {
+                text-align: center;
+                padding: 60px 24px 40px;
+            }
+            .hero h1 {
+                font-size: 2.2em;
                 font-weight: lighter;
+                margin: 0 0 12px;
+                line-height: 1.3;
+            }
+            .hero p {
+                font-size: 1.1em;
+                color: #555;
+                margin: 0 0 36px;
+                line-height: 1.6;
+            }
+            .hero-buttons {
+                display: flex;
+                justify-content: center;
+                gap: 20px;
+                flex-wrap: wrap;
+            }
+            .hero-circle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 100px;
+                height: 100px;
+                border-radius: 50%;
+                font-size: 1em;
+                text-decoration: none;
+                font-family: 'amateur', sans-serif;
+                color: #222;
+                transition: opacity 0.15s;
+                text-align: center;
+                line-height: 1.2;
+            }
+            .hero-circle:hover { opacity: 0.8; }
+            .hero-btn {
+                display: inline-block;
+                padding: 14px 36px;
+                border-radius: 8px;
+                font-size: 1.15em;
+                text-decoration: none;
+                font-family: 'amateur', sans-serif;
+                transition: opacity 0.15s;
+            }
+            .hero-btn:hover { opacity: 0.85; }
+
+            /* Featured games */
+            .featured-section {
+                padding: 40px 0;
+            }
+            .featured-section h2 {
+                font-weight: lighter;
+                text-align: center;
+                margin: 0 0 24px;
+                font-size: 1.5em;
+            }
+            .featured-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 16px;
+            }
+            .featured-card {
+                text-decoration: none;
+                color: inherit;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                overflow: hidden;
+                display: block;
+                transition: box-shadow 0.15s;
+            }
+            .featured-card:hover {
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
+            .featured-card img {
+                width: 100%;
+                height: 140px;
+                object-fit: cover;
+                display: block;
+                background: #eee;
+            }
+            .featured-card .placeholder {
+                width: 100%;
+                height: 140px;
+                background: #eee;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #aaa;
+                font-size: 2em;
+            }
+            .featured-card .card-body {
+                padding: 10px;
+            }
+            .featured-card .card-title {
+                font-weight: bold;
+                font-size: 1.05em;
+            }
+            .featured-card .card-desc {
+                font-size: 0.82em;
+                color: #777;
+                margin-top: 4px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .featured-more {
+                text-align: center;
+                margin-top: 20px;
+            }
+            .featured-more a {
+                color: rgba(148, 210, 229, 255);
+                font-size: 1em;
+            }
+
+            /* Dev pitch */
+            .dev-section {
+                padding: 40px 0;
+                border-top: 1px solid #eee;
+            }
+            .dev-section h2 {
+                font-weight: lighter;
+                text-align: center;
+                margin: 0 0 20px;
+                font-size: 1.5em;
+            }
+            .dev-points {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+                margin-bottom: 24px;
+            }
+            .dev-point {
+                padding: 16px;
+                border: 1px solid #eee;
+                border-radius: 8px;
+            }
+            .dev-point strong {
+                display: block;
+                margin-bottom: 4px;
+            }
+            .dev-point p {
+                margin: 0;
+                font-size: 0.9em;
+                color: #555;
+                line-height: 1.5;
+            }
+            .dev-cta {
+                text-align: center;
+            }
+
+            /* Open source */
+            .oss-section {
+                padding: 40px 0;
+                border-top: 1px solid #eee;
+                text-align: center;
+            }
+            .oss-section h2 {
+                font-weight: lighter;
+                margin: 0 0 12px;
+                font-size: 1.5em;
+            }
+            .oss-section p {
+                color: #555;
+                line-height: 1.6;
+                max-width: 600px;
+                margin: 0 auto 20px;
+                font-size: 0.95em;
+            }
+
+            /* Footer */
+            .landing-footer {
+                padding: 32px 0;
+                border-top: 1px solid #eee;
+                text-align: center;
+                font-size: 0.9em;
+                color: #888;
+            }
+            .landing-footer a {
+                color: #888;
+                margin: 0 10px;
+            }
+            .landing-footer .email {
+                margin-top: 12px;
+            }
+
+            @media (max-width: 640px) {
+                .hero h1 { font-size: 1.6em; }
+                .hero-circle { width: 80px; height: 80px; font-size: 0.85em; }
+                .featured-grid { grid-template-columns: 1fr; }
+                .dev-points { grid-template-columns: 1fr; }
             }
         </style>
     </head>
@@ -24,66 +222,129 @@
                 <div id="header" class="clickable">
                     <div onclick="goHome()" class="hg-button clickable" id="logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png" /></div>
                 </div>
-                <div id="content" style="font-weight: lighter;">
-                    <div id="info-content">
-                        <div class="headlines amateur">
-                            <h1>Homegames is a free and open-source game platform.</h1>
-                        </div>
+                <div id="content">
+
+                    <!-- Hero -->
+                    <div class="hero amateur">
+                        <h1>Build multiplayer browser games with JavaScript.<br>No frameworks. No email signup. No cost.</h1>
+                        <p>Homegames is a free, open-source platform for building, playing, and sharing games. Write JavaScript, get multiplayer for free, publish to the catalog in minutes.</p>
                         <div id="top-buttons" class="amateur">
                             <div style="width: 100%; display: flex; justify-content: center;">
                                 <a style="text-decoration: none; background: rgba(148, 210, 229, 255); font-family: 'amateur'; font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" href="/studio.html" class="clickable hg-button content-button">Studio</a>
                             </div>
                             <div style="width: 100%; display: flex; justify-content: center;">
-                                <a style="text-decoration: none; background: #A0EB5D; font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px; margin-right: 80px;" href="/catalog.html" class="clickable hg-button content-button">Games</a>
+                                <a style="text-decoration: none; background: #A0EB5D; font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px; margin-right: 160px;" href="/catalog.html" class="clickable hg-button content-button">Games</a>
                                 <a style="text-decoration: none; background: rgba(241, 112, 111, 255); font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" href="/self-hosting.html" class="clickable hg-button content-button">Self Hosting</a>
                             </div>
                             <div style="width: 100%; display: flex; justify-content: center;">
                                 <a style="text-decoration: none; background: rgba(255, 247, 142, 255); font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" href="https://github.com/homegamesio" target="_blank" class="clickable hg-button content-button">GitHub</a>
                             </div>
                         </div>
-                        <div>
-                            <h4>Homegames is a platform for building, playing and sharing games. Published games are playable in the browser or any other client that can connect to a websocket. Anyone can sign up for a free developer account (no email required) and publish games to the Homegames catalog.</h4>
+                    </div>
 
-                            <h2>Games</h2>
-                            Homegames classics include:
-                            <ul>
-                                <li>Hot Potato</li>
-                                <li>Weed Smoke Willie</li>
-                                <li>Vegas Trail</li>
-                                <li>Halloween Words</li>
-                                <li>Hangman</li>
-                            </ul>
-
-                            <h2>Game Development</h2>
-                            <ul>
-                                <li>Build and share games with friends or publish them to the catalog</li>
-                                <li>Out of the box multiplayer - Homegames handles all of the networking stuff.</li>
-                                <li>Versioning - publish new versions of your game. Old ones stay playable</li>
-                                <li>Simple JavaScript library (SquishJS) - no significant programming experience required to start making games</li>
-                                <li>The browser-based Homegames development Studio supports shareable live previews of your games before publishing.</li>
-                                <li>Optionally include a BTC address (or whatever else you want) on your developer profile.</li>
-                            </ul>
-
-                            <h2>Open Source</h2>
-                            <ul>
-                                <li>Homegames has been in development as a (mostly) <a href="https://joseph.zone" target="_blank">solo developer</a> side project since 2018</li>
-                                <li>All of the code for the Homegames platform is available on <a href="https://github.com/homegamesio" target="_blank">GitHub</a>. Everything, including games published to the platform, is GPLv3.</li>
-                            </ul>
-                            <h4>Email: joseph@homegames.io</h4>
+                    <!-- Featured Games -->
+                    <div class="landing-section featured-section amateur">
+                        <h2>Featured Games</h2>
+                        <div class="featured-grid" id="featured-grid">
+                            <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 24px;">Loading...</div>
                         </div>
-                        <div id="links">
-                            <div style="text-align: center; padding: 20px 0;" class="amateur">
-                                <a href="https://youtube.com/homegamesio" target="_blank">Youtube</a>
-                                <span style="margin: 0 12px; color: #999;">·</span>
-                                <a href="https://x.com/homegamesio" target="_blank">Twitter</a>
-                                <span style="margin: 0 12px; color: #999;">·</span>
-                                <a href="/terms.html">Terms of Service</a>
+                        <div class="featured-more"><a href="/catalog.html">View all games →</a></div>
+                    </div>
+
+                    <!-- Developer Pitch -->
+                    <div class="landing-section dev-section amateur">
+                        <h2>Why build on Homegames?</h2>
+                        <div class="dev-points">
+                            <div class="dev-point">
+                                <strong>Multiplayer built in</strong>
+                                <p>Homegames handles all the networking. Your game code runs on the server, clients connect via WebSocket. No socket code to write.</p>
+                            </div>
+                            <div class="dev-point">
+                                <strong>Browser-based studio</strong>
+                                <p>Write code, manage assets, preview live, and publish — all from the browser. No local setup required.</p>
+                            </div>
+                            <div class="dev-point">
+                                <strong>Simple JavaScript API</strong>
+                                <p>Games are plain JavaScript classes. Define shapes, text, and assets with SquishJS. No game engine to learn.</p>
+                            </div>
+                            <div class="dev-point">
+                                <strong>No strings attached</strong>
+                                <p>No email required to sign up. No fees. No ads. Set a BTC address on your profile if you want to accept tips.</p>
                             </div>
                         </div>
+                        <div class="dev-cta">
+                            <a href="/studio.html" class="hero-btn hero-btn-secondary">Open the Studio</a>
+                        </div>
                     </div>
+
+                    <!-- Open Source -->
+                    <div class="landing-section oss-section amateur">
+                        <h2>Open Source</h2>
+                        <p>Homegames has been in development as a side project since 2018. All platform code and all published games are GPLv3. Contributions welcome.</p>
+                        <a href="https://github.com/homegamesio" target="_blank" class="hero-btn" style="background: #333; color: #fff;">GitHub</a>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="landing-footer amateur">
+                        <div>
+                            <a href="https://youtube.com/homegamesio" target="_blank">YouTube</a>
+                            <span>·</span>
+                            <a href="https://x.com/homegamesio" target="_blank">Twitter</a>
+                            <span>·</span>
+                            <a href="/terms.html">Terms</a>
+                        </div>
+                        <div class="email">joseph@homegames.io</div>
+                    </div>
+
                 </div>
             </div>
         </div>
         <script src="bundle.js"></script>
+        <script>
+            const grid = document.getElementById('featured-grid');
+            getAllGames(6, 0, true).then((data) => {
+                const games = data.games || [];
+                grid.innerHTML = '';
+
+                if (games.length === 0) {
+                    grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 24px;">No featured games yet</div>';
+                    return;
+                }
+
+                games.forEach((game) => {
+                    const card = document.createElement('a');
+                    card.href = '/game.html?id=' + game.id;
+                    card.className = 'featured-card';
+
+                    if (game.thumbnail) {
+                        const img = document.createElement('img');
+                        img.src = window.API_URL + '/assets/' + game.thumbnail;
+                        img.alt = game.name;
+                        card.appendChild(img);
+                    } else {
+                        const ph = document.createElement('div');
+                        ph.className = 'placeholder';
+                        ph.textContent = '🎮';
+                        card.appendChild(ph);
+                    }
+
+                    const body = document.createElement('div');
+                    body.className = 'card-body';
+                    const title = document.createElement('div');
+                    title.className = 'card-title';
+                    title.textContent = game.name;
+                    body.appendChild(title);
+                    const desc = document.createElement('div');
+                    desc.className = 'card-desc';
+                    desc.textContent = game.description || 'No description available';
+                    body.appendChild(desc);
+                    card.appendChild(body);
+
+                    grid.appendChild(card);
+                });
+            }).catch(() => {
+                grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 24px;">Could not load games</div>';
+            });
+        </script>
     </body>
 </html>
