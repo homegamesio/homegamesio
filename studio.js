@@ -444,6 +444,16 @@ const renderGameView = () => {
         showModal('new-file-modal', 'new-file-name');
     };
     ftHeader.appendChild(newFileBtn);
+    const aiBtn = document.createElement('span');
+    aiBtn.id = 'ai-edit-btn';
+    aiBtn.textContent = '✨ AI';
+    aiBtn.style.cursor = 'pointer';
+    aiBtn.style.marginLeft = '8px';
+    aiBtn.onclick = () => {
+        if (viewingVersion) { alert('Switch back to HEAD to use AI edits'); return; }
+        showLLMModal();
+    };
+    ftHeader.appendChild(aiBtn);
     ftDiv.appendChild(ftHeader);
     const fileList = document.createElement('div');
     fileList.id = 'file-list';
@@ -1308,8 +1318,104 @@ $('description-modal-save').onclick = () => {
     });
 };
 
+// ---------------------------------------------------------------------------
+// AI ("Ask AI to edit") modal
+// ---------------------------------------------------------------------------
+
+let llmActiveRequest = null; // requestId currently being polled, or null
+
+const setLLMBusy = (busy, statusMsg) => {
+    const submit = $('llm-modal-submit');
+    const cancel = $('llm-modal-cancel');
+    const input = $('llm-prompt-input');
+    const statusEl = $('llm-modal-status');
+    if (submit) { submit.disabled = busy; submit.textContent = busy ? 'Generating…' : 'Generate'; }
+    if (input) input.disabled = busy;
+    if (cancel) cancel.textContent = busy ? 'Close' : 'Cancel';
+    if (statusEl) statusEl.innerHTML = statusMsg || '';
+};
+
+const showLLMModal = () => {
+    const errEl = $('llm-modal-error');
+    if (errEl) errEl.textContent = '';
+    setLLMBusy(false, '');
+    showModal('llm-modal', 'llm-prompt-input');
+};
+
+// Drop the AI's rewrite into the editor as an unsaved change to index.js,
+// so the author reviews and explicitly saves it.
+const applyLLMResult = (code) => {
+    const path = 'index.js';
+    const existing = openFiles[path];
+    const treeEntry = fileTree.find(f => f.path === path);
+    openFiles[path] = {
+        content: code,
+        sha: existing ? existing.sha : (treeEntry ? treeEntry.sha : null),
+        dirty: true,
+        original: existing ? existing.original : null,
+    };
+    switchToFile(path);
+    setStatus('AI edit applied to index.js — review it and Save Version when ready.');
+};
+
+const pollLLMStatus = (gameId, requestId) => {
+    const poll = () => {
+        // Stop if the user navigated away or started a different request.
+        if (!currentGame || currentGame.id !== gameId || llmActiveRequest !== requestId) return;
+
+        api('GET', `/studio/games/${gameId}/llm-status?id=${encodeURIComponent(requestId)}`)
+            .then(data => {
+                const r = data.request;
+                if (!r) { setTimeout(poll, 3000); return; }
+
+                if (r.status === 'PENDING' || r.status === 'PROCESSING') {
+                    setLLMBusy(true, '<span class="spinner"></span>Working… this can take a minute.');
+                    setTimeout(poll, 3000);
+                } else if (r.status === 'COMPLETED') {
+                    llmActiveRequest = null;
+                    setLLMBusy(false, '');
+                    hideModal('llm-modal');
+                    applyLLMResult(r.result || '');
+                } else if (r.status === 'FAILED') {
+                    llmActiveRequest = null;
+                    setLLMBusy(false, '');
+                    const errEl = $('llm-modal-error');
+                    if (errEl) errEl.textContent = 'AI edit failed: ' + (r.error || 'unknown error');
+                }
+            })
+            .catch(() => setTimeout(poll, 5000));
+    };
+    setTimeout(poll, 2000);
+};
+
+$('llm-modal-cancel').onclick = () => { llmActiveRequest = null; hideModal('llm-modal'); };
+$('llm-modal-submit').onclick = () => {
+    const input = $('llm-prompt-input');
+    const errEl = $('llm-modal-error');
+    const prompt = (input?.value || '').trim();
+    if (errEl) errEl.textContent = '';
+    if (!prompt) {
+        if (errEl) errEl.textContent = 'Describe the change you want.';
+        return;
+    }
+    if (!currentGame) return;
+
+    const gameId = currentGame.id;
+    setLLMBusy(true, '<span class="spinner"></span>Submitting…');
+    api('POST', `/studio/games/${gameId}/llm-modify`, { prompt })
+        .then(data => {
+            llmActiveRequest = data.requestId;
+            setLLMBusy(true, '<span class="spinner"></span>Queued… waiting for the model.');
+            pollLLMStatus(gameId, data.requestId);
+        })
+        .catch(err => {
+            setLLMBusy(false, '');
+            if (errEl) errEl.textContent = (err && err.error) ? err.error : 'Failed to submit request';
+        });
+};
+
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { hideModal('new-game-modal'); hideModal('new-file-modal'); hideModal('admin-modal'); hideModal('description-modal'); closeAssetModal(); hideModal('asset-delete-confirm-modal'); }
+    if (e.key === 'Escape') { hideModal('new-game-modal'); hideModal('new-file-modal'); hideModal('admin-modal'); hideModal('description-modal'); hideModal('llm-modal'); closeAssetModal(); hideModal('asset-delete-confirm-modal'); }
 });
 
 // ---------------------------------------------------------------------------
@@ -1533,57 +1639,95 @@ const toggleThumbnailPicker = () => {
     popover.innerHTML = '<label>Choose a thumbnail</label><div style="color:var(--text-faint);font-size:0.8em;">Loading assets...</div>';
     popover.classList.add('visible');
 
-    // Fetch image assets
-    api('GET', '/assets?limit=50&offset=0').then(data => {
-        const imageAssets = (data.assets || []).filter(a => a.type && a.type.startsWith('image'));
+    const PAGE_SIZE = 20;
+    let thumbAssets = [];
+    let thumbTotal = 0;
+    let grid = null;
+    let loadMoreContainer = null;
 
-        popover.innerHTML = '';
-        const label = document.createElement('label');
-        label.textContent = 'Choose a thumbnail';
-        popover.appendChild(label);
+    const renderThumbItem = (asset) => {
+        const item = document.createElement('div');
+        item.className = 'thumb-pick-item' + (currentGame.thumbnail === asset.id ? ' selected' : '');
 
-        if (imageAssets.length === 0) {
-            const empty = document.createElement('div');
-            empty.style = 'color:var(--text-faint);font-size:0.85em;';
-            empty.textContent = 'No image assets. Upload one in the Assets panel.';
-            popover.appendChild(empty);
-            return;
-        }
+        const img = document.createElement('img');
+        img.src = `${API_URL}/assets/${asset.id}`;
+        img.alt = asset.name || asset.id;
+        img.title = asset.name || asset.id;
+        item.appendChild(img);
 
-        const grid = document.createElement('div');
-        grid.className = 'thumb-pick-grid';
+        item.onclick = () => {
+            api('POST', `/studio/games/${currentGame.id}/thumbnail`, { assetId: asset.id }).then(() => {
+                currentGame.thumbnail = asset.id;
+                popover.classList.remove('visible');
+                renderGameView();
+                loadFiles();
+                loadVersions();
+                loadPublishStatuses();
+                setStatus('Thumbnail updated');
+            }).catch(() => {
+                setStatus('Failed to set thumbnail');
+            });
+        };
 
-        imageAssets.forEach(asset => {
-            const item = document.createElement('div');
-            item.className = 'thumb-pick-item' + (currentGame.thumbnail === asset.id ? ' selected' : '');
+        return item;
+    };
 
-            const img = document.createElement('img');
-            img.src = `${API_URL}/assets/${asset.id}`;
-            img.alt = asset.name || asset.id;
-            img.title = asset.name || asset.id;
-            item.appendChild(img);
+    const loadThumbPage = (offset) => {
+        api('GET', `/assets?limit=${PAGE_SIZE}&offset=${offset}`).then(data => {
+            const imageAssets = (data.assets || []).filter(a => a.type && a.type.startsWith('image'));
+            thumbTotal = data.count || 0;
 
-            item.onclick = () => {
-                api('POST', `/studio/games/${currentGame.id}/thumbnail`, { assetId: asset.id }).then(() => {
-                    currentGame.thumbnail = asset.id;
-                    popover.classList.remove('visible');
-                    renderGameView();
-                    loadFiles();
-                    loadVersions();
-                    loadPublishStatuses();
-                    setStatus('Thumbnail updated');
-                }).catch(err => {
-                    setStatus('Failed to set thumbnail');
-                });
-            };
+            if (offset === 0) {
+                popover.innerHTML = '';
+                const label = document.createElement('label');
+                label.textContent = 'Choose a thumbnail';
+                popover.appendChild(label);
 
-            grid.appendChild(item);
+                if (imageAssets.length === 0 && thumbTotal === 0) {
+                    const empty = document.createElement('div');
+                    empty.style = 'color:var(--text-faint);font-size:0.85em;';
+                    empty.textContent = 'No image assets. Upload one in the Assets panel.';
+                    popover.appendChild(empty);
+                    return;
+                }
+
+                grid = document.createElement('div');
+                grid.className = 'thumb-pick-grid';
+                popover.appendChild(grid);
+
+                loadMoreContainer = document.createElement('div');
+                loadMoreContainer.style = 'text-align:center;padding:8px 0;';
+                popover.appendChild(loadMoreContainer);
+            }
+
+            imageAssets.forEach(asset => {
+                thumbAssets.push(asset);
+                grid.appendChild(renderThumbItem(asset));
+            });
+
+            // Update load more button
+            loadMoreContainer.innerHTML = '';
+            const loaded = offset + (data.assets || []).length;
+            if (loaded < thumbTotal) {
+                const loadMoreBtn = document.createElement('button');
+                loadMoreBtn.className = 'clone-btn';
+                loadMoreBtn.style = 'font-size:0.82em;';
+                loadMoreBtn.textContent = 'Load more';
+                loadMoreBtn.onclick = () => {
+                    loadMoreBtn.disabled = true;
+                    loadMoreBtn.textContent = 'Loading...';
+                    loadThumbPage(loaded);
+                };
+                loadMoreContainer.appendChild(loadMoreBtn);
+            }
+        }).catch(() => {
+            if (offset === 0) {
+                popover.innerHTML = '<div style="color:var(--accent-red);">Failed to load assets</div>';
+            }
         });
+    };
 
-        popover.appendChild(grid);
-    }).catch(err => {
-        popover.innerHTML = '<div style="color:var(--accent-red);">Failed to load assets</div>';
-    });
+    loadThumbPage(0);
 };
 
 // ---------------------------------------------------------------------------
@@ -1896,8 +2040,10 @@ const updateAssetModalChrome = () => {
     });
     const drawBtn = $('asset-modal-draw-btn');
     const recordBtn = $('asset-modal-record-btn');
+    const keyboardBtn = $('asset-modal-keyboard-btn');
     if (drawBtn) drawBtn.style.display = isMine ? '' : 'none';
     if (recordBtn) recordBtn.style.display = isMine ? '' : 'none';
+    if (keyboardBtn) keyboardBtn.style.display = isMine ? '' : 'none';
     const typeFilter = $('asset-modal-type-filter');
     if (typeFilter) typeFilter.style.display = isMine ? 'none' : '';
     const dropZone = $('asset-modal-drop-zone');
@@ -2708,6 +2854,7 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         if ($('draw-overlay').classList.contains('visible')) closeDrawOverlay();
         if ($('record-overlay').classList.contains('visible')) closeRecordOverlay();
+        if ($('keyboard-overlay').classList.contains('visible')) closeKeyboardOverlay();
     }
 });
 
@@ -2874,6 +3021,263 @@ $('rec-pause').onclick = pauseRecording;
 $('rec-stop').onclick = stopRecording;
 $('rec-save').onclick = saveRecording;
 $('rec-cancel').onclick = closeRecordOverlay;
+
+// ---------------------------------------------------------------------------
+// Keyboard / synth
+// ---------------------------------------------------------------------------
+
+let audioCtx = null;
+let synthMaster = null;       // master gain -> speakers + recorder
+let synthRecordDest = null;   // MediaStreamDestination for recording
+let synthRecorder = null;
+let synthChunks = [];
+let synthBlob = null;
+let synthTimerInterval = null;
+let synthStartTime = null;
+
+let synthOctave = 0;
+let synthWave = 'triangle';
+let synthVolume = 0.4;
+
+const activeOsc = {};                 // midi -> { osc, g }
+const mouseHeldNotes = new Set();     // notes currently held by pointer
+
+// computer keyboard -> midi note (classic tracker layout, C4 row)
+const KBD_KEYMAP = {
+    a: 60, w: 61, s: 62, e: 63, d: 64, f: 65, t: 66,
+    g: 67, y: 68, h: 69, u: 70, j: 71, k: 72,
+};
+
+const midiToFreq = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+const ensureAudioCtx = () => {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        synthMaster = audioCtx.createGain();
+        synthMaster.gain.value = synthVolume;
+        synthRecordDest = audioCtx.createMediaStreamDestination();
+        synthMaster.connect(audioCtx.destination);
+        synthMaster.connect(synthRecordDest);
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+};
+
+const setKeyActive = (midi, on) => {
+    const piano = $('synth-piano');
+    if (!piano) return;
+    const el = piano.querySelector(`.piano-key[data-midi="${midi}"]`);
+    if (el) el.classList.toggle('active', on);
+};
+
+const playNote = (midi) => {
+    ensureAudioCtx();
+    if (activeOsc[midi]) return; // already held
+    const freq = midiToFreq(midi + synthOctave * 12);
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = synthWave;
+    osc.frequency.value = freq;
+    const now = audioCtx.currentTime;
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(1, now + 0.01); // quick attack, avoids clicks
+    osc.connect(g).connect(synthMaster);
+    osc.start();
+    activeOsc[midi] = { osc, g };
+    setKeyActive(midi, true);
+};
+
+const stopNote = (midi) => {
+    const node = activeOsc[midi];
+    if (!node) return;
+    const now = audioCtx.currentTime;
+    node.g.gain.cancelScheduledValues(now);
+    node.g.gain.setValueAtTime(node.g.gain.value, now);
+    node.g.gain.linearRampToValueAtTime(0, now + 0.05); // short release
+    node.osc.stop(now + 0.06);
+    delete activeOsc[midi];
+    setKeyActive(midi, false);
+};
+
+const stopAllNotes = () => {
+    Object.keys(activeOsc).forEach((m) => stopNote(Number(m)));
+    mouseHeldNotes.clear();
+};
+
+const renderPiano = () => {
+    const piano = $('synth-piano');
+    piano.innerHTML = '';
+    // one octave, C4 -> C5
+    const WHITE = [['C', 60], ['D', 62], ['E', 64], ['F', 65], ['G', 67], ['A', 69], ['B', 71], ['C', 72]];
+    // [name, midi, left-offset in px]; 44px white keys, 28px black keys centered on boundaries
+    const BLACK = [['C#', 61, 30], ['D#', 63, 74], ['F#', 66, 162], ['G#', 68, 206], ['A#', 70, 250]];
+
+    const makeKey = (cls, midi, label, left) => {
+        const k = document.createElement('div');
+        k.className = 'piano-key ' + cls;
+        k.dataset.midi = midi;
+        if (left !== undefined) k.style.left = left + 'px';
+        if (label) {
+            const span = document.createElement('span');
+            span.className = 'key-label';
+            span.textContent = label;
+            k.appendChild(span);
+        }
+        k.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            mouseHeldNotes.add(midi);
+            playNote(midi);
+        });
+        piano.appendChild(k);
+    };
+
+    WHITE.forEach(([name, midi]) => makeKey('white', midi, name));
+    BLACK.forEach(([name, midi, left]) => makeKey('black', midi, name, left));
+    piano.style.width = (WHITE.length * 44) + 'px';
+};
+
+// release pointer-held notes anywhere the pointer is lifted
+document.addEventListener('pointerup', () => {
+    if (mouseHeldNotes.size === 0) return;
+    mouseHeldNotes.forEach((m) => stopNote(m));
+    mouseHeldNotes.clear();
+});
+
+const onSynthKeyDown = (e) => {
+    if (!$('keyboard-overlay').classList.contains('visible') || e.repeat) return;
+    const tag = (document.activeElement && document.activeElement.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return; // don't hijack the name field
+    const midi = KBD_KEYMAP[e.key.toLowerCase()];
+    if (midi === undefined) return;
+    e.preventDefault();
+    playNote(midi);
+};
+
+const onSynthKeyUp = (e) => {
+    const midi = KBD_KEYMAP[e.key.toLowerCase()];
+    if (midi === undefined) return;
+    stopNote(midi);
+};
+
+const updateSynthTimer = () => {
+    if (!synthStartTime) return;
+    $('kbd-timer').textContent = formatRecTime(Math.max(0, Date.now() - synthStartTime));
+};
+
+const openKeyboardOverlay = () => {
+    synthBlob = null;
+    synthChunks = [];
+    synthStartTime = null;
+
+    $('kbd-timer').textContent = '0:00';
+    $('kbd-indicator').className = 'record-indicator stopped';
+    $('kbd-record').style.display = '';
+    $('kbd-stop').style.display = 'none';
+    $('kbd-preview').style.display = 'none';
+    $('kbd-preview').innerHTML = '';
+    $('kbd-name').style.display = 'none';
+    $('kbd-name').value = '';
+    $('kbd-save-row').style.display = 'none';
+
+    $('keyboard-overlay').classList.add('visible');
+    renderPiano();
+    ensureAudioCtx();
+};
+
+const closeKeyboardOverlay = () => {
+    stopAllNotes();
+    if (synthRecorder && synthRecorder.state !== 'inactive') {
+        synthRecorder.stop();
+    }
+    if (synthTimerInterval) { clearInterval(synthTimerInterval); synthTimerInterval = null; }
+    synthRecorder = null;
+    synthBlob = null;
+    $('keyboard-overlay').classList.remove('visible');
+};
+
+const startSynthRecording = () => {
+    ensureAudioCtx();
+    synthChunks = [];
+    synthBlob = null;
+
+    synthRecorder = new MediaRecorder(synthRecordDest.stream, { mimeType: 'audio/webm' });
+    synthRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) synthChunks.push(e.data);
+    };
+    synthRecorder.onstop = () => {
+        synthBlob = new Blob(synthChunks, { type: 'audio/webm' });
+        if (synthTimerInterval) { clearInterval(synthTimerInterval); synthTimerInterval = null; }
+        showSynthPreview();
+    };
+
+    synthRecorder.start(100);
+    synthStartTime = Date.now();
+    synthTimerInterval = setInterval(updateSynthTimer, 200);
+
+    $('kbd-indicator').className = 'record-indicator recording';
+    $('kbd-record').style.display = 'none';
+    $('kbd-stop').style.display = '';
+    $('kbd-preview').style.display = 'none';
+    $('kbd-name').style.display = 'none';
+    $('kbd-save-row').style.display = 'none';
+};
+
+const stopSynthRecording = () => {
+    if (!synthRecorder || synthRecorder.state === 'inactive') return;
+    synthRecorder.stop();
+    $('kbd-indicator').className = 'record-indicator stopped';
+    $('kbd-stop').style.display = 'none';
+    $('kbd-record').style.display = '';
+};
+
+const showSynthPreview = () => {
+    if (!synthBlob) return;
+    const url = URL.createObjectURL(synthBlob);
+    const preview = $('kbd-preview');
+    preview.innerHTML = '';
+    const audio = document.createElement('audio');
+    audio.controls = true;
+    audio.src = url;
+    preview.appendChild(audio);
+    preview.style.display = '';
+    $('kbd-name').style.display = '';
+    $('kbd-save-row').style.display = 'flex';
+};
+
+const saveSynthRecording = () => {
+    if (!synthBlob) return;
+    const name = $('kbd-name').value.trim() || ('track-' + Date.now());
+    const file = new File([synthBlob], name + '.webm', { type: 'audio/webm' });
+    setStatus('Saving track...');
+    $('kbd-save').disabled = true;
+    apiUpload(file, name)
+        .then(() => {
+            setStatus('Track saved');
+            closeKeyboardOverlay();
+            loadAssets(true);
+        })
+        .catch((err) => {
+            console.error('Failed to save track', err);
+            setStatus('Failed to save track');
+            $('kbd-save').disabled = false;
+        });
+};
+
+$('asset-modal-keyboard-btn').onclick = openKeyboardOverlay;
+$('kbd-record').onclick = startSynthRecording;
+$('kbd-stop').onclick = stopSynthRecording;
+$('kbd-save').onclick = saveSynthRecording;
+$('kbd-cancel').onclick = closeKeyboardOverlay;
+$('synth-octave').oninput = (e) => {
+    synthOctave = parseInt(e.target.value, 10);
+    $('synth-octave-val').textContent = synthOctave;
+};
+$('synth-wave').onchange = (e) => { synthWave = e.target.value; };
+$('synth-volume').oninput = (e) => {
+    synthVolume = parseInt(e.target.value, 10) / 100;
+    if (synthMaster) synthMaster.gain.value = synthVolume;
+};
+document.addEventListener('keydown', onSynthKeyDown);
+document.addEventListener('keyup', onSynthKeyUp);
 
 // ---------------------------------------------------------------------------
 // Mobile tab bar

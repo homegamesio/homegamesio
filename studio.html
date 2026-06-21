@@ -415,6 +415,43 @@
             .rec-btn-cancel:hover { background: var(--border-light); }
             .rec-btn-save:disabled { background: var(--border); color: var(--text-dim); cursor: not-allowed; }
 
+            /* Keyboard / synth overlay */
+            .keyboard-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: center; justify-content: center; }
+            .keyboard-overlay.visible { display: flex; }
+            .keyboard-box { background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 8px; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 16px; width: 560px; max-width: 94vw; }
+            .keyboard-box h2 { color: var(--logo-color); font-size: 1.1em; margin: 0; }
+            .synth-controls { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; justify-content: center; width: 100%; }
+            .synth-control { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-secondary); }
+            .synth-control label { font-weight: bold; }
+            .synth-control input[type=range] { width: 150px; }
+            .synth-control select { padding: 5px 8px; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-deep); color: var(--text-primary); font-family: inherit; font-size: 13px; }
+            .synth-octave-val { color: var(--text-primary); }
+            /* Piano */
+            .piano { position: relative; display: flex; height: 150px; user-select: none; touch-action: none; }
+            .piano-key { box-sizing: border-box; cursor: pointer; }
+            .piano-key.white { width: 44px; height: 150px; background: #fafafa; border: 1px solid #999; border-radius: 0 0 4px 4px; position: relative; z-index: 1; }
+            .piano-key.white.active { background: var(--accent-green); }
+            .piano-key.black { width: 28px; height: 92px; background: #222; border: 1px solid #000; border-radius: 0 0 3px 3px; position: absolute; top: 0; z-index: 2; }
+            .piano-key.black.active { background: var(--accent-green); }
+            .piano-key .key-label { position: absolute; bottom: 5px; left: 0; right: 0; text-align: center; font-size: 9px; color: #aaa; pointer-events: none; }
+            .piano-key.white .key-label { color: #999; }
+            .keyboard-controls { display: flex; gap: 8px; }
+            .keyboard-controls button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: inherit; font-size: 13px; }
+            .kbd-hint { font-size: 11px; color: var(--text-dim); }
+            .keyboard-preview { width: 100%; }
+            .keyboard-preview audio { width: 100%; }
+            .keyboard-name-input { width: 100%; padding: 8px; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-deep); color: var(--text-primary); font-size: 14px; font-family: inherit; }
+            .keyboard-save-row { display: flex; gap: 8px; width: 100%; }
+            .keyboard-save-row button { flex: 1; padding: 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: inherit; font-size: 13px; }
+            .kbd-btn-record { background: rgba(241, 112, 111, 255); color: #fff; }
+            .kbd-btn-stop { background: #555; color: #fff; }
+            .kbd-btn-stop:hover { background: #666; }
+            .kbd-btn-save { background: var(--accent-green); color: var(--badge-head-text); }
+            .kbd-btn-save:hover { background: var(--accent-green-hover); }
+            .kbd-btn-save:disabled { background: var(--border); color: var(--text-dim); cursor: not-allowed; }
+            .kbd-btn-cancel { background: var(--border); color: var(--text-secondary); }
+            .kbd-btn-cancel:hover { background: var(--border-light); }
+
             /* Loading spinner */
             .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #444; border-top-color: var(--accent-green); border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
             @keyframes spin { to { transform: rotate(360deg); } }
@@ -669,6 +706,20 @@
             </div>
         </div>
 
+        <div class="modal-overlay" id="llm-modal">
+            <div class="modal-box" style="width:520px;max-width:calc(100vw - 32px);">
+                <h2>✨ Ask AI to edit your game</h2>
+                <p style="margin:0 0 8px;font-size:0.85em;color:var(--text-secondary);">Describe the change you want. The AI rewrites <code>index.js</code> — review the result and save it as a version when you're happy.</p>
+                <textarea id="llm-prompt-input" placeholder="e.g. Make the potato explode faster and turn the background red" style="width:100%;min-height:90px;resize:vertical;font-family:inherit;font-size:0.9em;padding:8px;background:var(--bg-deep);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);"></textarea>
+                <div class="modal-error" id="llm-modal-error"></div>
+                <div id="llm-modal-status" style="font-size:0.85em;color:var(--text-secondary);min-height:1.2em;"></div>
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn secondary" id="llm-modal-cancel">Cancel</button>
+                    <button type="button" class="modal-btn primary" id="llm-modal-submit">Generate</button>
+                </div>
+            </div>
+        </div>
+
         <div class="modal-overlay" id="new-file-modal">
             <div class="modal-box">
                 <h2>New File</h2>
@@ -704,6 +755,7 @@
                     <div class="asset-modal-header-actions">
                         <button type="button" class="asset-modal-action-btn" id="asset-modal-draw-btn">✏ Draw</button>
                         <button type="button" class="asset-modal-action-btn" id="asset-modal-record-btn">🎤 Record</button>
+                        <button type="button" class="asset-modal-action-btn" id="asset-modal-keyboard-btn">🎹 Keyboard</button>
                         <span id="asset-modal-close" class="clickable" style="font-size:1.4em;color:var(--text-muted);margin-left:12px;">✕</span>
                     </div>
                 </div>
@@ -764,6 +816,48 @@
                 <div class="record-save-row" id="rec-save-row" style="display:none">
                     <button class="rec-btn-cancel" id="rec-cancel">Cancel</button>
                     <button class="rec-btn-save" id="rec-save">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Keyboard / synth overlay -->
+        <div class="keyboard-overlay" id="keyboard-overlay">
+            <div class="keyboard-box">
+                <h2>Keyboard</h2>
+                <div class="synth-controls">
+                    <div class="synth-control">
+                        <label>Octave: <span class="synth-octave-val" id="synth-octave-val">0</span></label>
+                        <input type="range" id="synth-octave" min="-2" max="2" step="1" value="0">
+                    </div>
+                    <div class="synth-control">
+                        <label for="synth-wave">Sound</label>
+                        <select id="synth-wave">
+                            <option value="sine">Sine</option>
+                            <option value="square">Square</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="triangle" selected>Triangle</option>
+                        </select>
+                    </div>
+                    <div class="synth-control">
+                        <label>Volume</label>
+                        <input type="range" id="synth-volume" min="0" max="100" step="1" value="40">
+                    </div>
+                </div>
+                <div class="piano" id="synth-piano"></div>
+                <div class="kbd-hint">Click the keys or use your computer keyboard (A&ndash;K row) to play.</div>
+                <div>
+                    <span class="record-indicator stopped" id="kbd-indicator"></span>
+                    <span class="record-timer" id="kbd-timer" style="font-size:1.6em;">0:00</span>
+                </div>
+                <div class="keyboard-controls" id="kbd-controls">
+                    <button class="kbd-btn-record" id="kbd-record">● Record</button>
+                    <button class="kbd-btn-stop" id="kbd-stop" style="display:none">■ Stop</button>
+                </div>
+                <div class="keyboard-preview" id="kbd-preview" style="display:none"></div>
+                <input type="text" class="keyboard-name-input" id="kbd-name" placeholder="Asset name" style="display:none">
+                <div class="keyboard-save-row" id="kbd-save-row" style="display:none">
+                    <button class="kbd-btn-cancel" id="kbd-cancel">Cancel</button>
+                    <button class="kbd-btn-save" id="kbd-save">Save</button>
                 </div>
             </div>
         </div>
