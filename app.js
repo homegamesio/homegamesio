@@ -191,10 +191,38 @@ const server = http.createServer((req, res) => {
                 res.setHeader("Content-Type", 'text/html');
                 const payload = fs.readFileSync(path.join(__dirname, 'about.html'));
                 res.end(payload);
+            } else if (req.url === '/reset-password.js') {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/javascript');
+                const payload = fs.readFileSync(path.join(__dirname, 'reset-password.js'));
+                res.end(payload);
             } else if (req.url.startsWith('/reset-password')) {
                 res.statusCode = 200;
                 res.setHeader("Content-Type", 'text/html');
                 const payload = fs.readFileSync(path.join(__dirname, 'reset-password.html'));
+                res.end(payload);
+            } else if (req.url.startsWith('/authoring-guide')) {
+                // squish.js authoring guide — single source of truth in
+                // homegames-common. Served raw so the studio can show/copy it
+                // as LLM context.
+                try {
+                    const docPath = path.join(path.dirname(require.resolve('homegames-common')), 'docs', 'squishjs-game-authoring.md');
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+                    res.end(fs.readFileSync(docPath));
+                } catch (e) {
+                    res.statusCode = 404;
+                    res.end();
+                }
+            } else if (req.url === '/admin.js') {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/javascript');
+                const payload = fs.readFileSync(path.join(__dirname, 'admin.js'));
+                res.end(payload);
+            } else if (req.url.startsWith('/admin')) {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/html');
+                const payload = fs.readFileSync(path.join(__dirname, 'admin.html'));
                 res.end(payload);
             } else {
                 const pathMapping = PATH_MAP[requestPath];
