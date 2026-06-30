@@ -90,12 +90,6 @@
             #studio-header { display: flex; justify-content: space-between; align-items: center; padding: 0 16px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); height: 44px; flex-shrink: 0; }
             #studio-header .logo { font-size: 1.1em; color: var(--logo-color); cursor: pointer; text-decoration: none; }
             #studio-header .user-info { color: var(--text-dim); font-size: 0.85em; }
-            .profile-popover { display: none; position: absolute; top: 44px; right: 16px; background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 6px; padding: 12px; z-index: 50; width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
-            .profile-popover.visible { display: block; }
-            .profile-popover label { display: block; color: var(--text-muted); font-size: 0.78em; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-            .profile-popover input { flex: 1; padding: 6px 8px; background: var(--bg-deep); border: 1px solid var(--border-light); border-radius: 3px; color: var(--text-primary); font-family: monospace; font-size: 0.85em; }
-            .profile-popover button { padding: 6px 12px; background: var(--accent-green); color: var(--badge-head-text); border: none; border-radius: 3px; cursor: pointer; font-weight: bold; font-size: 0.85em; font-family: inherit; }
-            .profile-popover button:hover { background: var(--accent-green-hover); }
 
             #studio-body { display: flex; flex: 1; overflow: hidden; }
 
@@ -131,25 +125,19 @@
             .version-badge.history { background: rgba(255, 247, 142, 255); color: var(--badge-head-text); }
             .clone-btn { font-size: 0.8em; padding: 3px 10px; border-radius: 10px; background: var(--border); color: var(--text-secondary); cursor: pointer; border: none; font-family: inherit; }
             .clone-btn:hover { background: var(--border-light); color: #fff; }
-            #clone-popover { display: none; position: absolute; top: 44px; right: 252px; background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 6px; padding: 12px; z-index: 50; width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); overflow: hidden; }
-            #clone-popover.visible { display: block; }
-            #thumbnail-popover { display: none; position: absolute; top: 44px; right: 160px; background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 6px; padding: 12px; z-index: 50; width: 320px; max-height: 400px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
-            #thumbnail-popover.visible { display: block; }
-            #thumbnail-popover label { display: block; color: var(--text-muted); font-size: 0.78em; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
             .thumb-pick-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
             .thumb-pick-item { cursor: pointer; border: 2px solid transparent; border-radius: 4px; overflow: hidden; aspect-ratio: 16/9; }
             .thumb-pick-item:hover { border-color: var(--accent-green); }
             .thumb-pick-item.selected { border-color: var(--accent-green); }
             .thumb-pick-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
-            #clone-popover label { display: block; color: var(--text-muted); font-size: 0.78em; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-            #clone-popover .clone-url-box { display: flex; gap: 6px; margin-bottom: 10px; }
-            #clone-popover input { flex: 1; padding: 6px 8px; background: var(--bg-deep); border: 1px solid var(--border-light); border-radius: 3px; color: var(--text-primary); font-family: monospace; font-size: 0.85em; }
-            #clone-popover .copy-btn { padding: 6px 12px; background: var(--accent-green); color: var(--badge-head-text); border: none; border-radius: 3px; cursor: pointer; font-weight: bold; font-size: 0.85em; font-family: inherit; }
-            #clone-popover .copy-btn:hover { background: var(--accent-green-hover); }
-            #clone-popover .clone-hint { color: var(--text-dim); font-size: 0.78em; line-height: 1.4; word-break: break-all; overflow-wrap: break-word; }
-            #clone-popover .clone-cmd { display: block; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 3px; padding: 6px 8px; margin: 8px 0; font-family: monospace; font-size: 0.9em; color: var(--text-secondary); word-break: break-all; overflow-wrap: break-word; user-select: all; }
-            #clone-popover .download-btn { display: block; width: 100%; padding: 8px; margin-top: 10px; background: var(--accent-blue); color: var(--badge-head-text); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85em; font-family: inherit; text-align: center; }
-            #clone-popover .download-btn:hover { opacity: 0.85; }
+            #settings-panel .clone-url-box { display: flex; gap: 6px; margin-bottom: 10px; max-width: 640px; }
+            #settings-panel .clone-url-box input { flex: 1; padding: 6px 8px; background: var(--bg-deep); border: 1px solid var(--border-light); border-radius: 3px; color: var(--text-primary); font-family: monospace; font-size: 0.85em; }
+            #settings-panel .copy-btn { padding: 6px 12px; background: var(--accent-green); color: var(--badge-head-text); border: none; border-radius: 3px; cursor: pointer; font-weight: bold; font-size: 0.85em; font-family: inherit; }
+            #settings-panel .copy-btn:hover { background: var(--accent-green-hover); }
+            #settings-panel .clone-hint { color: var(--text-dim); font-size: 0.78em; line-height: 1.4; word-break: break-all; overflow-wrap: break-word; max-width: 640px; }
+            #settings-panel .clone-cmd { display: block; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 3px; padding: 6px 8px; margin: 8px 0; font-family: monospace; font-size: 0.9em; color: var(--text-secondary); word-break: break-all; overflow-wrap: break-word; user-select: all; max-width: 640px; }
+            #settings-panel .download-btn { display: block; width: 100%; max-width: 640px; padding: 8px; margin-top: 10px; background: var(--accent-blue); color: var(--badge-head-text); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85em; font-family: inherit; text-align: center; }
+            #settings-panel .download-btn:hover { opacity: 0.85; }
 
             /* Editor layout */
             #editor-area { display: flex; flex: 1; overflow: hidden; }
@@ -235,7 +223,8 @@
             .modal-overlay.visible { display: flex; }
             .modal-box { background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 8px; padding: 24px; width: 380px; }
             .modal-box h2 { margin-bottom: 14px; color: var(--logo-color); font-size: 1.1em; }
-            .modal-box input { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-deep); color: var(--text-primary); font-size: 14px; font-family: inherit; }
+            .modal-box input, .modal-box textarea { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-deep); color: var(--text-primary); font-size: 14px; font-family: inherit; }
+            .modal-box textarea { resize: vertical; min-height: 60px; }
             .modal-buttons { display: flex; gap: 8px; margin-top: 14px; }
             .modal-btn { flex: 1; padding: 9px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; font-family: inherit; }
             .modal-btn.primary { background: var(--accent-green); color: var(--badge-head-text); }
@@ -493,7 +482,6 @@
                 /* Game header */
                 #game-header { flex-wrap: wrap; gap: 4px; padding: 6px 8px; }
                 .game-desc { display: none; }
-                #clone-popover, #thumbnail-popover { width: calc(100vw - 32px); right: 16px; left: 16px; }
 
                 /* Version panel */
                 #version-panel { display: none; position: fixed; top: 40px; left: 0; right: 0; bottom: 48px; width: 100% !important; z-index: 30; }
@@ -537,10 +525,7 @@
 
                 /* Modals */
                 .modal-box { width: calc(100vw - 32px); max-width: 380px; }
-                .modal-box input, .modal-box select { font-size: 16px; } /* prevent iOS zoom */
-
-                /* Profile popover */
-                .profile-popover { width: calc(100vw - 32px); right: 16px; left: 16px; }
+                .modal-box input, .modal-box select, .modal-box textarea { font-size: 16px; } /* prevent iOS zoom */
 
                 /* Draw overlay */
                 .draw-box { width: calc(100vw - 32px); }
@@ -560,6 +545,79 @@
                 /* Welcome pane */
                 #welcome-pane { font-size: 0.9em; padding: 20px; text-align: center; }
             }
+            /* ===== Analog control redesign ===== */
+            /* Two big tactile top-level mode buttons (GAMES / ASSETS). */
+            #mode-switch { display: flex; gap: 8px; }
+            .mode-btn {
+                font-family: inherit; font-size: 0.95em; font-weight: bold;
+                text-transform: uppercase; letter-spacing: 1.5px;
+                padding: 6px 26px; color: var(--text-secondary);
+                background: var(--bg-deep);
+                border: 2px solid var(--border-light); border-radius: 7px;
+                box-shadow: inset 0 -3px 0 rgba(0,0,0,0.35), 0 2px 0 rgba(0,0,0,0.2);
+                cursor: pointer; transition: transform .05s, color .1s, background .1s, border-color .1s;
+            }
+            .mode-btn:hover { color: var(--text-primary); border-color: var(--accent-blue); }
+            .mode-btn:active { transform: translateY(2px); box-shadow: inset 0 2px 5px rgba(0,0,0,0.4); }
+            .mode-btn.active {
+                color: var(--badge-head-text); background: var(--accent-green); border-color: var(--accent-green);
+                box-shadow: inset 0 -3px 0 rgba(0,0,0,0.22), 0 0 0 2px rgba(160,235,93,0.25);
+            }
+
+            /* Tactile, clearly-labeled treatment for the primary action buttons. */
+            .clone-btn, .preview-toggle, #save-btn, .modal-btn,
+            .asset-modal-action-btn, .asset-modal-tab, #settings-panel .copy-btn, #settings-panel .download-btn {
+                text-transform: uppercase; letter-spacing: 0.6px; font-weight: bold;
+                box-shadow: inset 0 -2px 0 rgba(0,0,0,0.28);
+                transition: transform .05s, box-shadow .05s;
+            }
+            .clone-btn:active, .preview-toggle:active, #save-btn:active, .modal-btn:active,
+            .asset-modal-action-btn:active, .asset-modal-tab:active {
+                transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+            }
+            /* a touch more presence on the chunky ones */
+            .clone-btn { padding: 5px 13px; border-radius: 6px; }
+            .asset-modal-action-btn { padding: 7px 16px; border-radius: 6px; }
+            #save-btn { box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3); }
+            #save-btn:disabled { box-shadow: none; }
+            .modal-btn { box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3); padding: 11px; }
+
+            /* Per-game dashboard — every game action as a big labeled button, in one row. */
+            .game-dashboard { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+            .dash-btn {
+                font-family: inherit; font-size: 0.82em; font-weight: bold;
+                text-transform: uppercase; letter-spacing: 0.6px;
+                padding: 7px 13px; color: var(--text-secondary); white-space: nowrap;
+                background: var(--bg-deep); border: 2px solid var(--border-light); border-radius: 6px;
+                box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3); cursor: pointer;
+                transition: transform .05s, color .1s, border-color .1s, background .1s;
+            }
+            .dash-btn:hover { color: var(--text-primary); border-color: var(--accent-blue); }
+            .dash-btn:active { transform: translateY(2px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.35); }
+            .dash-btn.active { color: var(--badge-head-text); background: var(--accent-blue); border-color: var(--accent-blue); }
+            .dash-btn.publish { color: var(--accent-green); border-color: var(--accent-green); }
+            .dash-btn.publish:hover { background: var(--accent-green); color: var(--badge-head-text); }
+            .dash-btn.danger { color: var(--accent-red); border-color: rgba(241,112,111,0.5); }
+            .dash-btn.danger:hover { background: var(--accent-red); color: #fff; }
+            .dash-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+            /* Versions panel hides until you ask for it (declutter). */
+            #version-panel.collapsed { width: 0; border-left: none; }
+
+            /* Settings: one inline panel (no popovers/modals) over the editor area. */
+            #editor-area { position: relative; }
+            #settings-panel { position: absolute; inset: 0; background: var(--bg-primary); overflow-y: auto; padding: 28px 24px; display: none; z-index: 6; }
+            #settings-panel.open { display: block; }
+
+            /* Assets workspace — big labeled creation buttons matching the Games dashboard. */
+            .asset-create-btn {
+                font-size: 0.92em; padding: 9px 18px; border-radius: 7px;
+                font-weight: bold; text-transform: uppercase; letter-spacing: 0.6px;
+                border: 2px solid var(--border-light); background: var(--bg-deep); color: var(--text-secondary);
+                box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3); cursor: pointer; white-space: nowrap;
+                transition: transform .05s, color .1s, border-color .1s, background .1s;
+            }
+            .asset-create-btn:hover { color: var(--text-primary); border-color: var(--accent-green); }
+            .asset-create-btn:active { transform: translateY(2px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.35); }
         </style>
     </head>
     <body>
@@ -568,16 +626,18 @@
 
             <!-- Login form -->
             <div id="login-form" class="auth-form">
-                <input type="text" id="login-username" placeholder="Username" autocomplete="username">
+                <input type="text" id="login-username" placeholder="Display name or email" autocomplete="username">
                 <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
                 <input type="submit" class="login-btn" value="Log in" id="login-btn">
                 <div class="login-error" id="login-error"></div>
                 <div class="auth-toggle">Don't have an account? <a id="show-signup">Sign up</a></div>
+                <div class="auth-toggle"><a href="/reset-password">Forgot password?</a></div>
             </div>
 
             <!-- Signup form (hidden by default) -->
             <div id="signup-form" class="auth-form" style="display: none;">
-                <input type="text" id="signup-username" placeholder="Username" autocomplete="username">
+                <input type="text" id="signup-username" placeholder="Display name" autocomplete="username">
+                <input type="email" id="signup-email" placeholder="Email" autocomplete="email">
                 <input type="password" id="signup-password" placeholder="Password" autocomplete="new-password">
                 <input type="password" id="signup-password-confirm" placeholder="Confirm password" autocomplete="new-password">
                 <div class="tos-row">
@@ -591,28 +651,26 @@
         </div>
 
         <div id="studio-app">
+            <div id="verify-banner" style="display:none;background:#cc8800;color:#fff;padding:8px 16px;text-align:center;font-size:0.9em;">
+                Enter the code we emailed you to publish &amp; upload:
+                <input id="verify-code" type="text" inputmode="numeric" maxlength="6" placeholder="123456" style="width:90px;padding:2px 6px;margin:0 4px;border-radius:4px;border:none;text-align:center;letter-spacing:2px;">
+                <button id="verify-code-btn" style="cursor:pointer;border:none;border-radius:4px;padding:3px 10px;background:#fff;color:#cc8800;font-weight:bold;">Verify</button>
+                <a id="resend-verify" style="color:#fff;text-decoration:underline;cursor:pointer;margin-left:8px;">Resend</a>
+                <span id="resend-status" style="margin-left:8px;"></span>
+            </div>
             <div id="studio-header">
                 <span class="logo" id="logo-btn">⌂ Homegames Studio</span>
+                <div id="mode-switch">
+                    <button id="games-mode-btn" class="mode-btn active">🎮 Games</button>
+                    <button id="header-asset-btn" class="mode-btn" title="Asset Manager">🎨 Assets</button>
+                </div>
                 <div style="display:flex;align-items:center;gap:16px;">
-                    <span id="header-asset-btn" class="clickable" style="font-size:0.85em;color:var(--accent-yellow);cursor:pointer;" title="Asset Manager">🎨 Assets</span>
+                    <span id="guide-btn" class="clickable" style="font-size:0.85em;color:#94d2e6;cursor:pointer;" title="squish.js authoring guide — copy as LLM context">📖 Guide</span>
                     <a href="/" style="color:var(--text-muted);font-size:0.85em;text-decoration:none;">homegames.io</a>
                     <span id="admin-btn" style="display:none;cursor:pointer;font-size:0.85em;color:var(--accent-red);font-weight:bold;" title="Admin panel">⚙ Admin</span>
                     <span id="theme-toggle" style="cursor:pointer;font-size:1.1em;" title="Toggle light/dark mode">☀</span>
                     <span class="user-info" id="user-info" style="cursor:pointer;" title="Profile settings"></span>
-                </div>
-                <div id="profile-popover" class="profile-popover">
-                    <label>Profile Image</label>
-                    <div style="display:flex;gap:4px;align-items:center;">
-                        <img id="profile-image-preview" style="width:32px;height:32px;border-radius:4px;object-fit:cover;display:none;border:1px solid #444;" />
-                        <input type="file" id="profile-image-input" accept="image/*" style="flex:1;font-size:0.8em;" />
-                    </div>
-                    <div id="profile-image-status" style="font-size:0.75em;color:#888;min-height:16px;margin-top:2px;"></div>
-                    <label style="margin-top:8px;">BTC Address</label>
-                    <div style="display:flex;gap:4px;">
-                        <input type="text" id="btc-address-input" placeholder="Your Bitcoin address" />
-                        <button id="btc-address-save">Save</button>
-                    </div>
-                    <div id="btc-address-status" style="font-size:0.75em;color:#888;min-height:16px;margin-top:2px;"></div>
+                    <button id="profile-settings-btn" title="Profile settings" style="background:none;border:none;cursor:pointer;font-size:1.1em;color:var(--text-muted);padding:0;">⚙</button>
                 </div>
             </div>
             <div id="studio-body">
@@ -634,6 +692,21 @@
             </div>
         </div>
 
+        <div class="modal-overlay" id="guide-modal">
+            <div class="modal-box" style="width:820px;max-width:calc(100vw - 32px);max-height:85vh;display:flex;flex-direction:column;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <h2 style="margin:0;">squish.js authoring guide</h2>
+                    <span id="guide-close" style="cursor:pointer;font-size:1.2em;color:#888;">✕</span>
+                </div>
+                <p style="color:#888;font-size:0.85em;margin:0 0 8px;">The full context document for writing Homegames games. Copy it into your own LLM to help it write or modify games.</p>
+                <pre id="guide-content" style="flex:1;overflow:auto;background:#11131a;color:#cdd2dc;padding:12px;border-radius:6px;white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,monospace;margin:0;">Loading…</pre>
+                <div class="modal-buttons" style="margin-top:10px;">
+                    <a class="modal-btn secondary" id="guide-open" href="/authoring-guide.md" target="_blank" rel="noopener" style="text-decoration:none;">Open raw</a>
+                    <button class="modal-btn primary" id="guide-copy">Copy to clipboard</button>
+                </div>
+            </div>
+        </div>
+
         <div class="modal-overlay" id="new-game-modal">
             <div class="modal-box">
                 <h2>New Game</h2>
@@ -641,12 +714,41 @@
                 <input type="text" id="new-game-desc" placeholder="Description (optional)">
                 <label style="color:#888;font-size:0.8em;margin-top:4px;">Template</label>
                 <select id="new-game-template" style="padding:8px;background:#16213e;color:#eee;border:1px solid #444;border-radius:4px;font-family:inherit;font-size:14px;width:100%;max-width:300px;">
-                    <option value="">Blank (no template)</option>
+                    <option value="blank">Blank — An empty game with a minimal starting point</option>
                 </select>
                 <div class="modal-error" id="new-game-error"></div>
                 <div class="modal-buttons">
                     <button class="modal-btn secondary" id="new-game-cancel">Cancel</button>
                     <button class="modal-btn primary" id="new-game-create">Create</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="profile-modal" style="z-index:110;">
+            <div class="modal-box" style="width:420px;max-width:calc(100vw - 32px);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <h2 style="margin:0;">Profile Settings</h2>
+                    <span id="profile-modal-close" class="clickable" style="font-size:1.2em;color:var(--text-muted);">✕</span>
+                </div>
+
+                <label style="color:var(--text-dim);font-size:0.8em;">Profile Image</label>
+                <div style="display:flex;gap:8px;align-items:center;margin:5px 0;">
+                    <img id="profile-image-preview" style="width:40px;height:40px;border-radius:4px;object-fit:cover;display:none;border:1px solid var(--border-light);" />
+                    <input type="file" id="profile-image-input" accept="image/*" style="flex:1;font-size:0.85em;" />
+                </div>
+                <div id="profile-image-status" style="font-size:0.75em;color:var(--text-dim);min-height:16px;"></div>
+
+                <label style="color:var(--text-dim);font-size:0.8em;margin-top:8px;">About (max 200 chars)</label>
+                <textarea id="profile-desc-input" maxlength="200" rows="3" placeholder="Tell players a bit about yourself"></textarea>
+                <div id="profile-desc-count" style="font-size:0.75em;color:var(--text-dim);text-align:right;">0 / 200</div>
+
+                <label style="color:var(--text-dim);font-size:0.8em;margin-top:4px;">BTC Address</label>
+                <input type="text" id="btc-address-input" placeholder="Your Bitcoin address" />
+
+                <div class="modal-error" id="profile-modal-error"></div>
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn secondary" id="profile-modal-cancel">Cancel</button>
+                    <button type="button" class="modal-btn primary" id="profile-modal-save">Save</button>
                 </div>
             </div>
         </div>
@@ -694,18 +796,6 @@
             </div>
         </div>
 
-        <div class="modal-overlay" id="description-modal">
-            <div class="modal-box" style="width:480px;max-width:calc(100vw - 32px);">
-                <h2>Game Description</h2>
-                <textarea id="description-modal-input" placeholder="Describe your game..." style="width:100%;min-height:100px;resize:vertical;font-family:inherit;font-size:0.9em;padding:8px;background:var(--bg-deep);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);"></textarea>
-                <div class="modal-error" id="description-modal-error"></div>
-                <div class="modal-buttons">
-                    <button type="button" class="modal-btn secondary" id="description-modal-cancel">Cancel</button>
-                    <button type="button" class="modal-btn primary" id="description-modal-save">Save</button>
-                </div>
-            </div>
-        </div>
-
         <div class="modal-overlay" id="llm-modal">
             <div class="modal-box" style="width:520px;max-width:calc(100vw - 32px);">
                 <h2>✨ Ask AI to edit your game</h2>
@@ -733,29 +823,16 @@
         </div>
 
         <!-- Admin modal -->
-        <div class="modal-overlay" id="admin-modal">
-            <div class="modal-box" style="width:600px;max-height:80vh;display:flex;flex-direction:column;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-                    <h2 style="margin:0;">Admin</h2>
-                    <span id="admin-close" style="cursor:pointer;font-size:1.2em;color:var(--text-muted);">✕</span>
-                </div>
-                <div style="display:flex;gap:8px;margin-bottom:12px;">
-                    <button class="modal-btn primary" id="admin-tab-messages" style="flex:1;">Support Messages</button>
-                </div>
-                <div id="admin-content" style="flex:1;overflow-y:auto;"></div>
-                <div id="admin-pagination" style="display:flex;justify-content:center;gap:12px;margin-top:8px;"></div>
-            </div>
-        </div>
-
         <!-- Asset modal (full-screen) -->
         <div class="modal-overlay" id="asset-modal">
             <div class="asset-modal-box">
                 <div class="asset-modal-header">
                     <h2 style="margin:0;color:var(--logo-color);">Assets</h2>
                     <div class="asset-modal-header-actions">
-                        <button type="button" class="asset-modal-action-btn" id="asset-modal-draw-btn">✏ Draw</button>
-                        <button type="button" class="asset-modal-action-btn" id="asset-modal-record-btn">🎤 Record</button>
-                        <button type="button" class="asset-modal-action-btn" id="asset-modal-keyboard-btn">🎹 Keyboard</button>
+                        <button type="button" class="asset-create-btn asset-modal-action-btn" id="asset-modal-upload-btn">⬆ Upload</button>
+                        <button type="button" class="asset-create-btn asset-modal-action-btn" id="asset-modal-draw-btn">✏ Draw</button>
+                        <button type="button" class="asset-create-btn asset-modal-action-btn" id="asset-modal-record-btn">🎤 Record</button>
+                        <button type="button" class="asset-create-btn asset-modal-action-btn" id="asset-modal-keyboard-btn">🎹 Keyboard</button>
                         <span id="asset-modal-close" class="clickable" style="font-size:1.4em;color:var(--text-muted);margin-left:12px;">✕</span>
                     </div>
                 </div>
@@ -801,7 +878,10 @@
         <!-- Record audio overlay -->
         <div class="record-overlay" id="record-overlay">
             <div class="record-box">
-                <h2>Record Audio</h2>
+                <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                    <h2>Record Audio</h2>
+                    <span id="rec-close" class="clickable" style="cursor:pointer;font-size:1.2em;color:var(--text-muted);">✕</span>
+                </div>
                 <div>
                     <span class="record-indicator stopped" id="rec-indicator"></span>
                     <span class="record-timer" id="rec-timer">0:00</span>
@@ -823,7 +903,10 @@
         <!-- Keyboard / synth overlay -->
         <div class="keyboard-overlay" id="keyboard-overlay">
             <div class="keyboard-box">
-                <h2>Keyboard</h2>
+                <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                    <h2>Keyboard</h2>
+                    <span id="kbd-close" class="clickable" style="cursor:pointer;font-size:1.2em;color:var(--text-muted);">✕</span>
+                </div>
                 <div class="synth-controls">
                     <div class="synth-control">
                         <label>Octave: <span class="synth-octave-val" id="synth-octave-val">0</span></label>

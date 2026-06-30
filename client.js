@@ -632,16 +632,28 @@ const renderDevProfile = (devId, devInfo) => {
         profileInfo.appendChild(joined);
     }
 
-    if (devInfo.description) {
-        const desc = document.createElement('div');
-        desc.style = 'margin-top: 8px; color: #555;';
-        desc.textContent = devInfo.description;
-        profileInfo.appendChild(desc);
-    }
-
     profileHeader.appendChild(profileInfo);
 
     container.appendChild(profileHeader);
+
+    // --- About / description section ---
+    if (devInfo.description) {
+        const aboutSection = document.createElement('div');
+        aboutSection.style = 'padding: 16px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 24px;';
+
+        const aboutHeader = document.createElement('div');
+        aboutHeader.className = 'amateur';
+        aboutHeader.style = 'font-size: 1em; margin-bottom: 8px;';
+        aboutHeader.textContent = 'About';
+        aboutSection.appendChild(aboutHeader);
+
+        const aboutBody = document.createElement('div');
+        aboutBody.style = 'color: #555; white-space: pre-wrap; word-break: break-word;';
+        aboutBody.textContent = devInfo.description;
+        aboutSection.appendChild(aboutBody);
+
+        container.appendChild(aboutSection);
+    }
 
     // --- Admin controls ---
     if (window.isHgAdmin && window.isHgAdmin()) {

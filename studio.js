@@ -82,6 +82,23 @@ const startTokenRefresh = () => {
     }, 12 * 60 * 1000); // 12 minutes
 };
 
+// Show/hide the "verify your email" banner based on current user state.
+const updateVerifyBanner = () => {
+    const banner = $('verify-banner');
+    if (banner) banner.style.display = (userInfo && !userInfo.verified) ? 'block' : 'none';
+};
+
+// Enter the studio app after a successful login/signup.
+const enterStudio = () => {
+    $('studio-login').style.display = 'none';
+    $('studio-app').style.display = 'flex';
+    $('user-info').textContent = userInfo.displayName || '';
+    if (userInfo.isAdmin) $('admin-btn').style.display = '';
+    updateVerifyBanner();
+    loadGames();
+    startTokenRefresh();
+};
+
 const doLogin = () => {
     const username = $('login-username').value.trim();
     const password = $('login-password').value;
@@ -95,16 +112,17 @@ const doLogin = () => {
     api('POST', '/auth/login', { username, password, type: 'login' })
         .then(data => {
             if (data.token) {
-                userInfo = { username: data.username, token: data.token, isAdmin: data.isAdmin || false };
-                $('studio-login').style.display = 'none';
-                $('studio-app').style.display = 'flex';
-                $('user-info').textContent = userInfo.username;
-                if (userInfo.isAdmin) $('admin-btn').style.display = '';
-                loadGames();
-                startTokenRefresh();
+                userInfo = {
+                    userId: data.userId,
+                    displayName: data.displayName,
+                    token: data.token,
+                    isAdmin: data.isAdmin || false,
+                    verified: !!data.verified,
+                };
+                enterStudio();
             } else { errorEl.textContent = 'Login failed'; }
         })
-        .catch(() => { errorEl.textContent = 'Login failed'; })
+        .catch((err) => { errorEl.textContent = (err && err.error) || 'Login failed'; })
         .finally(() => { $('login-btn').disabled = false; $('login-btn').value = 'Log in'; });
 };
 
@@ -117,34 +135,33 @@ $('login-username').addEventListener('keydown', (e) => { if (e.key === 'Enter') 
 // ---------------------------------------------------------------------------
 
 const doSignup = () => {
-    const username = $('signup-username').value.trim();
+    const displayName = $('signup-username').value.trim();
+    const email = $('signup-email').value.trim();
     const password = $('signup-password').value;
     const confirm = $('signup-password-confirm').value;
     const tos = $('signup-tos').checked;
     const errorEl = $('signup-error');
     errorEl.textContent = '';
 
-    if (!username || !password) { errorEl.textContent = 'Username and password required'; return; }
+    if (!displayName || !email || !password) { errorEl.textContent = 'Display name, email, and password are required'; return; }
     if (password !== confirm) { errorEl.textContent = 'Passwords do not match'; return; }
     if (!tos) { errorEl.textContent = 'You must agree to the Terms of Service'; return; }
 
     $('signup-btn').disabled = true;
     $('signup-btn').value = 'Signing up...';
 
-    api('POST', '/auth/signup', { username, password })
+    api('POST', '/auth/signup', { displayName, email, password })
         .then(data => {
-            // API returns { token: { userId, token } }
-            const tokenData = data.token || data;
-            const token = tokenData.token || tokenData;
-            const userId = tokenData.userId || username;
-
-            if (token) {
-                userInfo = { username: userId, token };
-                $('studio-login').style.display = 'none';
-                $('studio-app').style.display = 'flex';
-                $('user-info').textContent = userInfo.username;
-                loadGames();
-                startTokenRefresh();
+            if (data.token) {
+                userInfo = {
+                    userId: data.userId,
+                    displayName: data.displayName,
+                    token: data.token,
+                    isAdmin: false,
+                    verified: !!data.verified,
+                };
+                enterStudio();
+                setStatus('Account created — enter the code we emailed you to unlock publishing.');
             } else {
                 errorEl.textContent = 'Signup failed';
             }
@@ -175,6 +192,39 @@ $('show-login').onclick = () => {
     $('login-error').textContent = '';
     $('login-username').focus();
 };
+
+// Resend verification code from the in-app banner.
+const resendVerifyEl = $('resend-verify');
+if (resendVerifyEl) {
+    resendVerifyEl.onclick = () => {
+        const status = $('resend-status');
+        if (status) status.textContent = 'Sending...';
+        api('POST', '/auth/resend')
+            .then(() => { if (status) status.textContent = 'Sent — check your inbox.'; })
+            .catch((err) => { if (status) status.textContent = (err && err.error) || 'Failed to resend.'; });
+    };
+}
+
+// Submit the email verification code from the in-app banner.
+const submitVerifyCode = () => {
+    const input = $('verify-code');
+    const status = $('resend-status');
+    const code = input ? input.value.trim() : '';
+    if (!code) { if (status) status.textContent = 'Enter the code from your email.'; return; }
+    if (status) status.textContent = 'Verifying...';
+    api('POST', '/auth/verify', { code })
+        .then(() => {
+            if (userInfo) userInfo.verified = true;
+            if (status) status.textContent = '';
+            updateVerifyBanner();
+            setStatus('Email verified — you can now publish and upload.');
+        })
+        .catch((err) => { if (status) status.textContent = (err && err.error) || 'Verification failed.'; });
+};
+const verifyCodeBtn = $('verify-code-btn');
+if (verifyCodeBtn) verifyCodeBtn.onclick = submitVerifyCode;
+const verifyCodeInput = $('verify-code');
+if (verifyCodeInput) verifyCodeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitVerifyCode(); });
 
 // ---------------------------------------------------------------------------
 // Game list
@@ -211,7 +261,6 @@ const selectGame = (game) => {
     versions = [];
     versionPage = 1;
     viewingVersion = null;
-    cloneInfo = null;
     publishStatuses = {};
     renderGameList();
     renderGameView();
@@ -233,20 +282,22 @@ $('logo-btn').onclick = goHome;
 $('header-asset-btn').onclick = () => openAssetModal();
 
 // ---------------------------------------------------------------------------
-// Profile settings popover (BTC address)
+// Profile settings modal (image, about, BTC address)
 // ---------------------------------------------------------------------------
 
-$('user-info').onclick = () => {
-    const popover = $('profile-popover');
-    if (popover.classList.contains('visible')) {
-        popover.classList.remove('visible');
-        return;
-    }
+const updateProfileDescCount = () => {
+    const input = $('profile-desc-input');
+    $('profile-desc-count').textContent = `${input.value.length} / 200`;
+};
+
+const openProfileModal = () => {
+    $('profile-image-status').textContent = '';
+    $('profile-modal-error').textContent = '';
     // Load current profile
     api('GET', '/profile').then(data => {
         $('btc-address-input').value = data.btcAddress || '';
-        $('btc-address-status').textContent = '';
-        $('profile-image-status').textContent = '';
+        $('profile-desc-input').value = data.description || '';
+        updateProfileDescCount();
         const preview = $('profile-image-preview');
         if (data.image) {
             preview.src = `${API_URL}/assets/${data.image}`;
@@ -254,11 +305,15 @@ $('user-info').onclick = () => {
         } else {
             preview.style.display = 'none';
         }
-        popover.classList.add('visible');
-    }).catch(() => {
-        popover.classList.add('visible');
-    });
+    }).catch(() => {});
+    showModal('profile-modal');
 };
+
+$('user-info').onclick = openProfileModal;
+$('profile-settings-btn').onclick = openProfileModal;
+$('profile-desc-input').addEventListener('input', updateProfileDescCount);
+$('profile-modal-close').onclick = () => hideModal('profile-modal');
+$('profile-modal-cancel').onclick = () => hideModal('profile-modal');
 
 // Profile image upload
 $('profile-image-input').onchange = () => {
@@ -310,27 +365,24 @@ $('profile-image-input').onchange = () => {
     xhr.send(form);
 };
 
-$('btc-address-save').onclick = () => {
+$('profile-modal-save').onclick = () => {
     const btcAddress = $('btc-address-input').value.trim();
-    const statusEl = $('btc-address-status');
-    statusEl.textContent = 'Saving...';
-    api('POST', '/profile', { btcAddress }).then(() => {
-        statusEl.textContent = 'Saved!';
-        statusEl.style.color = '#A0EB5D';
-        setTimeout(() => { statusEl.textContent = ''; statusEl.style.color = '#888'; }, 2000);
+    const description = $('profile-desc-input').value.trim().substring(0, 200);
+    const errEl = $('profile-modal-error');
+    const saveBtn = $('profile-modal-save');
+    errEl.textContent = '';
+    errEl.style.color = '';
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    api('POST', '/profile', { btcAddress, description }).then(() => {
+        hideModal('profile-modal');
     }).catch(() => {
-        statusEl.textContent = 'Failed to save';
-        statusEl.style.color = 'rgba(241, 112, 111, 255)';
+        errEl.textContent = 'Failed to save';
+    }).finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save';
     });
 };
-
-// Close popover on outside click
-document.addEventListener('click', (e) => {
-    const popover = $('profile-popover');
-    if (!popover || !popover.classList.contains('visible')) return;
-    if (e.target.closest('#profile-popover') || e.target.closest('#user-info')) return;
-    popover.classList.remove('visible');
-});
 
 // ---------------------------------------------------------------------------
 // Game view
@@ -340,9 +392,11 @@ const renderGameView = () => {
     const main = $('main-content');
     main.innerHTML = '';
 
-    // Header
+    // Header — left: the game's identity; right: the dashboard (every game
+    // action as one obvious labeled button).
     const header = document.createElement('div');
     header.id = 'game-header';
+
     const left = document.createElement('div');
     left.style = 'display:flex;align-items:center;gap:12px';
     const titleSpan = document.createElement('span');
@@ -356,36 +410,37 @@ const renderGameView = () => {
     versionBadge.textContent = 'HEAD';
     left.appendChild(versionBadge);
 
-    // Thumbnail indicator
     if (currentGame.thumbnail) {
         const thumbImg = document.createElement('img');
         thumbImg.src = `${API_URL}/assets/${currentGame.thumbnail}`;
         thumbImg.style = 'width:24px;height:24px;border-radius:3px;object-fit:cover;border:1px solid var(--border);';
         left.appendChild(thumbImg);
     }
-
-    const thumbBtn = document.createElement('button');
-    thumbBtn.className = 'clone-btn';
-    thumbBtn.textContent = '🖼 Thumbnail';
-    thumbBtn.onclick = () => toggleThumbnailPicker();
-
-    const cloneBtn = document.createElement('button');
-    cloneBtn.className = 'clone-btn';
-    cloneBtn.textContent = '⤓ Clone';
-    cloneBtn.onclick = toggleClonePopover;
     header.appendChild(left);
 
-    const previewToggle = document.createElement('button');
-    previewToggle.className = 'preview-toggle' + (previewOpen ? ' active' : '');
-    previewToggle.textContent = '▶ Preview';
-    previewToggle.id = 'preview-toggle-btn';
-    previewToggle.onclick = togglePreviewPanel;
+    // Dashboard: big labeled buttons, all visible because they're all "game stuff".
+    const dash = document.createElement('div');
+    dash.className = 'game-dashboard';
+    const dashBtn = (label, cls, onClick, id) => {
+        const b = document.createElement('button');
+        b.className = 'dash-btn' + (cls ? ' ' + cls : '');
+        b.textContent = label;
+        if (id) b.id = id;
+        b.onclick = onClick;
+        dash.appendChild(b);
+        return b;
+    };
 
-    const deleteGameBtn = document.createElement('button');
-    deleteGameBtn.className = 'clone-btn';
-    deleteGameBtn.style = 'color:var(--accent-red, #e44);';
-    deleteGameBtn.textContent = '🗑 Delete';
-    deleteGameBtn.onclick = () => {
+    dashBtn('▶ Play', '', togglePreviewPanel, 'preview-toggle-btn');
+    dashBtn('🕘 Versions', '', toggleVersionsPanel, 'versions-toggle-btn');
+    dashBtn('✨ AI Edit', '', () => {
+        if (viewingVersion) { alert('Switch back to HEAD to use AI edits'); return; }
+        showLLMModal();
+    });
+    dashBtn('⚙ Settings', '', toggleSettingsPanel, 'settings-toggle-btn');
+    dashBtn('📦 Publish', 'publish', publishLatest);
+
+    const deleteGameBtn = dashBtn('🗑 Delete', 'danger', () => {
         if (!confirm(`Permanently delete "${currentGame.name}" and all of its versions? This cannot be undone.`)) return;
         deleteGameBtn.disabled = true;
         deleteGameBtn.textContent = 'Deleting...';
@@ -399,32 +454,10 @@ const renderGameView = () => {
             deleteGameBtn.textContent = '🗑 Delete';
             setStatus('Failed to delete game');
         });
-    };
+    });
 
-    const descBtn = document.createElement('button');
-    descBtn.className = 'clone-btn';
-    descBtn.textContent = '✏ Description';
-    descBtn.onclick = () => showDescriptionModal();
-
-    const rightHeader = document.createElement('div');
-    rightHeader.style = 'display:flex;align-items:center;gap:8px';
-    rightHeader.appendChild(previewToggle);
-    rightHeader.appendChild(descBtn);
-    rightHeader.appendChild(thumbBtn);
-    rightHeader.appendChild(cloneBtn);
-    rightHeader.appendChild(deleteGameBtn);
-    header.appendChild(rightHeader);
+    header.appendChild(dash);
     main.appendChild(header);
-
-    // Clone popover (hidden by default)
-    const popover = document.createElement('div');
-    popover.id = 'clone-popover';
-    main.appendChild(popover);
-
-    // Thumbnail picker popover (hidden by default)
-    const thumbPopover = document.createElement('div');
-    thumbPopover.id = 'thumbnail-popover';
-    main.appendChild(thumbPopover);
 
     // Editor area
     const editorArea = document.createElement('div');
@@ -444,16 +477,6 @@ const renderGameView = () => {
         showModal('new-file-modal', 'new-file-name');
     };
     ftHeader.appendChild(newFileBtn);
-    const aiBtn = document.createElement('span');
-    aiBtn.id = 'ai-edit-btn';
-    aiBtn.textContent = '✨ AI';
-    aiBtn.style.cursor = 'pointer';
-    aiBtn.style.marginLeft = '8px';
-    aiBtn.onclick = () => {
-        if (viewingVersion) { alert('Switch back to HEAD to use AI edits'); return; }
-        showLLMModal();
-    };
-    ftHeader.appendChild(aiBtn);
     ftDiv.appendChild(ftHeader);
     const fileList = document.createElement('div');
     fileList.id = 'file-list';
@@ -495,9 +518,10 @@ const renderGameView = () => {
     });
     editorArea.appendChild(editorPane);
 
-    // Version panel (right sidebar)
+    // Version panel (right sidebar) — hidden until the Versions button asks for it.
     const versionPanel = document.createElement('div');
     versionPanel.id = 'version-panel';
+    versionPanel.classList.add('collapsed');
     const vpHeader = document.createElement('div');
     vpHeader.id = 'version-panel-header';
     vpHeader.innerHTML = '<span>Versions</span>';
@@ -555,6 +579,11 @@ const renderGameView = () => {
     previewPanel.appendChild(previewLogs);
 
     editorArea.appendChild(previewPanel);
+
+    // Settings panel — inline, overlays the editor when open (no popovers).
+    const settingsPanel = document.createElement('div');
+    settingsPanel.id = 'settings-panel';
+    editorArea.appendChild(settingsPanel);
 
     main.appendChild(editorArea);
 
@@ -1231,6 +1260,7 @@ const loadTemplates = () => {
     api('GET', '/studio/templates').then(data => {
         const select = $('new-game-template');
         (data.templates || []).forEach(t => {
+            if (t.id === 'blank') return; // already present as the default option
             const opt = document.createElement('option');
             opt.value = t.id;
             opt.textContent = t.label + ' — ' + t.description;
@@ -1283,40 +1313,6 @@ $('new-game-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $
 $('new-file-cancel').onclick = () => hideModal('new-file-modal');
 $('new-file-create').onclick = createNewFile;
 $('new-file-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createNewFile(); });
-
-// Description modal
-const showDescriptionModal = () => {
-    const input = $('description-modal-input');
-    const errEl = $('description-modal-error');
-    if (input) input.value = currentGame?.description || '';
-    if (errEl) errEl.textContent = '';
-    showModal('description-modal');
-};
-
-$('description-modal-cancel').onclick = () => hideModal('description-modal');
-$('description-modal-save').onclick = () => {
-    const input = $('description-modal-input');
-    const errEl = $('description-modal-error');
-    const desc = (input?.value || '').trim();
-    if (!desc) {
-        if (errEl) errEl.textContent = 'Description cannot be empty';
-        return;
-    }
-    const saveBtn = $('description-modal-save');
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving...';
-    api('POST', `/games/${currentGame.id}/update`, { description: desc }).then((data) => {
-        const result = typeof data === 'string' ? JSON.parse(data) : data;
-        currentGame.description = desc;
-        hideModal('description-modal');
-        setStatus('Description updated');
-    }).catch((err) => {
-        if (errEl) errEl.textContent = 'Failed to save description';
-    }).finally(() => {
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Save';
-    });
-};
 
 // ---------------------------------------------------------------------------
 // AI ("Ask AI to edit") modal
@@ -1415,319 +1411,60 @@ $('llm-modal-submit').onclick = () => {
 };
 
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { hideModal('new-game-modal'); hideModal('new-file-modal'); hideModal('admin-modal'); hideModal('description-modal'); hideModal('llm-modal'); closeAssetModal(); hideModal('asset-delete-confirm-modal'); }
+    if (e.key === 'Escape') { hideModal('new-game-modal'); hideModal('new-file-modal'); hideModal('guide-modal'); hideModal('llm-modal'); closeAssetModal(); hideModal('asset-delete-confirm-modal'); hideModal('profile-modal'); }
 });
 
 // ---------------------------------------------------------------------------
 // Admin panel
 // ---------------------------------------------------------------------------
 
-let adminPage = 1;
-const ADMIN_PAGE_SIZE = 10;
+// Admins get a link to the full moderation console at /admin.
+$('admin-btn').onclick = () => { window.open('/admin', '_blank'); };
 
-$('admin-btn').onclick = () => {
-    adminPage = 1;
-    showModal('admin-modal');
-    loadAdminMessages();
+// Two-mode workspace switch (GAMES / ASSETS). The asset workspace is the
+// existing full-screen asset surface; these just drive it + the active state.
+const setStudioMode = (mode) => {
+    const isGames = mode === 'games';
+    $('games-mode-btn').classList.toggle('active', isGames);
+    $('header-asset-btn').classList.toggle('active', !isGames);
+    if (isGames) hideModal('asset-modal');
+};
+$('games-mode-btn').onclick = () => setStudioMode('games');
+// header-asset-btn keeps its existing handler (opens the asset workspace);
+// this just lights up the ASSETS button as active.
+$('header-asset-btn').addEventListener('click', () => setStudioMode('assets'));
+$('asset-modal-close').addEventListener('click', () => setStudioMode('games'));
+
+// Authoring guide / LLM context — fetch once, show in a modal, copy to clipboard.
+let _guideText = null;
+const loadGuide = () => {
+    const el = $('guide-content');
+    if (_guideText !== null) { el.textContent = _guideText; return; }
+    el.textContent = 'Loading…';
+    fetch('/authoring-guide.md')
+        .then(r => r.ok ? r.text() : Promise.reject(new Error('http ' + r.status)))
+        .then(text => { _guideText = text; el.textContent = text; })
+        .catch(() => { el.textContent = 'Failed to load the guide. (Is homegames-common installed on the server?)'; });
 };
 
-$('admin-close').onclick = () => hideModal('admin-modal');
-$('admin-tab-messages').onclick = () => { adminPage = 1; loadAdminMessages(); };
-
-const loadAdminMessages = () => {
-    const content = $('admin-content');
-    const pagination = $('admin-pagination');
-    content.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px;">Loading...</div>';
-    pagination.innerHTML = '';
-
-    api('GET', `/admin/support_messages?page=${adminPage}&limit=${ADMIN_PAGE_SIZE}`)
-        .then(data => {
-            const messages = data.requests || [];
-            content.innerHTML = '';
-
-            if (messages.length === 0) {
-                content.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px;">No pending messages</div>';
-                return;
-            }
-
-            messages.forEach(msg => {
-                const el = document.createElement('div');
-                el.className = 'admin-msg';
-
-                const meta = document.createElement('div');
-                meta.className = 'msg-meta';
-                const date = new Date(msg.created || msg.id);
-                meta.innerHTML = `<span>${date.toLocaleString()}</span><span>${msg.status || 'PENDING'}</span>`;
-                el.appendChild(meta);
-
-                if (msg.email) {
-                    const email = document.createElement('div');
-                    email.className = 'msg-email';
-                    email.textContent = msg.email;
-                    el.appendChild(email);
-                }
-
-                const body = document.createElement('div');
-                body.className = 'msg-body';
-                body.textContent = msg.message || '';
-                el.appendChild(body);
-
-                if (msg.status === 'PENDING') {
-                    const ackDiv = document.createElement('div');
-                    ackDiv.className = 'msg-ack';
-                    const ackBtn = document.createElement('button');
-                    ackBtn.className = 'msg-ack-btn';
-                    ackBtn.textContent = '✓ Acknowledge';
-                    ackBtn.onclick = () => {
-                        api('POST', '/admin/acknowledge', { messageId: msg.id }).then(() => {
-                            el.classList.add('acknowledged');
-                            ackBtn.textContent = 'Acknowledged';
-                            ackBtn.disabled = true;
-                        }).catch(() => {
-                            ackBtn.textContent = 'Failed';
-                        });
-                    };
-                    ackDiv.appendChild(ackBtn);
-                    el.appendChild(ackDiv);
-                }
-
-                content.appendChild(el);
-            });
-
-            // Pagination
-            pagination.innerHTML = '';
-            if (adminPage > 1) {
-                const prev = document.createElement('span');
-                prev.className = 'vp-nav';
-                prev.textContent = '← Newer';
-                prev.style = 'cursor:pointer;';
-                prev.onclick = () => { adminPage--; loadAdminMessages(); };
-                pagination.appendChild(prev);
-            }
-            if (messages.length >= ADMIN_PAGE_SIZE) {
-                const next = document.createElement('span');
-                next.className = 'vp-nav';
-                next.textContent = 'Older →';
-                next.style = 'cursor:pointer;';
-                next.onclick = () => { adminPage++; loadAdminMessages(); };
-                pagination.appendChild(next);
-            }
-        })
-        .catch(err => {
-            content.innerHTML = '<div style="text-align:center;color:var(--accent-red);padding:24px;">Failed to load messages (admin access required)</div>';
-        });
-};
-
-// ---------------------------------------------------------------------------
-// Clone popover
-// ---------------------------------------------------------------------------
-
-let cloneInfo = null;
-
-const toggleClonePopover = () => {
-    const popover = $('clone-popover');
-    if (!popover) return;
-
-    if (popover.classList.contains('visible')) {
-        popover.classList.remove('visible');
-        return;
-    }
-
-    if (cloneInfo && cloneInfo.gameId === currentGame.id) {
-        showClonePopover(cloneInfo);
-        return;
-    }
-
-    popover.innerHTML = '<span class="spinner"></span> Loading...';
-    popover.classList.add('visible');
-
-    api('GET', `/studio/games/${currentGame.id}/clone`)
-        .then(info => {
-            cloneInfo = { ...info, gameId: currentGame.id };
-            showClonePopover(cloneInfo);
-        })
-        .catch(err => {
-            popover.innerHTML = '<span style="color:rgba(241,112,111,255)">Failed to load clone info</span>';
-            console.error(err);
-        });
-};
-
-const showClonePopover = (info) => {
-    const popover = $('clone-popover');
-    if (!popover) return;
-    popover.innerHTML = '';
-    popover.classList.add('visible');
-
-    const url = info.authenticatedUrl || info.cloneUrl;
-
-    // Clone URL section
-    const label = document.createElement('label');
-    label.textContent = 'Clone URL';
-    popover.appendChild(label);
-
-    const box = document.createElement('div');
-    box.className = 'clone-url-box';
-    const input = document.createElement('input');
-    input.readOnly = true;
-    input.value = url;
-    input.onclick = () => input.select();
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'copy-btn';
-    copyBtn.textContent = 'Copy';
-    copyBtn.onclick = () => {
-        navigator.clipboard.writeText(url).then(() => {
-            copyBtn.textContent = 'Copied!';
-            setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
-        });
+$('guide-btn').onclick = () => { showModal('guide-modal'); loadGuide(); };
+$('guide-close').onclick = () => hideModal('guide-modal');
+$('guide-copy').onclick = () => {
+    const text = _guideText || $('guide-content').textContent || '';
+    const btn = $('guide-copy');
+    const done = (ok) => {
+        btn.textContent = ok ? 'Copied!' : 'Copy failed';
+        setTimeout(() => { btn.textContent = 'Copy to clipboard'; }, 1500);
     };
-    box.appendChild(input);
-    box.appendChild(copyBtn);
-    popover.appendChild(box);
-
-    const cmd = document.createElement('code');
-    cmd.className = 'clone-cmd';
-    cmd.textContent = `git clone ${url}`;
-    popover.appendChild(cmd);
-
-    const hint = document.createElement('div');
-    hint.className = 'clone-hint';
-    hint.textContent = 'Push changes to trigger updates in Studio. The clone URL includes your access token\u2009—\u2009don\u2019t share it.';
-    popover.appendChild(hint);
-
-    // Download ZIP button
-    const dlBtn = document.createElement('button');
-    dlBtn.className = 'download-btn';
-    dlBtn.textContent = '⤓ Download ZIP';
-    dlBtn.onclick = () => {
-        // Build the Forgejo archive URL (strip auth credentials from the clone URL)
-        const archiveUrl = url.replace(/\.git$/, '') + '/archive/main.zip';
-        const cleanUrl = archiveUrl.replace(/\/\/[^@]+@/, '//');
-        window.open(cleanUrl, '_blank');
-    };
-    popover.appendChild(dlBtn);
-};
-
-// Close popovers when clicking outside
-document.addEventListener('click', (e) => {
-    const clonePopover = $('clone-popover');
-    if (clonePopover && clonePopover.classList.contains('visible')) {
-        if (!e.target.closest('#clone-popover') && !e.target.closest('.clone-btn')) {
-            clonePopover.classList.remove('visible');
-        }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => done(true)).catch(() => done(false));
+    } else {
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        try { done(document.execCommand('copy')); } catch (e) { done(false); }
+        document.body.removeChild(ta);
     }
-    const thumbPopover = $('thumbnail-popover');
-    if (thumbPopover && thumbPopover.classList.contains('visible')) {
-        if (!e.target.closest('#thumbnail-popover') && !e.target.textContent?.includes('Thumbnail')) {
-            thumbPopover.classList.remove('visible');
-        }
-    }
-});
-
-// ---------------------------------------------------------------------------
-// Thumbnail picker
-// ---------------------------------------------------------------------------
-
-const toggleThumbnailPicker = () => {
-    const popover = $('thumbnail-popover');
-    if (!popover) return;
-
-    if (popover.classList.contains('visible')) {
-        popover.classList.remove('visible');
-        return;
-    }
-
-    popover.innerHTML = '<label>Choose a thumbnail</label><div style="color:var(--text-faint);font-size:0.8em;">Loading assets...</div>';
-    popover.classList.add('visible');
-
-    const PAGE_SIZE = 20;
-    let thumbAssets = [];
-    let thumbTotal = 0;
-    let grid = null;
-    let loadMoreContainer = null;
-
-    const renderThumbItem = (asset) => {
-        const item = document.createElement('div');
-        item.className = 'thumb-pick-item' + (currentGame.thumbnail === asset.id ? ' selected' : '');
-
-        const img = document.createElement('img');
-        img.src = `${API_URL}/assets/${asset.id}`;
-        img.alt = asset.name || asset.id;
-        img.title = asset.name || asset.id;
-        item.appendChild(img);
-
-        item.onclick = () => {
-            api('POST', `/studio/games/${currentGame.id}/thumbnail`, { assetId: asset.id }).then(() => {
-                currentGame.thumbnail = asset.id;
-                popover.classList.remove('visible');
-                renderGameView();
-                loadFiles();
-                loadVersions();
-                loadPublishStatuses();
-                setStatus('Thumbnail updated');
-            }).catch(() => {
-                setStatus('Failed to set thumbnail');
-            });
-        };
-
-        return item;
-    };
-
-    const loadThumbPage = (offset) => {
-        api('GET', `/assets?limit=${PAGE_SIZE}&offset=${offset}`).then(data => {
-            const imageAssets = (data.assets || []).filter(a => a.type && a.type.startsWith('image'));
-            thumbTotal = data.count || 0;
-
-            if (offset === 0) {
-                popover.innerHTML = '';
-                const label = document.createElement('label');
-                label.textContent = 'Choose a thumbnail';
-                popover.appendChild(label);
-
-                if (imageAssets.length === 0 && thumbTotal === 0) {
-                    const empty = document.createElement('div');
-                    empty.style = 'color:var(--text-faint);font-size:0.85em;';
-                    empty.textContent = 'No image assets. Upload one in the Assets panel.';
-                    popover.appendChild(empty);
-                    return;
-                }
-
-                grid = document.createElement('div');
-                grid.className = 'thumb-pick-grid';
-                popover.appendChild(grid);
-
-                loadMoreContainer = document.createElement('div');
-                loadMoreContainer.style = 'text-align:center;padding:8px 0;';
-                popover.appendChild(loadMoreContainer);
-            }
-
-            imageAssets.forEach(asset => {
-                thumbAssets.push(asset);
-                grid.appendChild(renderThumbItem(asset));
-            });
-
-            // Update load more button
-            loadMoreContainer.innerHTML = '';
-            const loaded = offset + (data.assets || []).length;
-            if (loaded < thumbTotal) {
-                const loadMoreBtn = document.createElement('button');
-                loadMoreBtn.className = 'clone-btn';
-                loadMoreBtn.style = 'font-size:0.82em;';
-                loadMoreBtn.textContent = 'Load more';
-                loadMoreBtn.onclick = () => {
-                    loadMoreBtn.disabled = true;
-                    loadMoreBtn.textContent = 'Loading...';
-                    loadThumbPage(loaded);
-                };
-                loadMoreContainer.appendChild(loadMoreBtn);
-            }
-        }).catch(() => {
-            if (offset === 0) {
-                popover.innerHTML = '<div style="color:var(--accent-red);">Failed to load assets</div>';
-            }
-        });
-    };
-
-    loadThumbPage(0);
 };
 
 // ---------------------------------------------------------------------------
@@ -1755,8 +1492,160 @@ const togglePreviewPanel = () => {
         }
     }
     if (btn) {
-        btn.className = 'preview-toggle' + (previewOpen ? ' active' : '');
+        btn.classList.toggle('active', previewOpen);
     }
+};
+
+// Toggle the version-history panel (hidden by default for a clean workspace).
+const toggleVersionsPanel = () => {
+    const panel = $('version-panel');
+    if (!panel) return;
+    const nowCollapsed = panel.classList.toggle('collapsed');
+    const btn = $('versions-toggle-btn');
+    if (btn) btn.classList.toggle('active', !nowCollapsed);
+};
+
+// One-click publish of the latest saved version. The server enforces the
+// prerequisites (description + thumbnail) and returns the reason, which
+// submitForPublishing surfaces in the status bar — progressive disclosure.
+const publishLatest = () => {
+    if (!currentGame) return;
+    if (!versions || !versions.length) { setStatus('Save a version first, then Publish.'); return; }
+    submitForPublishing(versions[0].sha);
+};
+
+// Settings panel: Description, Thumbnail, and Clone all inline in one place —
+// replaces the old description modal + thumbnail/clone popovers.
+const toggleSettingsPanel = () => {
+    const panel = $('settings-panel');
+    if (!panel) return;
+    const willOpen = !panel.classList.contains('open');
+    panel.classList.toggle('open', willOpen);
+    const btn = $('settings-toggle-btn');
+    if (btn) btn.classList.toggle('active', willOpen);
+    if (willOpen) renderSettingsContent(panel);
+};
+
+const settingsSection = (title, hint) => {
+    const sec = document.createElement('div');
+    sec.style = 'max-width:640px;margin:0 auto 28px;';
+    const h = document.createElement('div');
+    h.textContent = title;
+    h.style = 'font-size:1.05em;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:var(--text-primary);margin-bottom:4px;';
+    sec.appendChild(h);
+    if (hint) {
+        const p = document.createElement('div');
+        p.textContent = hint;
+        p.style = 'color:var(--text-muted);font-size:0.82em;margin-bottom:10px;';
+        sec.appendChild(p);
+    }
+    return sec;
+};
+
+const renderSettingsContent = (panel) => {
+    panel.innerHTML = '';
+    if (!currentGame) return;
+
+    // --- Description ---
+    const descSection = settingsSection('Description', 'A one-line pitch shown in the catalog. Required to publish.');
+    const descArea = document.createElement('textarea');
+    descArea.value = currentGame.description || '';
+    descArea.style = 'width:100%;min-height:64px;padding:10px;background:var(--bg-deep);border:1px solid var(--border-light);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.95em;resize:vertical;';
+    descSection.appendChild(descArea);
+    const descSave = document.createElement('button');
+    descSave.className = 'dash-btn publish';
+    descSave.style.marginTop = '8px';
+    descSave.textContent = '💾 Save Description';
+    descSave.onclick = () => {
+        const desc = descArea.value.trim();
+        if (!desc) { setStatus('Description cannot be empty'); return; }
+        descSave.disabled = true; descSave.textContent = 'Saving...';
+        api('POST', `/games/${currentGame.id}/update`, { description: desc })
+            .then(() => { currentGame.description = desc; setStatus('Description updated'); })
+            .catch(() => setStatus('Failed to save description'))
+            .finally(() => { descSave.disabled = false; descSave.textContent = '💾 Save Description'; });
+    };
+    descSection.appendChild(descSave);
+    panel.appendChild(descSection);
+
+    // --- Thumbnail ---
+    const thumbSection = settingsSection('Thumbnail', 'Pick an image asset to represent the game. Required to publish.');
+    const thumbGrid = document.createElement('div');
+    thumbGrid.className = 'thumb-pick-grid';
+    thumbGrid.style.maxWidth = '520px';
+    thumbSection.appendChild(thumbGrid);
+    const thumbMoreWrap = document.createElement('div');
+    thumbMoreWrap.style = 'margin-top:10px;';
+    const thumbMoreBtn = document.createElement('button');
+    thumbMoreBtn.textContent = 'Load more';
+    thumbMoreBtn.style.display = 'none';
+    thumbMoreWrap.appendChild(thumbMoreBtn);
+    thumbSection.appendChild(thumbMoreWrap);
+    panel.appendChild(thumbSection);
+
+    const THUMB_PAGE = 24;
+    let thumbOffset = 0;
+    let thumbLoading = false;
+    const addThumbItem = (asset) => {
+        const item = document.createElement('div');
+        item.className = 'thumb-pick-item' + (currentGame.thumbnail === asset.id ? ' selected' : '');
+        const img = document.createElement('img');
+        img.src = `${API_URL}/assets/${asset.id}`;
+        img.title = asset.name || asset.id;
+        item.appendChild(img);
+        item.onclick = () => {
+            api('POST', `/studio/games/${currentGame.id}/thumbnail`, { assetId: asset.id }).then(() => {
+                currentGame.thumbnail = asset.id;
+                [...thumbGrid.children].forEach(c => c.classList.remove('selected'));
+                item.classList.add('selected');
+                setStatus('Thumbnail updated');
+            }).catch(() => setStatus('Failed to set thumbnail'));
+        };
+        thumbGrid.appendChild(item);
+    };
+    const loadThumbPage = () => {
+        if (thumbLoading) return;
+        thumbLoading = true;
+        thumbMoreBtn.disabled = true;
+        api('GET', `/assets?type=image&limit=${THUMB_PAGE}&offset=${thumbOffset}`).then(data => {
+            const imgs = data.assets || [];
+            if (thumbOffset === 0 && !imgs.length) {
+                thumbGrid.innerHTML = '<div style="color:var(--text-faint);font-size:0.85em;">No image assets yet — add one in the ASSETS workspace.</div>';
+                thumbMoreBtn.style.display = 'none';
+                return;
+            }
+            imgs.forEach(addThumbItem);
+            thumbOffset += imgs.length;
+            thumbMoreBtn.style.display = thumbOffset < (data.count || 0) ? '' : 'none';
+        }).catch(() => {
+            if (thumbOffset === 0) thumbGrid.innerHTML = '<div style="color:var(--accent-red);font-size:0.85em;">Failed to load assets</div>';
+        }).finally(() => { thumbLoading = false; thumbMoreBtn.disabled = false; });
+    };
+    thumbMoreBtn.onclick = loadThumbPage;
+    loadThumbPage();
+
+    // --- Clone & download ---
+    const cloneSection = settingsSection('Clone & Download', 'Work on this game locally with git, or grab a ZIP.');
+    const cloneBody = document.createElement('div');
+    cloneBody.textContent = 'Loading…';
+    cloneBody.style = 'color:var(--text-faint);font-size:0.85em;';
+    cloneSection.appendChild(cloneBody);
+    panel.appendChild(cloneSection);
+    api('GET', `/studio/games/${currentGame.id}/clone`).then(info => {
+        const url = info.authenticatedUrl || info.cloneUrl;
+        cloneBody.style = '';
+        cloneBody.innerHTML = '';
+        const box = document.createElement('div'); box.className = 'clone-url-box';
+        const input = document.createElement('input'); input.readOnly = true; input.value = url; input.onclick = () => input.select();
+        const copyBtn = document.createElement('button'); copyBtn.className = 'copy-btn'; copyBtn.textContent = 'Copy';
+        copyBtn.onclick = () => navigator.clipboard.writeText(url).then(() => { copyBtn.textContent = 'Copied!'; setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500); });
+        box.appendChild(input); box.appendChild(copyBtn); cloneBody.appendChild(box);
+        const cmd = document.createElement('code'); cmd.className = 'clone-cmd'; cmd.textContent = `git clone ${url}`; cloneBody.appendChild(cmd);
+        const hint = document.createElement('div'); hint.className = 'clone-hint'; hint.textContent = 'The clone URL includes your access token — don’t share it. Push to update the game in Studio.'; cloneBody.appendChild(hint);
+        const dl = document.createElement('button'); dl.className = 'download-btn'; dl.textContent = '⤓ Download ZIP';
+        dl.onclick = () => { const a = url.replace(/\.git$/, '') + '/archive/main.zip'; window.open(a.replace(/\/\/[^@]+@/, '//'), '_blank'); };
+        cloneBody.appendChild(dl);
+    }).catch(() => { cloneBody.textContent = 'Failed to load clone info'; cloneBody.style = 'color:var(--accent-red);font-size:0.85em;'; });
 };
 
 // Fetch ALL files for preview and return as a { path: content } map.
@@ -2031,7 +1920,7 @@ let assetTypeFilter = '';
 let assetSearchTimer = null;
 let playingAudioEl = null;
 
-const isAssetOwnedByUser = (asset) => !!(userInfo && asset && asset.developerId === userInfo.username);
+const isAssetOwnedByUser = (asset) => !!(userInfo && asset && asset.developerId === userInfo.userId);
 
 const updateAssetModalChrome = () => {
     const isMine = assetModalTab === 'mine';
@@ -2633,7 +2522,9 @@ const initAssetModalEvents = () => {
         };
     }
 
-    // Draw / Record buttons
+    // Creation row: Upload / Draw / Record (Keyboard wired separately).
+    const uploadBtn = $('asset-modal-upload-btn');
+    if (uploadBtn) uploadBtn.onclick = () => { const dz = $('asset-modal-drop-zone'); if (dz) dz.click(); };
     const drawBtn = $('asset-modal-draw-btn');
     if (drawBtn) drawBtn.onclick = openDrawOverlay;
     const recordBtn = $('asset-modal-record-btn');
@@ -3021,6 +2912,9 @@ $('rec-pause').onclick = pauseRecording;
 $('rec-stop').onclick = stopRecording;
 $('rec-save').onclick = saveRecording;
 $('rec-cancel').onclick = closeRecordOverlay;
+$('rec-close').onclick = closeRecordOverlay;
+// Tap the dark backdrop (outside the box) to dismiss.
+$('record-overlay').onclick = (e) => { if (e.target === $('record-overlay')) closeRecordOverlay(); };
 
 // ---------------------------------------------------------------------------
 // Keyboard / synth
@@ -3267,6 +3161,9 @@ $('kbd-record').onclick = startSynthRecording;
 $('kbd-stop').onclick = stopSynthRecording;
 $('kbd-save').onclick = saveSynthRecording;
 $('kbd-cancel').onclick = closeKeyboardOverlay;
+$('kbd-close').onclick = closeKeyboardOverlay;
+// Tap the dark backdrop (outside the box) to dismiss.
+$('keyboard-overlay').onclick = (e) => { if (e.target === $('keyboard-overlay')) closeKeyboardOverlay(); };
 $('synth-octave').oninput = (e) => {
     synthOctave = parseInt(e.target.value, 10);
     $('synth-octave-val').textContent = synthOctave;
