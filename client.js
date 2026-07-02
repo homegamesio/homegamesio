@@ -97,14 +97,18 @@ const makePost = (endpoint, payload, notJson, useAuth)  => new Promise((resolve,
 
     xhr.onreadystatechange = () => {
         if (xhr.readyState === XMLHttpRequest.DONE) {
-            if (xhr.status === 200) {
+            if (xhr.status >= 200 && xhr.status < 300) {
                 if (notJson) {
                     resolve(xhr.response);
                 } else {
                     resolve(JSON.parse(xhr.response));
                 }
             } else {
-                reject(xhr.response)
+                // Reject with a structured error so callers can branch on status
+                // (e.g. show a rate-limit countdown on 429). body is parsed when JSON.
+                let body = xhr.response;
+                try { body = JSON.parse(xhr.response); } catch (e) { /* leave as string */ }
+                reject({ status: xhr.status, body });
             }
         }
     }
@@ -350,8 +354,14 @@ const renderGamePage = (gameId, gameDetails) => {
     description.textContent = gameDetails?.game?.description || 'No description available';
     description.style = 'margin-top: 24px;';
 
+    const sessionCount = gameDetails?.game?.sessionCount || 0;
+    const stats = document.createElement('div');
+    stats.style = 'margin-top: 12px; color: #888; font-size: 0.9em;';
+    stats.textContent = `${sessionCount.toLocaleString()} ${sessionCount === 1 ? 'session' : 'sessions'} played`;
+
     col2.appendChild(gameTitle);
     col2.appendChild(description);
+    col2.appendChild(stats);
 
     const isAdmin = window.isHgAdmin && window.isHgAdmin();
     const isOwner = window.hgUserInfo && window.hgUserInfo.username === gameDetails?.game?.developerId;
@@ -523,8 +533,24 @@ const renderGamePage = (gameId, gameDetails) => {
             // Connect to the new session
             connectToSession(sessionData, container);
         }).catch(err => {
-            statusMsg.innerHTML = 'Failed to create session';
             createBtn.style.display = 'inline-block';
+            if (err && err.status === 429) {
+                let secs = (err.body && err.body.retryAfter) || 30;
+                createBtn.disabled = true;
+                const msg = (err.body && err.body.error) || 'Please wait a moment';
+                const tick = () => {
+                    statusMsg.innerHTML = `⏳ ${msg} (${secs}s)`;
+                    if (secs-- <= 0) {
+                        clearInterval(timer);
+                        statusMsg.innerHTML = '';
+                        createBtn.disabled = false;
+                    }
+                };
+                tick();
+                const timer = setInterval(tick, 1000);
+            } else {
+                statusMsg.innerHTML = 'Failed to create session';
+            }
             console.error(err);
         });
     };
