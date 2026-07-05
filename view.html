@@ -129,6 +129,7 @@
                 const fileList = $('view-file-list');
                 fileList.innerHTML = '';
 
+                let indexEl = null;
                 files.forEach(file => {
                     const el = document.createElement('div');
                     el.className = 'view-file-item';
@@ -141,9 +142,13 @@
                         loadFile(gameId, file.path, commitSha);
                     };
                     fileList.appendChild(el);
+                    if (file.path === 'index.js') indexEl = el;
                 });
 
                 $('view-status').textContent = `${files.length} files`;
+
+                // Open the game's entry point by default.
+                if (indexEl) indexEl.onclick();
             }).catch(err => {
                 $('view-placeholder').textContent = 'Failed to load file tree';
             });

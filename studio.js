@@ -6,6 +6,12 @@
 const API_URL = 'https://api.homegames.io';//'http://localhost:80';
 const HOMENAMES_URL = 'https://core.homegames.io:7400';//'https://api.homegames.io/homenames';
 
+// Hides the AI entry points (dashboard "AI Edit" button, "Generate with AI"
+// template option) while the current model isn't good enough. The full
+// pipeline (modal, polling, API, worker) stays intact — flip to true to
+// bring it all back.
+const AI_FEATURES_ENABLED = false;
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -469,10 +475,12 @@ const renderGameView = () => {
     };
 
     dashBtn('▶ Play', '', togglePreviewPanel, 'preview-toggle-btn');
-    dashBtn('✨ AI Edit', '', () => {
-        if (viewingVersion) { alert('Switch back to HEAD to use AI edits'); return; }
-        showLLMModal();
-    });
+    if (AI_FEATURES_ENABLED) {
+        dashBtn('✨ AI Edit', '', () => {
+            if (viewingVersion) { alert('Switch back to HEAD to use AI edits'); return; }
+            showLLMModal();
+        });
+    }
     // Only visible when viewing a historical version (toggled by updateVersionBadge).
     const restoreBtn = dashBtn('↩ Restore', 'publish', () => {
         if (viewingVersion) restoreVersion(viewingVersion);
@@ -1289,9 +1297,21 @@ const loadTemplates = () => {
             opt.textContent = t.label + ' — ' + t.description;
             select.appendChild(opt);
         });
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => {
+        if (!AI_FEATURES_ENABLED) return;
+        // Always last: not a real server template — picking it creates a blank
+        // game and hands the description to the AI worker (see startLLMCreate).
+        const opt = document.createElement('option');
+        opt.value = 'ai';
+        opt.textContent = '✨ Generate with AI — describe the game you want';
+        $('new-game-template').appendChild(opt);
+    });
 };
 loadTemplates();
+
+$('new-game-template').addEventListener('change', () => {
+    $('new-game-ai-prompt-wrap').style.display = $('new-game-template').value === 'ai' ? '' : 'none';
+});
 
 // ---------------------------------------------------------------------------
 // Theme toggle
@@ -1317,13 +1337,24 @@ $('new-game-create').onclick = () => {
     const name = $('new-game-name').value.trim();
     const desc = $('new-game-desc').value.trim();
     const template = $('new-game-template').value || undefined;
+    const isAI = template === 'ai';
+    const aiPrompt = isAI ? $('new-game-ai-prompt').value.trim() : null;
     const errorEl = $('new-game-error');
     errorEl.textContent = '';
     if (!name) { errorEl.textContent = 'Game name required'; return; }
+    if (isAI && !aiPrompt) { errorEl.textContent = 'Describe the game you want the AI to build'; return; }
+    if (isAI && aiPrompt.length > 2000) { errorEl.textContent = 'Keep the description under 2000 characters'; return; }
     $('new-game-create').disabled = true;
     $('new-game-create').textContent = 'Creating...';
-    api('POST', '/studio/games', { name, description: desc, template })
-        .then(game => { hideModal('new-game-modal'); loadGames(); selectGame(game); })
+    // The AI choice isn't a server template: create from blank, then hand the
+    // description to the LLM worker against the fresh repo.
+    api('POST', '/studio/games', { name, description: desc, template: isAI ? 'blank' : template })
+        .then(game => {
+            hideModal('new-game-modal');
+            loadGames();
+            selectGame(game);
+            if (isAI) startLLMCreate(game.id, aiPrompt);
+        })
         .catch(err => { errorEl.textContent = (err && err.error) || 'Failed to create game'; })
         .finally(() => { $('new-game-create').disabled = false; $('new-game-create').textContent = 'Create'; });
 };
@@ -1353,6 +1384,8 @@ const setLLMBusy = (busy, statusMsg) => {
 const showLLMModal = () => {
     const errEl = $('llm-modal-error');
     if (errEl) errEl.textContent = '';
+    const titleEl = $('llm-modal-title');
+    if (titleEl) titleEl.textContent = '✨ Ask AI to edit your game';
     setLLMBusy(false, '');
     showModal('llm-modal', 'llm-prompt-input');
 };
@@ -1403,6 +1436,33 @@ const pollLLMStatus = (gameId, requestId) => {
     setTimeout(poll, 2000);
 };
 
+// Kick off generation for a game just created via the "Generate with AI"
+// template choice. Reuses the AI modal + polling from the edit flow; the
+// result drops into the editor for review, same as an edit.
+const startLLMCreate = (gameId, prompt) => {
+    const input = $('llm-prompt-input');
+    if (input) input.value = prompt;
+    const titleEl = $('llm-modal-title');
+    if (titleEl) titleEl.textContent = '✨ Generating your game';
+    const errEl = $('llm-modal-error');
+    if (errEl) errEl.textContent = '';
+    showModal('llm-modal'); // no focusId: keep the prefilled prompt
+    setLLMBusy(true, '<span class="spinner"></span>Submitting…');
+    api('POST', `/studio/games/${gameId}/llm-modify`, { prompt, mode: 'CREATE' })
+        .then(data => {
+            llmActiveRequest = data.requestId;
+            setLLMBusy(true, '<span class="spinner"></span>Queued… the AI is writing your game. This can take a few minutes.');
+            pollLLMStatus(gameId, data.requestId);
+        })
+        .catch(err => {
+            setLLMBusy(false, '');
+            if (errEl) {
+                errEl.textContent = ((err && err.error) || 'Failed to start AI generation')
+                    + ' — your game was still created; retry from the ✨ AI Edit button.';
+            }
+        });
+};
+
 $('llm-modal-cancel').onclick = () => { llmActiveRequest = null; hideModal('llm-modal'); };
 $('llm-modal-submit').onclick = () => {
     const input = $('llm-prompt-input');
@@ -1439,20 +1499,6 @@ document.addEventListener('keydown', (e) => {
 
 // Admins get a link to the full moderation console at /admin.
 $('admin-btn').onclick = () => { window.open('/admin', '_blank'); };
-
-// Two-mode workspace switch (GAMES / ASSETS). The asset workspace is the
-// existing full-screen asset surface; these just drive it + the active state.
-const setStudioMode = (mode) => {
-    const isGames = mode === 'games';
-    $('games-mode-btn').classList.toggle('active', isGames);
-    $('header-asset-btn').classList.toggle('active', !isGames);
-    if (isGames) hideModal('asset-modal');
-};
-$('games-mode-btn').onclick = () => setStudioMode('games');
-// header-asset-btn keeps its existing handler (opens the asset workspace);
-// this just lights up the ASSETS button as active.
-$('header-asset-btn').addEventListener('click', () => setStudioMode('assets'));
-$('asset-modal-close').addEventListener('click', () => setStudioMode('games'));
 
 // Authoring guide / LLM context — fetch once, show in a modal, copy to clipboard.
 let _guideText = null;

@@ -314,6 +314,14 @@ const renderGamePage = (gameId, gameDetails) => {
     gameTitle.className = 'amateur';
     gameTitle.textContent = gameDetails?.game?.name || 'Unknown game';
 
+    if (gameDetails?.game?.nsfw) {
+        const nsfwBadge = document.createElement('span');
+        nsfwBadge.textContent = '18+ NSFW';
+        nsfwBadge.title = 'Marked NSFW because this game uses assets flagged as NSFW';
+        nsfwBadge.style = 'display: inline-block; vertical-align: middle; margin-left: 12px; background: #e44; color: #fff; font-size: 0.45em; padding: 4px 12px; border-radius: 999px; letter-spacing: 1px;';
+        gameTitle.appendChild(nsfwBadge);
+    }
+
     const description = document.createElement('div');
     description.textContent = gameDetails?.game?.description || 'No description available';
     description.style = 'margin-top: 24px;';
@@ -323,8 +331,37 @@ const renderGamePage = (gameId, gameDetails) => {
     stats.style = 'margin-top: 12px; color: #888; font-size: 0.9em;';
     stats.textContent = `${sessionCount.toLocaleString()} ${sessionCount === 1 ? 'session' : 'sessions'} played`;
 
+    const fmtDate = (ts) => ts ? new Date(ts).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+
+    // Game facts: created date now; version count + last publish date are
+    // filled in once the published-versions fetch below resolves.
+    const meta = document.createElement('div');
+    meta.style = 'margin-top: 16px; color: #666; font-size: 0.9em; display: flex; flex-direction: column; gap: 4px;';
+
+    const createdStr = fmtDate(gameDetails?.game?.created);
+    if (createdStr) {
+        const createdLine = document.createElement('div');
+        createdLine.textContent = `Created ${createdStr}`;
+        meta.appendChild(createdLine);
+    }
+
+    const versionCountLine = document.createElement('div');
+    versionCountLine.textContent = 'Loading version info…';
+    meta.appendChild(versionCountLine);
+
+    const lastPublishedLine = document.createElement('div');
+    meta.appendChild(lastPublishedLine);
+
+    if (gameDetails?.game?.nsfw) {
+        const nsfwLine = document.createElement('div');
+        nsfwLine.style = 'color: #e44;';
+        nsfwLine.textContent = 'Marked NSFW — uses assets flagged as NSFW';
+        meta.appendChild(nsfwLine);
+    }
+
     col2.appendChild(gameTitle);
     col2.appendChild(description);
+    col2.appendChild(meta);
     col2.appendChild(stats);
 
     // --- Column 3: Play section ---
@@ -382,6 +419,12 @@ const renderGamePage = (gameId, gameDetails) => {
         const data = JSON.parse(_data);
         const publishedVersions = data.versions || [];
 
+        versionCountLine.textContent = `${publishedVersions.length} published version${publishedVersions.length === 1 ? '' : 's'}`;
+        if (publishedVersions.length > 0) {
+            // Versions arrive sorted newest-first.
+            lastPublishedLine.textContent = `Last published ${fmtDate(publishedVersions[0].publishedAt)}`;
+        }
+
         if (publishedVersions.length === 0) {
             versionLabel.innerHTML = 'No published versions';
             return;
@@ -399,9 +442,10 @@ const renderGamePage = (gameId, gameDetails) => {
             versionSelect.appendChild(opt);
         });
 
-        // View Code link
+        // View Source button — same tactile treatment as Create Session, blue.
         const viewCodeLink = document.createElement('a');
-        viewCodeLink.style = 'display: block; margin-top: 8px; font-size: 0.9em; color: rgba(148, 210, 229, 255);';
+        viewCodeLink.className = 'clickable amateur';
+        viewCodeLink.style = 'background: #94D2E6; color: #333; padding: 12px 24px; border-radius: 8px; display: inline-block; margin-top: 12px; font-size: 1.1em; cursor: pointer; text-decoration: none;';
         viewCodeLink.textContent = '</> View Source';
         viewCodeLink.target = '_blank';
         viewCodeLink.href = `/view.html?game=${gameId}&sha=${versionSelect.value}`;
@@ -416,6 +460,7 @@ const renderGamePage = (gameId, gameDetails) => {
 
     }).catch(err => {
         versionLabel.innerHTML = 'Failed to load versions';
+        versionCountLine.textContent = '📦 Version info unavailable';
         console.error(err);
     });
 
@@ -564,28 +609,29 @@ const renderDevProfile = (devId, devInfo) => {
 
     container.appendChild(profileHeader);
 
-    // --- About / description section ---
-    if (devInfo.description) {
-        const aboutSection = document.createElement('div');
-        aboutSection.style = 'padding: 16px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 24px;';
+    // --- About + BTC address, side by side (wrapping on narrow screens) ---
+    const infoRow = document.createElement('div');
+    infoRow.style = 'display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px;';
 
-        const aboutHeader = document.createElement('div');
-        aboutHeader.className = 'amateur';
-        aboutHeader.style = 'font-size: 1em; margin-bottom: 8px;';
-        aboutHeader.textContent = 'About';
-        aboutSection.appendChild(aboutHeader);
+    const aboutSection = document.createElement('div');
+    aboutSection.style = 'flex: 2; min-width: 260px; padding: 16px; border: 1px solid #ddd; border-radius: 8px;';
 
-        const aboutBody = document.createElement('div');
-        aboutBody.style = 'color: #555; white-space: pre-wrap; word-break: break-word;';
-        aboutBody.textContent = devInfo.description;
-        aboutSection.appendChild(aboutBody);
+    const aboutHeader = document.createElement('div');
+    aboutHeader.className = 'amateur';
+    aboutHeader.style = 'font-size: 1em; margin-bottom: 8px;';
+    aboutHeader.textContent = 'About';
+    aboutSection.appendChild(aboutHeader);
 
-        container.appendChild(aboutSection);
-    }
+    const aboutBody = document.createElement('div');
+    aboutBody.style = 'color: #555; white-space: pre-wrap; word-break: break-word;';
+    aboutBody.textContent = devInfo.description || 'This developer has not written anything about themselves yet';
+    if (!devInfo.description) aboutBody.style.color = '#888';
+    aboutSection.appendChild(aboutBody);
 
-    // --- BTC address section ---
+    infoRow.appendChild(aboutSection);
+
     const btcSection = document.createElement('div');
-    btcSection.style = 'padding: 16px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 24px;';
+    btcSection.style = 'flex: 1; min-width: 260px; padding: 16px; border: 1px solid #ddd; border-radius: 8px;';
 
     const btcHeader = document.createElement('div');
     btcHeader.className = 'amateur';
@@ -600,8 +646,8 @@ const renderDevProfile = (devId, devInfo) => {
         btcSection.appendChild(btcAddr);
 
         const btcCopy = document.createElement('div');
-        btcCopy.className = 'clickable';
-        btcCopy.style = 'display: inline-block; background: #f7931a; color: white; padding: 4px 16px; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: bold;';
+        btcCopy.className = 'clickable amateur';
+        btcCopy.style = 'display: inline-block; background: #94D2E6; color: #333; padding: 6px 16px; border-radius: 8px; cursor: pointer; font-size: 0.9em; font-weight: bold;';
         btcCopy.textContent = 'Copy Address';
         btcCopy.onclick = () => {
             navigator.clipboard.writeText(devInfo.btcAddress).then(() => {
@@ -617,23 +663,29 @@ const renderDevProfile = (devId, devInfo) => {
         btcSection.appendChild(btcEmpty);
     }
 
-    container.appendChild(btcSection);
+    infoRow.appendChild(btcSection);
+    container.appendChild(infoRow);
 
-    // --- Games section ---
+    // --- Games section: header + NSFW toggle share one row ---
+    const gamesHeaderRow = document.createElement('div');
+    gamesHeaderRow.style = 'display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 16px;';
+
     const gamesHeader = document.createElement('h2');
     gamesHeader.className = 'amateur';
-    gamesHeader.style = 'margin-bottom: 16px;';
+    gamesHeader.style = 'margin: 0;';
     gamesHeader.textContent = 'Games';
-    container.appendChild(gamesHeader);
+    gamesHeaderRow.appendChild(gamesHeader);
 
     const nsfwToggle = document.createElement('label');
-    nsfwToggle.style = 'display: inline-flex; align-items: center; gap: 6px; font-size: 0.85em; color: #888; cursor: pointer; user-select: none; margin-bottom: 16px;';
+    nsfwToggle.style = 'display: inline-flex; align-items: center; gap: 6px; font-size: 0.85em; color: #888; cursor: pointer; user-select: none; white-space: nowrap;';
     const nsfwCb = document.createElement('input');
     nsfwCb.type = 'checkbox';
-    nsfwCb.style = 'cursor: pointer; accent-color: #e44;';
+    nsfwCb.style = 'cursor: pointer; accent-color: #e44; width: 16px; height: 16px; margin: 0;';
     nsfwToggle.appendChild(nsfwCb);
     nsfwToggle.appendChild(document.createTextNode('Include NSFW content'));
-    container.appendChild(nsfwToggle);
+    gamesHeaderRow.appendChild(nsfwToggle);
+
+    container.appendChild(gamesHeaderRow);
 
     const gameListEl = document.createElement('div');
     container.appendChild(gameListEl);

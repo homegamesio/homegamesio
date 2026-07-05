@@ -13,6 +13,25 @@
                 padding: 0 24px;
             }
 
+            /* Header studio link — pinned right, logo stays centered */
+            #header { position: relative; }
+            .header-studio-link {
+                position: absolute;
+                right: 24px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: #94D2E5;
+                color: #1a1a2e;
+                padding: 8px 18px;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: bold;
+                font-size: 1em;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+                transition: background 0.15s;
+            }
+            .header-studio-link:hover { background: #7bc4db; }
+
             /* Hero */
             .hero {
                 text-align: center;
@@ -30,14 +49,12 @@
                 margin: 0;
                 line-height: 1.6;
             }
-            .cta-section {
-                padding: 8px 0 48px;
-            }
-            .hero-buttons {
+            .section-cta {
                 display: flex;
                 justify-content: center;
                 gap: 20px;
                 flex-wrap: wrap;
+                margin: 24px 0;
             }
             .hero-cta {
                 display: inline-block;
@@ -63,16 +80,6 @@
             .hero-cta.self-hosting:hover { background: #ee5a59; }
             .hero-cta.github { background: #FFF78E; }
             .hero-cta.github:hover { background: #f7ec6b; }
-            .hero-btn {
-                display: inline-block;
-                padding: 14px 36px;
-                border-radius: 8px;
-                font-size: 1.15em;
-                text-decoration: none;
-                font-family: 'amateur', sans-serif;
-                transition: opacity 0.15s;
-            }
-            .hero-btn:hover { opacity: 0.85; }
 
             /* Featured games */
             .featured-section {
@@ -133,16 +140,7 @@
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
-            .featured-more {
-                text-align: center;
-                margin-top: 20px;
-            }
-            .featured-more a {
-                color: rgba(148, 210, 229, 255);
-                font-size: 1em;
-            }
-
-            /* Dev pitch */
+            /* Content sections (Developer Studio / Open Source) */
             .dev-section {
                 padding: 40px 0;
                 border-top: 1px solid #eee;
@@ -153,48 +151,37 @@
                 margin: 0 0 20px;
                 font-size: 1.5em;
             }
-            .dev-points {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 20px;
-                margin-bottom: 24px;
+            /* Wider than the 860px content column: centered on the page via
+               left 50% + translate, so the detailed screenshot gets room. */
+            .studio-screenshot {
+                width: min(1080px, calc(100vw - 48px));
+                position: relative;
+                left: 50%;
+                transform: translateX(-50%);
+                margin: 0 0 28px;
             }
-            .dev-point {
-                padding: 16px;
-                border: 1px solid #eee;
+            .studio-screenshot img {
+                width: 100%;
+                border: 1px solid #ddd;
                 border-radius: 8px;
-            }
-            .dev-point strong {
                 display: block;
-                margin-bottom: 4px;
+                box-shadow: 0 6px 24px rgba(0,0,0,0.12);
             }
-            .dev-point p {
-                margin: 0;
-                font-size: 0.9em;
+            .feature-list {
+                max-width: 640px;
+                margin: 0 auto;
+                padding-left: 24px;
                 color: #555;
-                line-height: 1.5;
-            }
-            .dev-cta {
-                text-align: center;
-            }
-
-            /* Open source */
-            .oss-section {
-                padding: 40px 0;
-                border-top: 1px solid #eee;
-                text-align: center;
-            }
-            .oss-section h2 {
-                font-weight: lighter;
-                margin: 0 0 12px;
-                font-size: 1.5em;
-            }
-            .oss-section p {
-                color: #555;
-                line-height: 1.6;
-                max-width: 600px;
-                margin: 0 auto 20px;
+                line-height: 1.7;
                 font-size: 0.95em;
+            }
+            .feature-list li { margin-bottom: 10px; }
+            .feature-list strong { color: #333; }
+            .oss-note {
+                text-align: center;
+                color: #888;
+                font-size: 0.9em;
+                margin: 24px 0 0;
             }
 
             /* Footer */
@@ -215,10 +202,10 @@
 
             @media (max-width: 640px) {
                 .hero h1 { font-size: 1.6em; }
-                .hero-buttons { gap: 12px; }
+                .section-cta { gap: 12px; }
                 .hero-cta { padding: 12px 24px; font-size: 1.1em; }
                 .featured-grid { grid-template-columns: 1fr; }
-                .dev-points { grid-template-columns: 1fr; }
+                .header-studio-link { right: 12px; padding: 6px 12px; font-size: 0.85em; }
             }
         </style>
     </head>
@@ -233,13 +220,14 @@
             <div id="page-container">
                 <div id="header" class="clickable">
                     <div onclick="goHome()" class="hg-button clickable" id="logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png" /></div>
+                    <a href="/studio.html" class="header-studio-link amateur">Developer Studio</a>
                 </div>
                 <div id="content">
 
                     <!-- Hero -->
                     <div class="hero amateur">
                         <h1>Homegames is a free and open-source game platform.</h1>
-                        <p>Build, play and share games in your browser. No account required to play games. A free account with email verification is required to publish.</p>
+                        <p>Play, make and share games in your browser. No account required to play.</p>
                     </div>
 
                     <!-- Games -->
@@ -248,77 +236,35 @@
                         <div class="featured-grid" id="featured-grid">
                             <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 24px;">Loading...</div>
                         </div>
-                        <div class="featured-more"><a href="/catalog.html">browse the catalog →</a></div>
+                        <div class="section-cta"><a href="/catalog.html" class="hero-cta games">Browse the Catalog</a></div>
                     </div>
 
-                    <!-- Main navigation buttons -->
-                    <div class="landing-section cta-section amateur">
-                        <div class="hero-buttons">
-                            <a href="/studio.html" class="hero-cta studio">Studio</a>
-                            <a href="/catalog.html" class="hero-cta games">Games</a>
-                            <a href="/self-hosting.html" class="hero-cta self-hosting">Self Hosting</a>
+                    <!-- Developer Studio -->
+                    <div class="landing-section dev-section amateur">
+                        <div class="studio-screenshot" id="studio-screenshot">
+                            <img src="https://api.homegames.io/assets/15c42c63ac3059db66644668c53cac7e" alt="The Homegames Studio editor">
+                        </div>
+                        <ul class="feature-list">
+                            <li><strong>Make games in your browser with a simple code editor</strong></li>
+                            <li><strong>Live game preview lets you test your changes with live multiplayer sessions</strong></li>
+                            <li><strong>Manage game assets right from the studio. Upload your own files or draw/record something in the studio.</strong></li>
+                            <li><strong>Publish games if you want to share them with the world. Or you can just keep them to yourself.</strong></li>
+                        </ul>
+                        <div class="section-cta"><a href="/studio.html" class="hero-cta studio">Open the Studio</a></div>
+                    </div>
+
+                    <!-- Open source -->
+                    <div class="landing-section dev-section amateur">
+                        <h2>Open Source</h2>
+                        <ul class="feature-list">
+                            <li><strong>Everything is GPLv3</strong> from the platform code to the games to this website. You can read the code and fork it if you want to.</li>
+                            <li><strong>Self-host on your own hardware.</strong> Homegames was designed to be self-hostable, including the API.</li>
+                            <li><strong>Preservation.</strong> If this website gets hit by a bus, your games can live on.</li>
+                        </ul>
+                        <div class="section-cta">
                             <a href="https://github.com/homegamesio" target="_blank" class="hero-cta github">GitHub</a>
                         </div>
-                    </div>
-
-                    <!-- How it works -->
-                    <div class="landing-section dev-section amateur">
-                        <h2>How it works</h2>
-                        <div class="dev-points">
-                            <div class="dev-point">
-                                <strong>Play in the browser</strong>
-                                <p>No download, no account. Someone sends you a link and you're in. Works on anything with a browser.</p>
-                            </div>
-                            <div class="dev-point">
-                                <strong>Multiplayer is handled for you</strong>
-                                <p>Your game code runs on the server. Clients connect over WebSocket. You don't write any networking code, Homegames does that part.</p>
-                            </div>
-                            <div class="dev-point">
-                                <strong>Build games in the browser</strong>
-                                <p>There's a browser-based studio with a code editor, asset management, live preview you can share with people, and publishing. No local setup needed.</p>
-                            </div>
-                            <div class="dev-point">
-                                <strong>Just JavaScript</strong>
-                                <p>Games are JavaScript classes. You define shapes, text, and assets using a simple library called SquishJS. No engine to learn.</p>
-                            </div>
-                            <div class="dev-point">
-                                <strong>Everything is open source</strong>
-                                <p>All platform code and every published game is GPLv3. You can read the source of any game on the platform, fork it, learn from it.</p>
-                            </div>
-                            <div class="dev-point">
-                                <strong>Run it yourself</strong>
-                                <p>You can self-host the game server on your own machine. People on your network can connect and play. No cloud, no third party.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- For developers -->
-                    <div class="landing-section dev-section amateur">
-                        <h2>For developers</h2>
-                        <div class="dev-points">
-                            <div class="dev-point">
-                                <strong>Free developer account</strong>
-                                <p>Pick a display name, verify your email, and start building. Verification keeps the platform accountable.</p>
-                            </div>
-                            <div class="dev-point">
-                                <strong>Shared asset catalog</strong>
-                                <p>There's a public catalog of images, audio, and fonts that any developer can use in their games. You can contribute your own too.</p>
-                            </div>
-                            <div class="dev-point">
-                                <strong>Versioning</strong>
-                                <p>Publish new versions of your game whenever you want. Old versions stay playable.</p>
-                            </div>
-                            <div class="dev-point">
-                                <strong>Accept BTC</strong>
-                                <p>Put a BTC address on your developer profile. No platform cut, no middleman.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- About -->
-                    <div class="landing-section oss-section amateur">
-                        <p>Homegames has been in development as a (mostly) solo side project since 2018.</p>
-                        <a href="https://github.com/homegamesio" target="_blank" class="hero-btn" style="background: #333; color: #fff;">GitHub</a>
+                        <p class="oss-note">Homegames has been in development as a (mostly) solo side project since 2018.</p>
                     </div>
 
                     <!-- Footer -->
