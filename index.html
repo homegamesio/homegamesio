@@ -16,7 +16,7 @@
             /* Hero */
             .hero {
                 text-align: center;
-                padding: 60px 24px 40px;
+                padding: 60px 24px 0;
             }
             .hero h1 {
                 font-size: 2.2em;
@@ -27,8 +27,11 @@
             .hero p {
                 font-size: 1.1em;
                 color: #555;
-                margin: 0 0 36px;
+                margin: 0;
                 line-height: 1.6;
+            }
+            .cta-section {
+                padding: 8px 0 48px;
             }
             .hero-buttons {
                 display: flex;
@@ -36,22 +39,30 @@
                 gap: 20px;
                 flex-wrap: wrap;
             }
-            .hero-circle {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 100px;
-                height: 100px;
-                border-radius: 50%;
-                font-size: 1em;
+            .hero-cta {
+                display: inline-block;
+                padding: 14px 36px;
+                border-radius: 8px;
+                font-size: 1.3em;
+                font-weight: bold;
                 text-decoration: none;
                 font-family: 'amateur', sans-serif;
-                color: #222;
-                transition: opacity 0.15s;
-                text-align: center;
-                line-height: 1.2;
+                color: #1a1a2e;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+                transition: background 0.15s, box-shadow 0.15s, transform 0.15s;
             }
-            .hero-circle:hover { opacity: 0.8; }
+            .hero-cta:hover {
+                box-shadow: 0 3px 8px rgba(0,0,0,0.18);
+                transform: translateY(-1px);
+            }
+            .hero-cta.studio { background: #94D2E5; }
+            .hero-cta.studio:hover { background: #7bc4db; }
+            .hero-cta.games { background: #A0EB5D; }
+            .hero-cta.games:hover { background: #8cd94f; }
+            .hero-cta.self-hosting { background: #F1706F; }
+            .hero-cta.self-hosting:hover { background: #ee5a59; }
+            .hero-cta.github { background: #FFF78E; }
+            .hero-cta.github:hover { background: #f7ec6b; }
             .hero-btn {
                 display: inline-block;
                 padding: 14px 36px;
@@ -204,7 +215,8 @@
 
             @media (max-width: 640px) {
                 .hero h1 { font-size: 1.6em; }
-                .hero-circle { width: 80px; height: 80px; font-size: 0.85em; }
+                .hero-buttons { gap: 12px; }
+                .hero-cta { padding: 12px 24px; font-size: 1.1em; }
                 .featured-grid { grid-template-columns: 1fr; }
                 .dev-points { grid-template-columns: 1fr; }
             }
@@ -228,18 +240,6 @@
                     <div class="hero amateur">
                         <h1>Homegames is a free and open-source game platform.</h1>
                         <p>Build, play and share games in your browser. No account required to play games. A free account with email verification is required to publish.</p>
-                        <div id="top-buttons" class="amateur">
-                            <div style="width: 100%; display: flex; justify-content: center;">
-                                <a style="text-decoration: none; background: rgba(148, 210, 229, 255); font-family: 'amateur'; font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" href="/studio.html" class="clickable hg-button content-button">Studio</a>
-                            </div>
-                            <div style="width: 100%; display: flex; justify-content: center;">
-                                <a style="text-decoration: none; background: #A0EB5D; font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px; margin-right: 160px;" href="/catalog.html" class="clickable hg-button content-button">Games</a>
-                                <a style="text-decoration: none; background: rgba(241, 112, 111, 255); font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" href="/self-hosting.html" class="clickable hg-button content-button">Self Hosting</a>
-                            </div>
-                            <div style="width: 100%; display: flex; justify-content: center;">
-                                <a style="text-decoration: none; background: rgba(255, 247, 142, 255); font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" href="https://github.com/homegamesio" target="_blank" class="clickable hg-button content-button">GitHub</a>
-                            </div>
-                        </div>
                     </div>
 
                     <!-- Games -->
@@ -249,6 +249,16 @@
                             <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 24px;">Loading...</div>
                         </div>
                         <div class="featured-more"><a href="/catalog.html">browse the catalog →</a></div>
+                    </div>
+
+                    <!-- Main navigation buttons -->
+                    <div class="landing-section cta-section amateur">
+                        <div class="hero-buttons">
+                            <a href="/studio.html" class="hero-cta studio">Studio</a>
+                            <a href="/catalog.html" class="hero-cta games">Games</a>
+                            <a href="/self-hosting.html" class="hero-cta self-hosting">Self Hosting</a>
+                            <a href="https://github.com/homegamesio" target="_blank" class="hero-cta github">GitHub</a>
+                        </div>
                     </div>
 
                     <!-- How it works -->

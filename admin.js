@@ -154,6 +154,13 @@ const RESOURCES = {
         ],
         del: r => ({ method: 'DELETE', path: `/games/${encodeURIComponent(r.gameId)}`,
             confirm: `Delete game "${r.name}"? This cannot be undone.` }),
+        extra: (r, reload) => {
+            const btn = document.createElement('button');
+            btn.textContent = r.featured ? '★ Unfeature' : '☆ Feature';
+            btn.onclick = () => api('POST', `/admin/games/${encodeURIComponent(r.gameId)}/feature`, {})
+                .then(reload).catch(showErr);
+            return [btn];
+        },
     },
     assets: {
         endpoint: '/admin/assets',

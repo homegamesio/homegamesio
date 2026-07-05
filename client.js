@@ -3,7 +3,7 @@ window.API_HOST = 'api.homegames.io';//'api.homegames.io';//'api.homegames.io';/
 window.API_PORT = 443;
 
 window.API_URL = `${window.API_PROTOCOL}://${window.API_HOST}:${window.API_PORT}`;
-window.HOMENAMES_URL = 'https://api.homegames.io/homenames';
+window.HOMENAMES_URL = 'https://core.homegames.io:7400';//api.homegames.io/homenames';
 
 
 
@@ -52,47 +52,11 @@ const makeGet = (endpoint, headers, isBlob) => new Promise((resolve, reject) => 
     xhr.send();
 });
 
-const makeDelete = (endpoint) => new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('DELETE', endpoint, true);
-
-    if (window.hgUserInfo) {
-        xhr.setRequestHeader('Authorization', `Bearer ${window.hgUserInfo.token}`);
-    }
-
-    xhr.onreadystatechange = () => {
-        if (xhr.readyState === XMLHttpRequest.DONE) {
-            if (xhr.status >= 200 && xhr.status < 300) {
-                if (!xhr.response) {
-                    resolve(null);
-                    return;
-                }
-                try {
-                    resolve(JSON.parse(xhr.response));
-                } catch (e) {
-                    resolve(xhr.response);
-                }
-            } else {
-                reject(xhr.response);
-            }
-        }
-    };
-
-    xhr.send('');
-});
-
-
 const makePost = (endpoint, payload, notJson, useAuth)  => new Promise((resolve, reject) => {
     var xhr = new XMLHttpRequest();
     xhr.open("POST", endpoint, true);
     console.log('posting to ' + endpoint);
 
-    if (window.hgUserInfo) {
-//        xhr.setRequestHeader('hg-username', window.hgUserInfo.username);
-//        xhr.setRequestHeader('hg-token', window.hgUserInfo.token);
-        xhr.setRequestHeader('Authorization', `Bearer ${window.hgUserInfo.token}`);
-    }
- 
     xhr.setRequestHeader("Content-Type", "application/json");
 
     xhr.onreadystatechange = () => {
@@ -363,68 +327,6 @@ const renderGamePage = (gameId, gameDetails) => {
     col2.appendChild(description);
     col2.appendChild(stats);
 
-    const isAdmin = window.isHgAdmin && window.isHgAdmin();
-    const isOwner = window.hgUserInfo && window.hgUserInfo.username === gameDetails?.game?.developerId;
-
-    if (isAdmin || isOwner) {
-        const actionBar = document.createElement('div');
-        actionBar.style = 'grid-column: 1 / -1; margin-bottom: 8px; padding: 12px 16px; border: 1px solid ' + (isAdmin ? 'rgba(241, 112, 111, 0.6)' : '#ddd') + '; border-radius: 8px; background: ' + (isAdmin ? 'rgba(241, 112, 111, 0.08)' : '#fafafa') + '; display: flex; align-items: center; justify-content: space-between; gap: 12px;';
-
-        const label = document.createElement('span');
-        label.className = 'amateur';
-        label.style = 'color: ' + (isAdmin ? '#F1706F' : '#555') + ';';
-        label.textContent = isAdmin ? 'Admin' : 'Your Game';
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.type = 'button';
-        deleteBtn.textContent = 'Delete game';
-        deleteBtn.className = 'clickable amateur';
-        deleteBtn.style = 'background: #F1706F; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 1em;';
-        deleteBtn.onclick = () => {
-            const gameName = gameDetails?.game?.name || gameId;
-            if (!confirm(`Permanently delete "${gameName}" and all of its versions? This cannot be undone.`)) return;
-            deleteBtn.disabled = true;
-            deleteBtn.textContent = 'Deleting...';
-            makeDelete(`${API_URL}/games/${gameId}`).then(() => {
-                window.location.href = '/catalog.html';
-            }).catch((err) => {
-                deleteBtn.disabled = false;
-                deleteBtn.textContent = 'Delete game';
-                alert('Failed to delete game');
-                console.error(err);
-            });
-        };
-
-        const btnGroup = document.createElement('div');
-        btnGroup.style = 'display: flex; gap: 8px;';
-
-        if (isAdmin) {
-            const featureBtn = document.createElement('button');
-            featureBtn.type = 'button';
-            featureBtn.className = 'clickable amateur';
-            featureBtn.style = 'background: #f7931a; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 1em;';
-            featureBtn.textContent = gameDetails?.game?.featured ? '★ Unfeature' : '☆ Feature';
-            featureBtn.onclick = () => {
-                featureBtn.disabled = true;
-                makePost(`${API_URL}/admin/games/${gameId}/feature`, {}).then((data) => {
-                    const result = typeof data === 'string' ? JSON.parse(data) : data;
-                    featureBtn.textContent = result.featured ? '★ Unfeature' : '☆ Feature';
-                    featureBtn.disabled = false;
-                }).catch((err) => {
-                    featureBtn.disabled = false;
-                    alert('Failed to toggle featured');
-                    console.error(err);
-                });
-            };
-            btnGroup.appendChild(featureBtn);
-        }
-
-        btnGroup.appendChild(deleteBtn);
-        actionBar.appendChild(label);
-        actionBar.appendChild(btnGroup);
-        container.insertBefore(actionBar, container.firstChild);
-    }
-
     // --- Column 3: Play section ---
     const col3 = document.createElement('div');
     col3.style = 'text-align: center; padding-top: 24px;';
@@ -679,47 +581,6 @@ const renderDevProfile = (devId, devInfo) => {
         aboutSection.appendChild(aboutBody);
 
         container.appendChild(aboutSection);
-    }
-
-    // --- Admin controls ---
-    if (window.isHgAdmin && window.isHgAdmin()) {
-        const adminBar = document.createElement('div');
-        adminBar.style = 'display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border: 1px solid rgba(241, 112, 111, 0.6); border-radius: 8px; background: rgba(241, 112, 111, 0.08); margin-bottom: 24px;';
-
-        const adminLabel = document.createElement('span');
-        adminLabel.className = 'amateur';
-        adminLabel.style = 'color: #F1706F;';
-        adminLabel.textContent = 'Admin';
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.type = 'button';
-        deleteBtn.className = 'clickable amateur';
-        deleteBtn.style = 'background: #F1706F; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 1em;';
-        deleteBtn.textContent = 'Delete developer';
-        deleteBtn.onclick = () => {
-            if (!confirm(`Permanently delete developer "${devId}" and all of their games, assets, and data? This cannot be undone.`)) return;
-            deleteBtn.disabled = true;
-            deleteBtn.textContent = 'Deleting...';
-            const xhr = new XMLHttpRequest();
-            xhr.open('DELETE', `${API_URL}/admin/developers/${devId}`, true);
-            if (window.hgUserInfo) xhr.setRequestHeader('Authorization', `Bearer ${window.hgUserInfo.token}`);
-            xhr.onreadystatechange = () => {
-                if (xhr.readyState === XMLHttpRequest.DONE) {
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        window.location.href = '/catalog.html';
-                    } else {
-                        deleteBtn.disabled = false;
-                        deleteBtn.textContent = 'Delete developer';
-                        alert('Failed to delete developer');
-                    }
-                }
-            };
-            xhr.send();
-        };
-
-        adminBar.appendChild(adminLabel);
-        adminBar.appendChild(deleteBtn);
-        container.appendChild(adminBar);
     }
 
     // --- BTC address section ---
@@ -1346,74 +1207,4 @@ window.loadMap = () => {
 };
 
 window.showGamePage = showGamePage;
-
-// ---------------------------------------------------------------------------
-// Admin (browser console: adminLogin('username', 'password'))
-// ---------------------------------------------------------------------------
-
-const HG_ADMIN_STORAGE_KEY = 'hgAdminSession';
-
-const enableAdminFeatures = () => {
-    window.hgAdminEnabled = true;
-    document.documentElement.setAttribute('data-hg-admin', '');
-};
-
-const disableAdminFeatures = () => {
-    window.hgAdminEnabled = false;
-    window.hgUserInfo = null;
-    document.documentElement.removeAttribute('data-hg-admin');
-    try {
-        sessionStorage.removeItem(HG_ADMIN_STORAGE_KEY);
-    } catch (e) {}
-};
-
-const persistAdminSession = () => {
-    try {
-        sessionStorage.setItem(HG_ADMIN_STORAGE_KEY, JSON.stringify(window.hgUserInfo));
-    } catch (e) {}
-};
-
-const restoreAdminSession = () => {
-    try {
-        const raw = sessionStorage.getItem(HG_ADMIN_STORAGE_KEY);
-        if (!raw) return;
-        const info = JSON.parse(raw);
-        if (info && info.token && info.isAdmin) {
-            window.hgUserInfo = info;
-            enableAdminFeatures();
-        }
-    } catch (e) {}
-};
-
-console.log('wot mate');
-const adminLogin = (username, password) => makePost(`${API_URL}/auth/login`, {
-    username,
-    password,
-    type: 'login',
-}).then((data) => {
-    if (!data || !data.token) {
-        return Promise.reject(new Error('Login failed'));
-    }
-    if (!data.isAdmin) {
-        return Promise.reject(new Error('Account is not an admin'));
-    }
-    window.hgUserInfo = {
-        username: data.username,
-        token: data.token,
-        isAdmin: true,
-    };
-    enableAdminFeatures();
-    persistAdminSession();
-    console.log(`Admin session enabled for ${data.username}`);
-    return window.hgUserInfo;
-});
-
-window.adminLogin = adminLogin;
-window.adminLogout = () => {
-    disableAdminFeatures();
-    console.log('Admin session ended');
-};
-window.isHgAdmin = () => !!(window.hgAdminEnabled && window.hgUserInfo && window.hgUserInfo.isAdmin);
-
-restoreAdminSession();
 

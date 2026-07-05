@@ -4,7 +4,7 @@
 
 //const API_URL = 'http://localhost';
 const API_URL = 'https://api.homegames.io';//'http://localhost:80';
-const HOMENAMES_URL = 'https://api.homegames.io/homenames';
+const HOMENAMES_URL = 'https://core.homegames.io:7400';//'https://api.homegames.io/homenames';
 
 // ---------------------------------------------------------------------------
 // State
@@ -54,6 +54,34 @@ const api = (method, path, body) => new Promise((resolve, reject) => {
 const setStatus = (msg) => { const el = $('status-msg'); if (el) el.innerHTML = msg; };
 const hasUnsavedChanges = () => Object.values(openFiles).some(f => f.dirty);
 const confirmDiscard = () => confirm('You have unsaved changes. Discard them?');
+
+// ---------------------------------------------------------------------------
+// Blade navigation — three columns of increasing specificity (games → game →
+// version), Xbox-360-blades style: the active blade fills the screen, the
+// others collapse to clickable vertical strips.
+// ---------------------------------------------------------------------------
+
+let editorBladeOpened = false; // blade 3 stays hidden until a version is opened
+
+const setActiveBlade = (name) => {
+    // Fall back to the deepest reachable blade.
+    if (name === 'editor' && !editorBladeOpened) name = 'game';
+    if (name !== 'games' && !currentGame) name = 'games';
+    const blades = {
+        games: { el: $('blade-games'), available: true },
+        game: { el: $('blade-game'), available: !!currentGame },
+        editor: { el: $('blade-editor'), available: !!currentGame && editorBladeOpened },
+    };
+    Object.entries(blades).forEach(([key, { el, available }]) => {
+        if (!el) return;
+        el.classList.remove('expanded', 'strip', 'hidden');
+        el.classList.add(!available ? 'hidden' : key === name ? 'expanded' : 'strip');
+    });
+};
+
+document.querySelectorAll('.blade-strip').forEach(strip => {
+    strip.onclick = () => setActiveBlade(strip.dataset.blade);
+});
 
 // ---------------------------------------------------------------------------
 // Auth
@@ -241,8 +269,16 @@ const renderGameList = () => {
     games.forEach(game => {
         const el = document.createElement('div');
         el.className = 'game-item' + (currentGame && currentGame.id === game.id ? ' active' : '');
-        el.textContent = game.name;
-        el.title = game.description || game.name;
+        const name = document.createElement('span');
+        name.className = 'game-item-name';
+        name.textContent = game.name;
+        el.appendChild(name);
+        if (game.description) {
+            const desc = document.createElement('span');
+            desc.className = 'game-item-desc';
+            desc.textContent = game.description;
+            el.appendChild(desc);
+        }
         el.onclick = () => selectGame(game);
         list.appendChild(el);
     });
@@ -253,6 +289,8 @@ const renderGameList = () => {
 // ---------------------------------------------------------------------------
 
 const selectGame = (game) => {
+    // Re-clicking the already-loaded game just navigates to its blade.
+    if (currentGame && currentGame.id === game.id) { setActiveBlade('game'); return; }
     if (currentGame && hasUnsavedChanges() && !confirmDiscard()) return;
     stopPreview();
     currentGame = game;
@@ -262,21 +300,19 @@ const selectGame = (game) => {
     versionPage = 1;
     viewingVersion = null;
     publishStatuses = {};
+    editorBladeOpened = false;
     renderGameList();
+    renderGameBlade();
     renderGameView();
     loadFiles();
     loadVersions();
     loadPublishStatuses();
-
+    setActiveBlade('game');
 };
 
-const goHome = () => {
-    if (currentGame && hasUnsavedChanges() && !confirmDiscard()) return;
-    stopPreview();
-    currentGame = null; currentFile = null; openFiles = {}; viewingVersion = null;
-    renderGameList();
-    $('main-content').innerHTML = '<div id="welcome-pane">Select a game or create a new one</div>';
-};
+// The logo just navigates back to the games blade — the loaded game keeps its
+// state (including any unsaved edits) in the collapsed blades.
+const goHome = () => setActiveBlade('games');
 
 $('logo-btn').onclick = goHome;
 $('header-asset-btn').onclick = () => openAssetModal();
@@ -418,7 +454,8 @@ const renderGameView = () => {
     }
     header.appendChild(left);
 
-    // Dashboard: big labeled buttons, all visible because they're all "game stuff".
+    // Dashboard: only version-level actions live here — game-wide actions
+    // (publish, settings, delete) belong to the game blade.
     const dash = document.createElement('div');
     dash.className = 'game-dashboard';
     const dashBtn = (label, cls, onClick, id) => {
@@ -432,29 +469,15 @@ const renderGameView = () => {
     };
 
     dashBtn('▶ Play', '', togglePreviewPanel, 'preview-toggle-btn');
-    dashBtn('🕘 Versions', '', toggleVersionsPanel, 'versions-toggle-btn');
     dashBtn('✨ AI Edit', '', () => {
         if (viewingVersion) { alert('Switch back to HEAD to use AI edits'); return; }
         showLLMModal();
     });
-    dashBtn('⚙ Settings', '', toggleSettingsPanel, 'settings-toggle-btn');
-    dashBtn('📦 Publish', 'publish', publishLatest);
-
-    const deleteGameBtn = dashBtn('🗑 Delete', 'danger', () => {
-        if (!confirm(`Permanently delete "${currentGame.name}" and all of its versions? This cannot be undone.`)) return;
-        deleteGameBtn.disabled = true;
-        deleteGameBtn.textContent = 'Deleting...';
-        api('DELETE', `/games/${currentGame.id}`).then(() => {
-            currentGame = null;
-            loadGames();
-            goHome();
-            setStatus('Game deleted');
-        }).catch(() => {
-            deleteGameBtn.disabled = false;
-            deleteGameBtn.textContent = '🗑 Delete';
-            setStatus('Failed to delete game');
-        });
-    });
+    // Only visible when viewing a historical version (toggled by updateVersionBadge).
+    const restoreBtn = dashBtn('↩ Restore', 'publish', () => {
+        if (viewingVersion) restoreVersion(viewingVersion);
+    }, 'header-restore-btn');
+    restoreBtn.style.display = 'none';
 
     header.appendChild(dash);
     main.appendChild(header);
@@ -518,22 +541,6 @@ const renderGameView = () => {
     });
     editorArea.appendChild(editorPane);
 
-    // Version panel (right sidebar) — hidden until the Versions button asks for it.
-    const versionPanel = document.createElement('div');
-    versionPanel.id = 'version-panel';
-    versionPanel.classList.add('collapsed');
-    const vpHeader = document.createElement('div');
-    vpHeader.id = 'version-panel-header';
-    vpHeader.innerHTML = '<span>Versions</span>';
-    versionPanel.appendChild(vpHeader);
-    const versionList = document.createElement('div');
-    versionList.id = 'version-list';
-    versionPanel.appendChild(versionList);
-    const vpFooter = document.createElement('div');
-    vpFooter.id = 'version-panel-footer';
-    versionPanel.appendChild(vpFooter);
-    editorArea.appendChild(versionPanel);
-
     // Preview panel
     const previewPanel = document.createElement('div');
     previewPanel.id = 'preview-panel';
@@ -579,11 +586,6 @@ const renderGameView = () => {
     previewPanel.appendChild(previewLogs);
 
     editorArea.appendChild(previewPanel);
-
-    // Settings panel — inline, overlays the editor when open (no popovers).
-    const settingsPanel = document.createElement('div');
-    settingsPanel.id = 'settings-panel';
-    editorArea.appendChild(settingsPanel);
 
     main.appendChild(editorArea);
 
@@ -984,11 +986,11 @@ const renderVersionList = () => {
     if (!list) return;
     list.innerHTML = '';
 
-    // HEAD entry
+    // Pinned entry: the editable working copy (HEAD).
     const headEl = document.createElement('div');
-    headEl.className = 'version-item' + (!viewingVersion ? ' active' : '');
-    headEl.innerHTML = '<strong>HEAD</strong> <span class="v-sub">current</span>';
-    headEl.onclick = () => switchToHead();
+    headEl.className = 'version-item head-item' + (!viewingVersion && editorBladeOpened ? ' active' : '');
+    headEl.innerHTML = '<span class="head-title">✎ Current version (HEAD)</span><span class="head-sub">Open the editor — saving creates the next version</span>';
+    headEl.onclick = () => openEditorAtHead();
     list.appendChild(headEl);
 
     versions.forEach(v => {
@@ -1167,7 +1169,9 @@ const pollPublishStatus = (commitSha) => {
 };
 
 const viewVersion = (v) => {
+    if (viewingVersion && viewingVersion.sha === v.sha) { setActiveBlade('editor'); return; }
     if (hasUnsavedChanges() && !confirmDiscard()) return;
+    editorBladeOpened = true;
     viewingVersion = v;
     currentFile = null;
     openFiles = {};
@@ -1181,6 +1185,19 @@ const viewVersion = (v) => {
     if (textarea) { textarea.style.display = 'none'; textarea.readOnly = true; }
     if (placeholder) placeholder.style.display = 'flex';
     renderTabs();
+    setActiveBlade('editor');
+};
+
+// Open the editable working copy (HEAD) in the editor blade.
+const openEditorAtHead = () => {
+    editorBladeOpened = true;
+    if (viewingVersion) {
+        switchToHead();
+    } else {
+        updateVersionBadge();
+        renderVersionList();
+    }
+    setActiveBlade('editor');
 };
 
 const switchToHead = () => {
@@ -1201,13 +1218,17 @@ const switchToHead = () => {
 
 const updateVersionBadge = () => {
     const badge = $('version-badge');
-    if (!badge) return;
+    const stripLabel = $('blade-editor-label');
+    const restoreBtn = $('header-restore-btn');
     if (viewingVersion) {
-        badge.className = 'version-badge history';
-        badge.textContent = viewingVersion.sha.substring(0, 7);
+        const sha = viewingVersion.sha.substring(0, 7);
+        if (badge) { badge.className = 'version-badge history'; badge.textContent = sha; }
+        if (stripLabel) stripLabel.textContent = 'Version ' + sha;
+        if (restoreBtn) restoreBtn.style.display = '';
     } else {
-        badge.className = 'version-badge head';
-        badge.textContent = 'HEAD';
+        if (badge) { badge.className = 'version-badge head'; badge.textContent = 'HEAD'; }
+        if (stripLabel) stripLabel.textContent = 'Editor — HEAD';
+        if (restoreBtn) restoreBtn.style.display = 'none';
     }
 };
 
@@ -1224,6 +1245,8 @@ const restoreVersion = (v) => {
         .then(result => {
             setStatus(`Restored to ${v.sha.substring(0, 7)}`);
             // Switch back to HEAD view
+            editorBladeOpened = true;
+            setActiveBlade('editor');
             viewingVersion = null;
             currentFile = null;
             openFiles = {};
@@ -1287,10 +1310,6 @@ try {
         $('theme-toggle').textContent = '🌙';
     }
 } catch (e) {}
-
-$('sidebar-header').onclick = () => {
-    $('sidebar').classList.toggle('collapsed');
-};
 
 $('new-game-btn').onclick = () => showModal('new-game-modal', 'new-game-name');
 $('new-game-cancel').onclick = () => hideModal('new-game-modal');
@@ -1411,7 +1430,7 @@ $('llm-modal-submit').onclick = () => {
 };
 
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { hideModal('new-game-modal'); hideModal('new-file-modal'); hideModal('guide-modal'); hideModal('llm-modal'); closeAssetModal(); hideModal('asset-delete-confirm-modal'); hideModal('profile-modal'); }
+    if (e.key === 'Escape') { hideModal('new-game-modal'); hideModal('new-file-modal'); hideModal('guide-modal'); hideModal('snippets-modal'); hideModal('llm-modal'); closeAssetModal(); hideModal('asset-delete-confirm-modal'); hideModal('profile-modal'); }
 });
 
 // ---------------------------------------------------------------------------
@@ -1468,6 +1487,277 @@ $('guide-copy').onclick = () => {
 };
 
 // ---------------------------------------------------------------------------
+// Snippets — copy-paste building blocks for common game pieces.
+// Kept in sync with the authoring guide (squishjs-game-authoring.md).
+// ---------------------------------------------------------------------------
+
+const SNIPPETS = [
+    {
+        title: 'Shape',
+        blurb: 'A colored rectangle. coordinates2d is a vertex list in 0-100 space.',
+        code: [
+            "const box = new GameNode.Shape({",
+            "    shapeType: Shapes.POLYGON,",
+            "    coordinates2d: ShapeUtils.rectangle(40, 40, 20, 20),   // x, y, width, height",
+            "    fill: [0, 200, 255, 255]                               // [r, g, b, a]",
+            "});",
+            "this.base.addChild(box);"
+        ].join('\n')
+    },
+    {
+        title: 'Text',
+        blurb: 'A text label. size is % of screen WIDTH; Text nodes are never clickable.',
+        code: [
+            "const label = new GameNode.Text({",
+            "    textInfo: { text: 'Hello!', x: 50, y: 20, size: 3, align: 'center', color: [255, 255, 255, 255] }",
+            "});",
+            "this.base.addChild(label);",
+            "",
+            "// Update it later (the live field is node.text), then notify:",
+            "label.node.text = Object.assign({}, label.node.text, { text: 'New text' });",
+            "this.base.node.onStateChange();"
+        ].join('\n')
+    },
+    {
+        title: 'Button',
+        blurb: 'A clickable Shape with a Text label on top — the shape carries the onClick.',
+        code: [
+            "const button = new GameNode.Shape({",
+            "    shapeType: Shapes.POLYGON,",
+            "    coordinates2d: ShapeUtils.rectangle(38, 45, 24, 12),",
+            "    fill: [40, 120, 210, 255],",
+            "    onClick: (playerId, x, y) => {",
+            "        // do the thing",
+            "    }",
+            "});",
+            "button.addChild(new GameNode.Text({",
+            "    textInfo: { text: 'START', x: 50, y: 49, size: 2.2, align: 'center', color: [255, 255, 255, 255] }",
+            "}));",
+            "this.base.addChild(button);"
+        ].join('\n')
+    },
+    {
+        title: 'Image asset',
+        blurb: 'Declare the asset in metadata(), then draw it with a GameNode.Asset. (Open any asset and hit "Use in a game" to get this with the real id filled in.)',
+        code: [
+            "// In static metadata()  (also: const { Asset } = require('squish-142');)",
+            "assets: {",
+            "    'myImage': new Asset({ id: 'PASTE-ASSET-ID-HERE', type: 'image' })",
+            "},",
+            "",
+            "// Drawing it:",
+            "const image = new GameNode.Asset({",
+            "    coordinates2d: ShapeUtils.rectangle(30, 30, 40, 40),",
+            "    assetInfo: {",
+            "        'myImage': { pos: { x: 30, y: 30 }, size: { x: 40, y: 40 } }",
+            "    }",
+            "});",
+            "this.base.addChild(image);"
+        ].join('\n')
+    },
+    {
+        title: 'Sound',
+        blurb: 'Audio is an Asset node with zero size — add it to play, remove it to stop.',
+        code: [
+            "// In static metadata():",
+            "assets: {",
+            "    'mySound': new Asset({ id: 'PASTE-ASSET-ID-HERE', type: 'audio' })",
+            "},",
+            "",
+            "// Playing it:",
+            "const sound = new GameNode.Asset({",
+            "    coordinates2d: ShapeUtils.rectangle(0, 0, 0, 0),",
+            "    assetInfo: { 'mySound': { pos: { x: 0, y: 0 }, size: { x: 0, y: 0 }, startTime: 0 } }",
+            "});",
+            "this.base.addChild(sound);",
+            "this.setTimeout(() => this.base.removeChild(sound.id), 1000);"
+        ].join('\n')
+    },
+    {
+        title: 'Glow + fade',
+        blurb: 'Glow via effects.shadow (Shape/Asset only). Fade by animating the color alpha — fill alpha renders all-or-nothing.',
+        code: [
+            "const orb = new GameNode.Shape({",
+            "    shapeType: Shapes.POLYGON,",
+            "    coordinates2d: ShapeUtils.rectangle(45, 45, 10, 10),",
+            "    fill: [0, 255, 255, 255],",
+            "    color: [0, 255, 255, 255],   // fade by animating THIS alpha",
+            "    effects: { shadow: { color: [0, 255, 255, 255], blur: 14 } }",
+            "});",
+            "this.base.addChild(orb);",
+            "",
+            "// In tick(): fade it out (then one onStateChange at the end)",
+            "orb.node.color = [0, 255, 255, Math.round(255 * lifeRemaining / lifeTotal)];",
+            "// Clear a glow with null, never {}:",
+            "orb.node.effects = null;"
+        ].join('\n')
+    },
+    {
+        title: 'Per-player visibility',
+        blurb: 'playerIds: [] (or omitted) = everyone, [id] = only them, [0] = NOBODY (hide). Great for private info and "YOU" markers.',
+        code: [
+            "// Only this player sees their own marker:",
+            "const youMarker = new GameNode.Text({",
+            "    textInfo: { text: 'YOU', x: 50, y: 8, size: 1.5, align: 'center', color: [255, 210, 90, 255] },",
+            "    playerIds: [playerId]",
+            "});",
+            "this.base.addChild(youMarker);",
+            "",
+            "// Hide a node from everyone / show it again:",
+            "node.node.playerIds = [0];   // hidden",
+            "node.node.playerIds = [];    // visible to all",
+            "this.base.node.onStateChange();"
+        ].join('\n')
+    },
+    {
+        title: 'Layers that never eat clicks',
+        blurb: 'Clicks resolve to the TOPMOST node containing the point, clickable or not. Grouping containers must be zero-size; full-screen tap input needs a catcher above the playfield, below the buttons.',
+        code: [
+            "// Grouping container (holds children, can never swallow a click):",
+            "const layer = new GameNode.Shape({",
+            "    shapeType: Shapes.POLYGON,",
+            "    coordinates2d: ShapeUtils.rectangle(0, 0, 0, 0)",
+            "});",
+            "",
+            "// Tap-anywhere input (invisible, drawn above the playfield):",
+            "const tapCatcher = new GameNode.Shape({",
+            "    shapeType: Shapes.POLYGON,",
+            "    coordinates2d: ShapeUtils.rectangle(0, 0, 100, 100),",
+            "    onClick: (playerId, x, y) => this.handleTap(playerId, x, y)",
+            "});",
+            "// order matters: playfield first, then tapCatcher, then buttons",
+            "this.base.addChildren(playfield, tapCatcher, buttons);"
+        ].join('\n')
+    },
+    {
+        title: 'Game loop',
+        blurb: 'Set tickRate in metadata() (15-30 for action games) and do all mutations in tick(), ending with ONE onStateChange.',
+        code: [
+            "// In static metadata():  tickRate: 20,",
+            "",
+            "tick() {",
+            "    this.t = (this.t || 0) + 1;",
+            "",
+            "    // move things, count down timers (durations = seconds * tickRate)...",
+            "    if (this.t >= this.nextSpawnAt) {",
+            "        this.spawnThing();",
+            "        this.nextSpawnAt = this.t + 2 * 20;   // every 2 seconds",
+            "    }",
+            "",
+            "    this.base.node.onStateChange();   // one notify per tick",
+            "}"
+        ].join('\n')
+    }
+];
+
+const copySnippet = (text, btn) => {
+    const originalLabel = btn.textContent;
+    const done = (ok) => {
+        btn.textContent = ok ? 'Copied!' : 'Copy failed';
+        setTimeout(() => { btn.textContent = originalLabel; }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => done(true)).catch(() => done(false));
+    } else {
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        try { done(document.execCommand('copy')); } catch (e) { done(false); }
+        document.body.removeChild(ta);
+    }
+};
+
+let _snippetsRendered = false;
+const renderSnippets = () => {
+    if (_snippetsRendered) return;
+    _snippetsRendered = true;
+    const list = $('snippets-list');
+    SNIPPETS.forEach(snippet => {
+        const item = document.createElement('div');
+        item.style = 'margin-bottom:14px;';
+
+        const header = document.createElement('div');
+        header.style = 'display:flex;justify-content:space-between;align-items:baseline;gap:8px;';
+        const title = document.createElement('div');
+        title.style = 'font-weight:bold;color:var(--text-primary,#eee);';
+        title.textContent = snippet.title;
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.className = 'modal-btn secondary';
+        copyBtn.style = 'padding:2px 10px;font-size:0.8em;';
+        copyBtn.textContent = 'Copy';
+        copyBtn.onclick = () => copySnippet(snippet.code, copyBtn);
+        header.appendChild(title);
+        header.appendChild(copyBtn);
+
+        const blurb = document.createElement('div');
+        blurb.style = 'color:#888;font-size:0.8em;margin:2px 0 4px;';
+        blurb.textContent = snippet.blurb;
+
+        const pre = document.createElement('pre');
+        pre.style = 'background:#11131a;color:#cdd2dc;padding:10px;border-radius:6px;overflow:auto;font:12px/1.5 ui-monospace,monospace;margin:0;';
+        pre.textContent = snippet.code;
+
+        item.appendChild(header);
+        item.appendChild(blurb);
+        item.appendChild(pre);
+        list.appendChild(item);
+    });
+};
+
+// Guarded so a stale cached studio.html (without these elements) can't
+// throw here and kill everything below this point in the script.
+const snippetsBtn = $('snippets-btn');
+if (snippetsBtn) snippetsBtn.onclick = () => { renderSnippets(); showModal('snippets-modal'); };
+const snippetsCloseBtn = $('snippets-close');
+if (snippetsCloseBtn) snippetsCloseBtn.onclick = () => hideModal('snippets-modal');
+
+// Build a paste-ready snippet for a specific asset (used by the asset detail
+// modal's "Use in a game" button). Adapts to the asset's type.
+const buildAssetSnippet = (asset) => {
+    const type = getAssetType(asset);
+    const rawName = (asset.name || 'myAsset').replace(/\.[a-z0-9]+$/i, '');
+    const key = (rawName.replace(/[^a-zA-Z0-9]+([a-zA-Z0-9])/g, (m, c) => c.toUpperCase()).replace(/^[^a-zA-Z]+/, '') || 'myAsset');
+    const declare = [
+        "// 1) In static metadata()  (also: const { Asset } = require('squish-142');)",
+        "assets: {",
+        "    '" + key + "': new Asset({ id: '" + asset.id + "', type: '" + (type === 'other' ? 'image' : type) + "' })",
+        "},",
+        ""
+    ];
+    if (type === 'audio') {
+        return declare.concat([
+            "// 2) Play it (add to the tree = play, remove = stop):",
+            "const " + key + "Sound = new GameNode.Asset({",
+            "    coordinates2d: ShapeUtils.rectangle(0, 0, 0, 0),",
+            "    assetInfo: { '" + key + "': { pos: { x: 0, y: 0 }, size: { x: 0, y: 0 }, startTime: 0 } }",
+            "});",
+            "this.base.addChild(" + key + "Sound);",
+            "this.setTimeout(() => this.base.removeChild(" + key + "Sound.id), 1000);"
+        ]).join('\n');
+    }
+    if (type === 'font') {
+        return declare.concat([
+            "// 2) Use it on any Text node via textInfo.font:",
+            "const styled = new GameNode.Text({",
+            "    textInfo: { text: 'Styled!', x: 50, y: 40, size: 3, align: 'center', color: [255, 255, 255, 255], font: '" + key + "' }",
+            "});",
+            "this.base.addChild(styled);"
+        ]).join('\n');
+    }
+    return declare.concat([
+        "// 2) Draw it:",
+        "const " + key + "Image = new GameNode.Asset({",
+        "    coordinates2d: ShapeUtils.rectangle(30, 30, 40, 40),",
+        "    assetInfo: {",
+        "        '" + key + "': { pos: { x: 30, y: 30 }, size: { x: 40, y: 40 } }",
+        "    }",
+        "});",
+        "this.base.addChild(" + key + "Image);"
+    ]).join('\n');
+};
+
+// ---------------------------------------------------------------------------
 // Warn on unload
 // ---------------------------------------------------------------------------
 
@@ -1496,34 +1786,50 @@ const togglePreviewPanel = () => {
     }
 };
 
-// Toggle the version-history panel (hidden by default for a clean workspace).
-const toggleVersionsPanel = () => {
-    const panel = $('version-panel');
-    if (!panel) return;
-    const nowCollapsed = panel.classList.toggle('collapsed');
-    const btn = $('versions-toggle-btn');
-    if (btn) btn.classList.toggle('active', !nowCollapsed);
-};
+// ---------------------------------------------------------------------------
+// Game blade (blade 2): the game's identity, its version list, and game-wide
+// settings — description, thumbnail, clone, delete.
+// ---------------------------------------------------------------------------
 
-// One-click publish of the latest saved version. The server enforces the
-// prerequisites (description + thumbnail) and returns the reason, which
-// submitForPublishing surfaces in the status bar — progressive disclosure.
-const publishLatest = () => {
+const renderGameBladeTitle = () => {
+    const title = $('game-blade-title');
+    if (!title) return;
+    title.innerHTML = '';
     if (!currentGame) return;
-    if (!versions || !versions.length) { setStatus('Save a version first, then Publish.'); return; }
-    submitForPublishing(versions[0].sha);
+    $('blade-game-label').textContent = currentGame.name;
+    if (currentGame.thumbnail) {
+        const img = document.createElement('img');
+        img.src = `${API_URL}/assets/${currentGame.thumbnail}`;
+        img.style = 'width:28px;height:28px;border-radius:4px;object-fit:cover;border:1px solid var(--border);';
+        title.appendChild(img);
+    }
+    const name = document.createElement('span');
+    name.className = 'game-title';
+    name.textContent = currentGame.name;
+    title.appendChild(name);
+    if (currentGame.description) {
+        const desc = document.createElement('span');
+        desc.className = 'game-desc';
+        desc.textContent = currentGame.description;
+        title.appendChild(desc);
+    }
 };
 
-// Settings panel: Description, Thumbnail, and Clone all inline in one place —
-// replaces the old description modal + thumbnail/clone popovers.
-const toggleSettingsPanel = () => {
-    const panel = $('settings-panel');
-    if (!panel) return;
-    const willOpen = !panel.classList.contains('open');
-    panel.classList.toggle('open', willOpen);
-    const btn = $('settings-toggle-btn');
-    if (btn) btn.classList.toggle('active', willOpen);
-    if (willOpen) renderSettingsContent(panel);
+const showGameSubview = (which) => {
+    const isSettings = which === 'settings';
+    $('game-versions-view').style.display = isSettings ? 'none' : '';
+    $('settings-panel').classList.toggle('open', isSettings);
+    $('game-tab-versions').classList.toggle('active', !isSettings);
+    $('game-tab-settings').classList.toggle('active', isSettings);
+    if (isSettings) renderSettingsContent($('settings-panel'));
+};
+$('game-tab-versions').onclick = () => showGameSubview('versions');
+$('game-tab-settings').onclick = () => showGameSubview('settings');
+
+const renderGameBlade = () => {
+    renderGameBladeTitle();
+    showGameSubview('versions');
+    renderVersionList();
 };
 
 const settingsSection = (title, hint) => {
@@ -1561,7 +1867,7 @@ const renderSettingsContent = (panel) => {
         if (!desc) { setStatus('Description cannot be empty'); return; }
         descSave.disabled = true; descSave.textContent = 'Saving...';
         api('POST', `/games/${currentGame.id}/update`, { description: desc })
-            .then(() => { currentGame.description = desc; setStatus('Description updated'); })
+            .then(() => { currentGame.description = desc; renderGameBladeTitle(); renderGameList(); setStatus('Description updated'); })
             .catch(() => setStatus('Failed to save description'))
             .finally(() => { descSave.disabled = false; descSave.textContent = '💾 Save Description'; });
     };
@@ -1598,6 +1904,7 @@ const renderSettingsContent = (panel) => {
                 currentGame.thumbnail = asset.id;
                 [...thumbGrid.children].forEach(c => c.classList.remove('selected'));
                 item.classList.add('selected');
+                renderGameBladeTitle();
                 setStatus('Thumbnail updated');
             }).catch(() => setStatus('Failed to set thumbnail'));
         };
@@ -1646,6 +1953,34 @@ const renderSettingsContent = (panel) => {
         dl.onclick = () => { const a = url.replace(/\.git$/, '') + '/archive/main.zip'; window.open(a.replace(/\/\/[^@]+@/, '//'), '_blank'); };
         cloneBody.appendChild(dl);
     }).catch(() => { cloneBody.textContent = 'Failed to load clone info'; cloneBody.style = 'color:var(--accent-red);font-size:0.85em;'; });
+
+    // --- Danger zone ---
+    const dangerSection = settingsSection('Danger Zone', 'Deleting a game removes it and all of its versions permanently.');
+    const delBtn = document.createElement('button');
+    delBtn.className = 'dash-btn danger';
+    delBtn.textContent = '🗑 Delete Game';
+    delBtn.onclick = () => {
+        if (!confirm(`Permanently delete "${currentGame.name}" and all of its versions? This cannot be undone.`)) return;
+        delBtn.disabled = true;
+        delBtn.textContent = 'Deleting...';
+        api('DELETE', `/games/${currentGame.id}`).then(() => {
+            stopPreview();
+            currentGame = null;
+            currentFile = null;
+            openFiles = {};
+            viewingVersion = null;
+            editorBladeOpened = false;
+            $('main-content').innerHTML = '';
+            loadGames();
+            setActiveBlade('games');
+        }).catch(() => {
+            delBtn.disabled = false;
+            delBtn.textContent = '🗑 Delete Game';
+            setStatus('Failed to delete game');
+        });
+    };
+    dangerSection.appendChild(delBtn);
+    panel.appendChild(dangerSection);
 };
 
 // Fetch ALL files for preview and return as a { path: content } map.
@@ -2260,6 +2595,18 @@ const initAssetDetailModal = () => {
         navigator.clipboard.writeText(assetDetailCurrent.id).then(() => {
             setStatus('Asset ID copied');
         });
+    };
+
+    const useBtn = $('asset-detail-use');
+    if (useBtn) useBtn.onclick = () => {
+        if (!assetDetailCurrent) return;
+        try {
+            const snippet = buildAssetSnippet(assetDetailCurrent);
+            copySnippet(snippet, useBtn);
+            setStatus('Snippet copied — paste it into your game');
+        } catch (e) {
+            setStatus('Failed to build snippet: ' + (e && e.message ? e.message : e));
+        }
     };
 
     $('asset-detail-save').onclick = () => {
@@ -3183,14 +3530,8 @@ document.addEventListener('keyup', onSynthKeyUp);
     const tabBar = document.getElementById('mobile-tab-bar');
     if (!tabBar) return;
 
-    const PANEL_MAP = {
-        games: 'sidebar',
-        files: 'file-tree',
-        preview: 'preview-panel',
-    };
-
     const clearMobileVisible = () => {
-        ['sidebar', 'file-tree', 'version-panel', 'preview-panel'].forEach(id => {
+        ['file-tree', 'preview-panel'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.remove('mobile-visible');
         });
@@ -3206,13 +3547,19 @@ document.addEventListener('keyup', onSynthKeyUp);
         tabBar.querySelectorAll('.mtab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
 
-        // Handle tab actions
-        if (tabName === 'code') {
-            // Show editor (default state — just hide overlays)
+        // Blade tabs — setActiveBlade falls back to the deepest reachable blade.
+        if (tabName === 'games') {
             clearMobileVisible();
+            setActiveBlade('games');
+        } else if (tabName === 'versions') {
+            clearMobileVisible();
+            setActiveBlade('game');
+        } else if (tabName === 'code') {
+            clearMobileVisible();
+            setActiveBlade('editor');
         } else if (tabName === 'save') {
-            // Trigger save
             clearMobileVisible();
+            setActiveBlade('editor');
             const saveBtn = document.getElementById('save-btn');
             if (saveBtn && !saveBtn.disabled) saveBtn.click();
             // Flash back to code tab
@@ -3222,6 +3569,7 @@ document.addEventListener('keyup', onSynthKeyUp);
             }, 300);
         } else if (tabName === 'preview') {
             clearMobileVisible();
+            setActiveBlade('editor');
             const panel = document.getElementById('preview-panel');
             if (panel) {
                 panel.classList.add('open', 'mobile-visible');
@@ -3231,9 +3579,10 @@ document.addEventListener('keyup', onSynthKeyUp);
                     playBtn.click();
                 }
             }
-        } else if (PANEL_MAP[tabName]) {
+        } else if (tabName === 'files') {
             clearMobileVisible();
-            const panel = document.getElementById(PANEL_MAP[tabName]);
+            setActiveBlade('editor');
+            const panel = document.getElementById('file-tree');
             if (panel) panel.classList.add('mobile-visible');
         }
     });
