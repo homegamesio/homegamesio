@@ -1,0 +1,987 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+        <title>Homegames Studio</title>
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+        <link rel="manifest" href="/site.webmanifest">
+        <style>
+            @font-face { font-family: 'amateur'; src: url('/amateur.ttf'); }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+
+            :root {
+                --bg-primary: #1a1a2e;
+                --bg-secondary: #16213e;
+                --bg-input: #16213e;
+                --bg-deep: #0a0a1a;
+                --bg-hover: #1a1a3e;
+                --bg-active: #0f3460;
+                --border: #333;
+                --border-light: #444;
+                --border-subtle: #1a1a2e;
+                --border-faint: #222;
+                --text-primary: #eee;
+                --text-secondary: #aaa;
+                --text-muted: #888;
+                --text-dim: #666;
+                --text-faint: #555;
+                --accent-green: #A0EB5D;
+                --accent-green-hover: #8cd94f;
+                --accent-blue: rgba(148, 210, 229, 255);
+                --accent-red: rgba(241, 112, 111, 255);
+                --accent-yellow: rgba(255, 247, 142, 255);
+                --logo-color: var(--logo-color);
+                --badge-head-bg: #A0EB5D;
+                --badge-head-text: #1a1a2e;
+                --scrollbar-track: #1a1a2e;
+                --scrollbar-thumb: #333;
+            }
+
+            body.light {
+                --bg-primary: #fbfff2;
+                --bg-secondary: #f0f4e8;
+                --bg-input: #fff;
+                --bg-deep: #e8ecdf;
+                --bg-hover: #eef2e5;
+                --bg-active: #dde6cf;
+                --border: #ccc;
+                --border-light: #bbb;
+                --border-subtle: #ddd;
+                --border-faint: #e0e0e0;
+                --text-primary: #333;
+                --text-secondary: #555;
+                --text-muted: #777;
+                --text-dim: #999;
+                --text-faint: #aaa;
+                --accent-green: #4a9e2f;
+                --accent-green-hover: #3d8526;
+                --accent-blue: rgba(100, 170, 200, 255);
+                --accent-red: rgba(220, 90, 90, 255);
+                --accent-yellow: rgba(200, 190, 80, 255);
+                --logo-color: rgba(220, 90, 90, 255);
+                --badge-head-bg: #4a9e2f;
+                --badge-head-text: #fff;
+                --scrollbar-track: #f0f4e8;
+                --scrollbar-thumb: #ccc;
+            }
+
+            body { font-family: 'amateur', monospace; background: var(--bg-primary); color: var(--text-primary); height: 100vh; overflow: hidden; }
+
+            /* Login */
+            #studio-login { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 6px; }
+            #studio-login h1 { font-size: 2em; margin-bottom: 16px; color: var(--logo-color); }
+            #studio-login input { width: 280px; padding: 10px; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary); font-size: 16px; font-family: inherit; }
+            #studio-login .login-btn { background: var(--accent-green); color: var(--badge-head-text); border: none; cursor: pointer; font-weight: bold; }
+            #studio-login .login-btn:hover { background: var(--accent-green-hover); }
+            #studio-login .login-error { color: rgba(241, 112, 111, 255); min-height: 20px; font-size: 0.9em; }
+            #studio-login .auth-toggle { color: var(--text-muted); font-size: 0.85em; margin-top: 10px; }
+            #studio-login .auth-toggle a { color: var(--logo-color); cursor: pointer; text-decoration: none; }
+            #studio-login .auth-toggle a:hover { text-decoration: underline; }
+            #studio-login .auth-form { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+            #studio-login .tos-row { display: flex; align-items: center; gap: 8px; width: 280px; font-size: 0.8em; color: var(--text-muted); margin-top: 2px; }
+            #studio-login .tos-row input[type="checkbox"] { width: auto; margin: 0; }
+            #studio-login .tos-row a { color: var(--logo-color); text-decoration: none; }
+            #studio-login .tos-row a:hover { text-decoration: underline; }
+
+            /* App shell */
+            #studio-app { display: none; flex-direction: column; height: 100vh; }
+
+            #studio-header { display: flex; justify-content: space-between; align-items: center; padding: 0 16px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); height: 44px; flex-shrink: 0; }
+            #studio-header .logo { font-size: 1.1em; color: var(--logo-color); cursor: pointer; text-decoration: none; }
+            #studio-header .user-info { color: var(--text-dim); font-size: 0.85em; }
+
+            #studio-body { display: flex; flex: 1; overflow: hidden; }
+
+            /* Blades — columns of increasing specificity (games → game → version),
+               Xbox-360-blades style: inactive blades collapse to clickable strips. */
+            .blade { display: flex; min-width: 0; overflow: hidden; }
+            .blade.expanded { flex: 1; }
+            .blade.hidden { display: none; }
+            .blade.strip { width: 46px; flex-shrink: 0; cursor: pointer; }
+            .blade.strip .blade-content { display: none; }
+            .blade-strip { display: none; width: 46px; flex-shrink: 0; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: var(--bg-secondary); border-left: 1px solid var(--border); border-right: 1px solid var(--border); transition: background 0.1s; }
+            .blade.strip .blade-strip { display: flex; }
+            .blade-strip:hover { background: var(--bg-hover); }
+            .blade-strip:hover .blade-strip-label { color: var(--text-primary); }
+            .blade-strip-icon { font-size: 1.05em; }
+            .blade-strip-label { writing-mode: vertical-rl; transform: rotate(180deg); text-transform: uppercase; letter-spacing: 2px; font-size: 0.75em; font-weight: bold; color: var(--text-secondary); white-space: nowrap; overflow: hidden; max-height: 60vh; }
+            .blade-content { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+
+            /* Blade 1 — games list (the opening screen) */
+            #blade-games .blade-content { overflow-y: auto; align-items: center; padding: 40px 16px; }
+            #games-pane { width: min(560px, 100%); display: flex; flex-direction: column; }
+            #games-pane-header { color: var(--text-dim); font-size: 0.8em; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
+            #new-game-btn { padding: 12px 16px; cursor: pointer; color: var(--accent-green); font-weight: bold; font-size: 0.95em; border: 2px dashed var(--border-light); border-radius: 8px; text-align: center; margin-bottom: 14px; }
+            #new-game-btn:hover { background: var(--bg-hover); border-color: var(--accent-green); }
+            #game-list { display: flex; flex-direction: column; gap: 8px; }
+            .game-item { padding: 12px 16px; cursor: pointer; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); transition: border-color 0.1s, background 0.1s; }
+            .game-item:hover { background: var(--bg-hover); border-color: var(--accent-blue); }
+            .game-item.active { background: var(--bg-active); border-color: var(--accent-blue); }
+            .game-item .game-item-name { font-size: 1em; color: var(--text-primary); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .game-item .game-item-desc { font-size: 0.78em; color: var(--text-dim); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+
+            /* Blade 2 — the selected game: versions + game-wide settings */
+            #game-blade-header { padding: 10px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-shrink: 0; }
+            #game-blade-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+            #game-blade-title .game-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            #game-blade-tabs { display: flex; gap: 8px; flex-shrink: 0; }
+            #game-blade-body { flex: 1; overflow-y: auto; padding: 20px 16px; }
+            #game-versions-view { max-width: 680px; margin: 0 auto; }
+            #settings-panel { display: none; max-width: 680px; margin: 0 auto; }
+            #settings-panel.open { display: block; }
+
+            /* Blade 3 — one version of the game: editor + play */
+            #main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+            /* Game header */
+            #game-header { padding: 8px 16px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+            .game-title { font-size: 1em; color: var(--text-primary); }
+            .game-desc { font-size: 0.8em; color: var(--text-dim); margin-left: 12px; }
+            .version-badge { font-size: 0.8em; padding: 3px 10px; border-radius: 10px; white-space: nowrap; font-family: monospace; }
+            .version-badge.head { background: var(--accent-green); color: var(--badge-head-text); }
+            .version-badge.history { background: rgba(255, 247, 142, 255); color: var(--badge-head-text); }
+            .clone-btn { font-size: 0.8em; padding: 3px 10px; border-radius: 10px; background: var(--border); color: var(--text-secondary); cursor: pointer; border: none; font-family: inherit; }
+            .clone-btn:hover { background: var(--border-light); color: #fff; }
+            .thumb-pick-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+            .thumb-pick-item { cursor: pointer; border: 2px solid transparent; border-radius: 4px; overflow: hidden; aspect-ratio: 16/9; }
+            .thumb-pick-item:hover { border-color: var(--accent-green); }
+            .thumb-pick-item.selected { border-color: var(--accent-green); }
+            .thumb-pick-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+            #settings-panel .clone-url-box { display: flex; gap: 6px; margin-bottom: 10px; max-width: 640px; }
+            #settings-panel .clone-url-box input { flex: 1; padding: 6px 8px; background: var(--bg-deep); border: 1px solid var(--border-light); border-radius: 3px; color: var(--text-primary); font-family: monospace; font-size: 0.85em; }
+            #settings-panel .copy-btn { padding: 6px 12px; background: var(--accent-green); color: var(--badge-head-text); border: none; border-radius: 3px; cursor: pointer; font-weight: bold; font-size: 0.85em; font-family: inherit; }
+            #settings-panel .copy-btn:hover { background: var(--accent-green-hover); }
+            #settings-panel .clone-hint { color: var(--text-dim); font-size: 0.78em; line-height: 1.4; word-break: break-all; overflow-wrap: break-word; max-width: 640px; }
+            #settings-panel .clone-cmd { display: block; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 3px; padding: 6px 8px; margin: 8px 0; font-family: monospace; font-size: 0.9em; color: var(--text-secondary); word-break: break-all; overflow-wrap: break-word; user-select: all; max-width: 640px; }
+            #settings-panel .download-btn { display: block; width: 100%; max-width: 640px; padding: 8px; margin-top: 10px; background: var(--accent-blue); color: var(--badge-head-text); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85em; font-family: inherit; text-align: center; }
+            #settings-panel .download-btn:hover { opacity: 0.85; }
+
+            /* Editor layout */
+            #editor-area { display: flex; flex: 1; overflow: hidden; }
+
+            /* File tree */
+            #file-tree { width: 200px; background: var(--bg-active); border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column; }
+            #file-tree-header { padding: 6px 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+            #file-tree-header span { color: var(--text-dim); font-size: 0.75em; text-transform: uppercase; letter-spacing: 1px; }
+            #new-file-btn { color: var(--accent-green); cursor: pointer; font-size: 0.85em; font-weight: bold; }
+            #new-file-btn:hover { color: #8cd94f; }
+            #file-list { flex: 1; overflow-y: auto; }
+            .file-item { padding: 5px 10px; cursor: pointer; font-size: 0.82em; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; }
+            .file-item:hover { background: var(--bg-secondary); color: var(--text-primary); }
+            .file-item.active { background: var(--bg-primary); color: var(--accent-green); }
+            .file-item.dirty::after { content: ' ●'; color: var(--accent-yellow); }
+            .file-item.folder { color: var(--logo-color); font-family: inherit; }
+            .file-tree-empty { padding: 12px; color: var(--text-faint); font-size: 0.82em; text-align: center; }
+
+            /* Editor */
+            #editor-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+            #editor-tab-bar { padding: 0 8px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; align-items: center; height: 32px; flex-shrink: 0; overflow-x: auto; }
+            .editor-tab { padding: 4px 12px; font-size: 0.8em; color: var(--text-muted); cursor: pointer; border-right: 1px solid var(--border-faint); white-space: nowrap; }
+            .editor-tab:hover { color: var(--text-secondary); }
+            .editor-tab.active { color: var(--text-primary); background: var(--bg-deep); }
+            .editor-tab.dirty::after { content: ' ●'; color: var(--accent-yellow); }
+            #editor-wrap { flex: 1; position: relative; overflow: hidden; min-height: 0; }
+            #editor-highlight { position: absolute; top: 0; left: 0; right: 0; bottom: 0; padding: 12px; margin: 0; background: var(--bg-deep); color: var(--text-primary); font-family: monospace; font-size: 14px; line-height: 1.6; tab-size: 2; overflow: auto; white-space: pre-wrap; word-wrap: break-word; pointer-events: none; }
+            #editor-highlight code { font-family: inherit; font-size: inherit; line-height: inherit; tab-size: inherit; }
+            #editor-textarea { position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 12px; background: transparent; color: transparent; caret-color: var(--text-primary); border: none; resize: none; font-family: monospace; font-size: 14px; line-height: 1.6; tab-size: 2; outline: none; white-space: pre-wrap; word-wrap: break-word; overflow: auto; z-index: 1; }
+            #editor-placeholder { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 0.95em; background: var(--bg-deep); }
+
+            /* Syntax highlight colors */
+            .hl-keyword { color: #c678dd; }
+            .hl-string { color: #98c379; }
+            .hl-number { color: #d19a66; }
+            .hl-comment { color: #5c6370; font-style: italic; }
+            .hl-function { color: #61afef; }
+            .hl-operator { color: #56b6c2; }
+            .hl-regex { color: #e06c75; }
+            body.light .hl-keyword { color: #a626a4; }
+            body.light .hl-string { color: #50a14f; }
+            body.light .hl-number { color: #986801; }
+            body.light .hl-comment { color: #a0a1a7; font-style: italic; }
+            body.light .hl-function { color: #4078f2; }
+            body.light .hl-operator { color: #0184bc; }
+            body.light .hl-regex { color: #e45649; }
+
+            /* Version list (lives in blade 2) */
+            #version-list { display: flex; flex-direction: column; gap: 8px; }
+            #version-panel-footer { display: flex; justify-content: space-between; margin-top: 12px; min-height: 22px; }
+            .vp-nav { color: var(--logo-color); cursor: pointer; font-size: 0.85em; }
+            .vp-nav:hover { color: var(--text-primary); }
+            .version-item { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); cursor: pointer; font-size: 0.88em; transition: border-color 0.1s, background 0.1s; }
+            .version-item:hover { background: var(--bg-hover); border-color: var(--accent-blue); }
+            .version-item.active { background: var(--bg-active); border-color: var(--accent-green); }
+            .version-item.head-item { border-color: var(--accent-green); margin-bottom: 6px; }
+            .version-item.head-item .head-title { color: var(--accent-green); font-weight: bold; }
+            .version-item.head-item .head-sub { color: var(--text-dim); font-size: 0.85em; display: block; margin-top: 2px; }
+            .v-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+            .v-sha { color: var(--logo-color); font-family: monospace; font-size: 0.95em; }
+            .v-date { color: var(--text-faint); font-size: 0.9em; }
+            .v-msg { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; font-size: 0.9em; }
+            .v-restore { display: inline-block; margin-top: 4px; color: var(--accent-yellow); font-size: 0.85em; cursor: pointer; }
+            .v-restore:hover { color: #fff; }
+            .v-publish-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+            .v-publish-btn { color: var(--accent-green); font-size: 0.82em; cursor: pointer; padding: 1px 6px; border: 1px solid #A0EB5D; border-radius: 3px; white-space: nowrap; }
+            .v-publish-btn:hover { background: var(--accent-green); color: var(--badge-head-text); }
+            .v-publish-badge { font-size: 0.75em; padding: 1px 7px; border-radius: 3px; font-weight: bold; white-space: nowrap; }
+            .v-publish-badge.pending, .v-publish-badge.processing { background: rgba(255, 247, 142, 0.2); color: var(--accent-yellow); }
+            .v-publish-badge.published { background: rgba(160, 235, 93, 0.2); color: var(--accent-green); }
+            .v-publish-badge.failed { background: rgba(241, 112, 111, 0.2); color: rgba(241, 112, 111, 255); }
+            .v-publish-error { color: rgba(241, 112, 111, 255); font-size: 0.75em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
+
+            /* Bottom bar */
+            #bottom-bar { display: flex; justify-content: space-between; align-items: center; padding: 0 16px; background: var(--bg-secondary); border-top: 1px solid var(--border); height: 40px; flex-shrink: 0; }
+            #status-msg { font-size: 0.82em; color: var(--text-dim); }
+            #bottom-right { display: flex; gap: 12px; align-items: center; }
+            #save-btn { background: var(--accent-green); color: var(--badge-head-text); border: none; padding: 6px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; font-family: inherit; }
+            #save-btn:hover { background: var(--accent-green-hover); }
+            #save-btn:disabled { background: var(--border); color: var(--text-dim); cursor: not-allowed; }
+
+            /* Modals */
+            .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center; }
+            .modal-overlay.visible { display: flex; }
+            .modal-box { background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 8px; padding: 24px; width: 380px; }
+            .modal-box h2 { margin-bottom: 14px; color: var(--logo-color); font-size: 1.1em; }
+            .modal-box input, .modal-box textarea { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-deep); color: var(--text-primary); font-size: 14px; font-family: inherit; }
+            .modal-box textarea { resize: vertical; min-height: 60px; }
+            .modal-buttons { display: flex; gap: 8px; margin-top: 14px; }
+            .modal-btn { flex: 1; padding: 9px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; font-family: inherit; }
+            .modal-btn.primary { background: var(--accent-green); color: var(--badge-head-text); }
+            .modal-btn.primary:hover { background: var(--accent-green-hover); }
+            .modal-btn.secondary { background: var(--border); color: var(--text-secondary); }
+            .modal-btn.secondary:hover { background: var(--border-light); }
+            .modal-error { color: rgba(241, 112, 111, 255); font-size: 0.85em; min-height: 18px; margin-top: 4px; }
+            .admin-msg { padding: 10px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 8px; font-size: 0.85em; }
+            .admin-msg .msg-meta { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.8em; margin-bottom: 4px; }
+            .admin-msg .msg-body { color: var(--text-primary); white-space: pre-wrap; word-break: break-word; }
+            .admin-msg .msg-email { color: var(--accent-blue); font-size: 0.8em; }
+            .admin-msg .msg-ack { margin-top: 6px; }
+            .admin-msg .msg-ack-btn { font-size: 0.78em; padding: 2px 10px; background: var(--accent-green); color: var(--badge-head-text); border: none; border-radius: 3px; cursor: pointer; font-family: inherit; }
+            .admin-msg .msg-ack-btn:hover { background: var(--accent-green-hover); }
+            .admin-msg.acknowledged { opacity: 0.5; }
+
+            /* Preview panel */
+            #preview-panel { width: 0; background: var(--bg-deep); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: width 0.2s ease; }
+            #preview-panel.open { width: 420px; }
+            #preview-header { padding: 6px 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+            #preview-header span { color: var(--text-dim); font-size: 0.75em; text-transform: uppercase; letter-spacing: 1px; }
+            #preview-controls { display: flex; gap: 6px; align-items: center; }
+            #preview-controls button { font-size: 0.78em; padding: 3px 10px; border-radius: 4px; border: 1px solid var(--border-light); cursor: pointer; font-family: inherit; background: var(--bg-secondary); color: var(--text-secondary); }
+            #preview-controls button:hover { background: var(--bg-hover); color: var(--text-primary); }
+            #preview-controls button.active { background: var(--accent-green); color: var(--badge-head-text); border-color: var(--accent-green); }
+            #preview-controls button.stop-btn { background: rgba(241, 112, 111, 255); color: #fff; border-color: rgba(241, 112, 111, 255); }
+            #preview-container { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #000; }
+            #preview-status { padding: 4px 10px; border-top: 1px solid var(--border); font-size: 0.78em; color: var(--text-faint); flex-shrink: 0; min-height: 24px; }
+            #preview-share { padding: 4px 10px; display: flex; gap: 4px; flex-shrink: 0; }
+            .preview-share-input { flex: 1; padding: 3px 6px; background: var(--bg-deep); border: 1px solid var(--border-light); border-radius: 3px; color: var(--text-secondary); font-family: monospace; font-size: 0.75em; }
+            .preview-share-copy { padding: 3px 10px; background: var(--accent-green); color: var(--badge-head-text); border: none; border-radius: 3px; cursor: pointer; font-weight: bold; font-size: 0.75em; font-family: inherit; }
+            .preview-share-copy:hover { background: var(--accent-green-hover); }
+
+            /* Log panel */
+            #preview-logs { flex: 1; overflow-y: auto; background: var(--bg-deep); font-family: monospace; font-size: 0.75em; min-height: 0; border-top: 1px solid var(--border); }
+            .log-line { padding: 1px 8px; white-space: pre-wrap; word-break: break-all; border-bottom: 1px solid var(--border-subtle); }
+            .log-ts { color: var(--text-faint); }
+            .log-log .log-msg { color: var(--text-secondary); }
+            .log-debug .log-msg { color: var(--text-muted); }
+            .log-warn .log-msg { color: var(--accent-yellow); }
+            .log-error { background: rgba(241, 112, 111, 0.08); }
+            .log-error .log-msg { color: rgba(241, 112, 111, 255); }
+            .preview-toggle { font-size: 0.8em; padding: 3px 10px; border-radius: 10px; background: var(--border); color: var(--text-secondary); cursor: pointer; border: none; font-family: inherit; margin-left: 8px; }
+            .preview-toggle:hover { background: var(--border-light); color: #fff; }
+            .preview-toggle.active { background: rgba(148, 210, 229, 255); color: var(--badge-head-text); }
+
+            /* Asset modal */
+            .asset-modal-box { background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 10px; width: 90vw; max-width: 1100px; height: 85vh; display: flex; flex-direction: column; overflow: hidden; }
+            .asset-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+            .asset-modal-header-actions { display: flex; align-items: center; gap: 8px; }
+            .asset-modal-action-btn { font-size: 0.82em; padding: 5px 14px; border-radius: 4px; border: 1px solid var(--border-light); cursor: pointer; font-family: inherit; background: var(--bg-active); color: var(--text-secondary); }
+            .asset-modal-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+            .asset-modal-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap; gap: 8px; }
+            .asset-modal-tabs { display: flex; gap: 6px; }
+            .asset-modal-tab { padding: 6px 16px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-deep); color: var(--text-dim); cursor: pointer; font-family: inherit; font-size: 0.82em; }
+            .asset-modal-tab:hover { color: var(--text-primary); background: var(--bg-secondary); }
+            .asset-modal-tab.active { background: var(--bg-active); color: var(--logo-color); font-weight: bold; border-color: var(--logo-color); }
+            .asset-modal-filters { display: flex; gap: 8px; align-items: center; }
+            .nsfw-toggle { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.82em; color: var(--text-dim); user-select: none; white-space: nowrap; }
+            .nsfw-toggle input { accent-color: var(--accent-red, #e44); cursor: pointer; }
+            .asset-modal-search { padding: 6px 10px; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); font-family: monospace; font-size: 0.85em; width: 240px; }
+            .asset-modal-search:focus { border-color: var(--logo-color); outline: none; }
+            .asset-modal-type-filter { padding: 6px 10px; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); font-family: inherit; font-size: 0.82em; }
+            .asset-modal-drop-zone { border: 2px dashed var(--border); border-radius: 8px; margin: 12px 20px 0; padding: 16px; text-align: center; color: var(--text-faint); font-size: 0.85em; cursor: pointer; transition: border-color 0.15s, color 0.15s; flex-shrink: 0; }
+            .asset-modal-drop-zone:hover, .asset-modal-drop-zone.drag-over { border-color: var(--accent-green); color: var(--accent-green); }
+            .asset-modal-drop-zone.hidden { display: none; }
+            .asset-modal-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+            .asset-modal-grid { padding: 16px 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; align-content: start; }
+            .asset-modal-card { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; display: flex; flex-direction: column; }
+            .asset-modal-card:hover { border-color: var(--accent-blue); box-shadow: 0 2px 8px rgba(148, 210, 229, 0.15); }
+            .asset-modal-card-preview { height: 140px; display: flex; align-items: center; justify-content: center; background: var(--bg-deep); overflow: hidden; }
+            .asset-modal-card-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+            .asset-modal-card-preview .type-badge { font-size: 2em; color: var(--accent-blue); }
+            .asset-modal-card-body { padding: 10px 12px; flex: 1; display: flex; flex-direction: column; gap: 4px; }
+            .asset-modal-card-name { font-size: 0.9em; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .asset-modal-card-author { font-size: 0.75em; color: var(--text-dim); }
+            .asset-modal-card-desc { font-size: 0.78em; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .asset-modal-card-footer { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; border-top: 1px solid var(--border-subtle); }
+            .asset-modal-card-type { font-size: 0.7em; padding: 2px 6px; border-radius: 3px; background: var(--border); color: var(--text-muted); }
+            .asset-modal-card-type.image { background: rgba(148, 210, 229, 0.2); color: var(--accent-blue); }
+            .asset-modal-card-type.audio { background: rgba(160, 235, 93, 0.2); color: var(--accent-green); }
+            .asset-modal-card-type.font { background: rgba(255, 247, 142, 0.2); color: var(--accent-yellow); }
+            .asset-modal-card-actions { display: flex; gap: 4px; }
+            .asset-modal-card-actions button { font-size: 0.68em; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--border-light); cursor: pointer; font-family: inherit; background: var(--bg-secondary); color: var(--text-secondary); }
+            .asset-modal-card-actions button:hover { background: var(--bg-hover); color: var(--text-primary); }
+            .asset-modal-card .public-badge { position: absolute; top: 6px; left: 6px; font-size: 0.6em; padding: 1px 5px; border-radius: 3px; background: rgba(160, 235, 93, 0.2); color: var(--accent-green); }
+            .asset-modal-card-preview { position: relative; }
+            .asset-modal-card-delete { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 4px; border: none; background: rgba(241, 112, 111, 0.85); color: #fff; font-size: 14px; line-height: 24px; text-align: center; cursor: pointer; opacity: 0; transition: opacity 0.15s; z-index: 2; padding: 0; }
+            .asset-modal-card:hover .asset-modal-card-delete { opacity: 1; }
+            .asset-modal-card-delete:hover { background: rgba(241, 112, 111, 1); }
+            .asset-modal-card-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+            .asset-modal-card-tags .asset-tag { font-size: 0.65em; padding: 1px 5px; border-radius: 3px; background: rgba(148, 210, 229, 0.15); color: var(--accent-blue); }
+            .asset-modal-load-more { padding: 8px 20px; text-align: center; flex-shrink: 0; }
+            .asset-modal-load-more button { font-size: 0.82em; padding: 6px 20px; border-radius: 4px; border: 1px solid var(--border-light); cursor: pointer; font-family: inherit; background: var(--bg-secondary); color: var(--text-secondary); }
+            .asset-modal-load-more button:hover { background: var(--bg-hover); color: var(--text-primary); }
+            .asset-modal-empty { grid-column: 1 / -1; text-align: center; color: var(--text-faint); padding: 48px 24px; font-size: 1em; }
+
+            .nsfw-badge { display: inline-block; background: var(--accent-red, #e44); color: #fff; font-size: 0.65em; font-weight: 700; padding: 2px 7px; border-radius: 4px; vertical-align: middle; margin-left: 8px; letter-spacing: 0.5px; }
+            #asset-detail-preview { min-height: 120px; display: flex; align-items: center; justify-content: center; margin: 12px 0; background: var(--bg-deep); border-radius: 6px; border: 1px solid var(--border-subtle); overflow: hidden; }
+            #asset-detail-preview img { max-width: 100%; max-height: 200px; object-fit: contain; }
+            #asset-detail-meta { font-size: 0.82em; color: var(--text-dim); line-height: 1.5; margin-bottom: 10px; word-break: break-all; }
+            #asset-detail-desc { margin-top: 4px; }
+            #asset-detail-public-status { font-size: 0.85em; margin: 8px 0; color: var(--text-secondary); }
+            .asset-detail-tags { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; min-height: 28px; margin: 4px 0 4px; }
+            .asset-detail-tag { font-size: 0.78em; padding: 2px 8px; border-radius: 3px; background: rgba(148, 210, 229, 0.15); color: var(--accent-blue); display: inline-flex; align-items: center; gap: 4px; }
+            .asset-detail-tag .tag-remove { cursor: pointer; color: var(--text-dim); font-size: 1.1em; line-height: 1; }
+            .asset-detail-tag .tag-remove:hover { color: var(--accent-red); }
+            .asset-detail-tag-add { font-size: 0.78em; padding: 2px 8px; border-radius: 3px; border: 1px dashed var(--border-light); color: var(--text-faint); cursor: pointer; }
+            .asset-detail-tag-add:hover { border-color: var(--accent-green); color: var(--accent-green); }
+            .asset-thumb { width: 36px; height: 36px; border-radius: 3px; object-fit: cover; background: var(--bg-deep); flex-shrink: 0; margin-top: 2px; }
+            .asset-audio-thumb { width: 36px; height: 36px; border-radius: 3px; background: var(--bg-deep); flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--accent-green); font-size: 1.2em; }
+            .asset-audio-thumb:hover { background: var(--bg-secondary); }
+            .asset-info { flex: 1; min-width: 0; }
+            .asset-name { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; font-size: 0.95em; }
+            .asset-type-badge { display: inline-block; font-size: 0.7em; padding: 1px 5px; border-radius: 3px; background: var(--border); color: var(--text-muted); margin-top: 2px; }
+            .asset-type-badge.image { background: rgba(148, 210, 229, 0.2); color: var(--logo-color); }
+            .asset-type-badge.audio { background: rgba(160, 235, 93, 0.2); color: var(--accent-green); }
+            .asset-tags-row { display: flex; flex-wrap: wrap; gap: 3px; padding: 2px 0; align-items: center; width: 100%; }
+            .asset-tag { font-size: 0.68em; padding: 1px 6px; border-radius: 3px; background: rgba(148, 210, 229, 0.15); color: var(--logo-color); cursor: pointer; white-space: nowrap; }
+            .asset-tag:hover { background: rgba(241, 112, 111, 0.2); color: rgba(241, 112, 111, 255); text-decoration: line-through; }
+            .asset-tag-add { font-size: 0.72em; padding: 1px 6px; border-radius: 3px; border: 1px dashed #444; color: var(--text-faint); cursor: pointer; }
+            .asset-tag-add:hover { border-color: var(--accent-green); color: var(--accent-green); }
+            .asset-copy-btn { font-size: 0.72em; padding: 3px 8px; border-radius: 3px; border: 1px solid var(--border-light); cursor: pointer; font-family: inherit; background: var(--bg-secondary); color: var(--text-secondary); white-space: nowrap; flex-shrink: 0; }
+            .asset-copy-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+            .asset-empty { padding: 20px 12px; color: var(--text-faint); font-size: 0.85em; text-align: center; }
+            .asset-drop-zone { border: 2px dashed #333; border-radius: 6px; margin: 8px; padding: 14px; text-align: center; color: var(--text-faint); font-size: 0.8em; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+            .asset-drop-zone:hover, .asset-drop-zone.drag-over { border-color: var(--accent-green); color: var(--accent-green); }
+            #asset-load-more { padding: 8px; text-align: center; }
+            #asset-load-more button { font-size: 0.78em; padding: 4px 14px; border-radius: 3px; border: 1px solid var(--border-light); cursor: pointer; font-family: inherit; background: var(--bg-secondary); color: var(--text-secondary); }
+            #asset-load-more button:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+            /* Draw overlay */
+            .draw-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: center; justify-content: center; }
+            .draw-overlay.visible { display: flex; }
+            .draw-box { background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+            .draw-box h2 { color: var(--logo-color); font-size: 1.1em; margin: 0; }
+            .draw-canvas-wrapper { border: 1px solid var(--border-light); background: #fff; cursor: crosshair; }
+            .draw-palette { display: flex; gap: 6px; align-items: center; }
+            .draw-color { width: 28px; height: 28px; border-radius: 4px; cursor: pointer; border: 2px solid transparent; }
+            .draw-color.active { border-color: var(--accent-green); }
+            .draw-color.eraser { background: #fff; position: relative; }
+            .draw-color.eraser::after { content: '✕'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #999; font-size: 14px; }
+            .draw-name-input { width: 260px; padding: 8px; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-deep); color: var(--text-primary); font-size: 14px; font-family: inherit; }
+            .draw-buttons { display: flex; gap: 8px; }
+            .draw-buttons button { padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: inherit; font-size: 13px; }
+            .draw-btn-save { background: var(--accent-green); color: var(--badge-head-text); }
+            .draw-btn-save:hover { background: var(--accent-green-hover); }
+            .draw-btn-cancel { background: var(--border); color: var(--text-secondary); }
+            .draw-btn-cancel:hover { background: var(--border-light); }
+            .draw-btn-clear { background: rgba(241, 112, 111, 255); color: #fff; }
+
+            /* Record audio overlay */
+            .record-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: center; justify-content: center; }
+            .record-overlay.visible { display: flex; }
+            .record-box { background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 8px; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 14px; width: 380px; }
+            .record-box h2 { color: var(--logo-color); font-size: 1.1em; margin: 0; }
+            .record-timer { font-size: 2.5em; color: var(--text-primary); font-family: monospace; }
+            .record-indicator { width: 14px; height: 14px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
+            .record-indicator.recording { background: rgba(241, 112, 111, 255); animation: pulse-rec 1s infinite; }
+            .record-indicator.paused { background: rgba(255, 247, 142, 255); }
+            .record-indicator.stopped { background: #555; }
+            @keyframes pulse-rec { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+            .record-controls { display: flex; gap: 8px; }
+            .record-controls button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: inherit; font-size: 13px; }
+            .rec-btn-record { background: rgba(241, 112, 111, 255); color: #fff; }
+            .rec-btn-pause { background: rgba(255, 247, 142, 255); color: var(--badge-head-text); }
+            .rec-btn-stop { background: #555; color: #fff; }
+            .rec-btn-stop:hover { background: #666; }
+            .record-preview { width: 100%; }
+            .record-preview audio { width: 100%; }
+            .record-name-input { width: 100%; padding: 8px; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-deep); color: var(--text-primary); font-size: 14px; font-family: inherit; }
+            .record-save-row { display: flex; gap: 8px; width: 100%; }
+            .record-save-row button { flex: 1; padding: 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: inherit; font-size: 13px; }
+            .rec-btn-save { background: var(--accent-green); color: var(--badge-head-text); }
+            .rec-btn-save:hover { background: var(--accent-green-hover); }
+            .rec-btn-cancel { background: var(--border); color: var(--text-secondary); }
+            .rec-btn-cancel:hover { background: var(--border-light); }
+            .rec-btn-save:disabled { background: var(--border); color: var(--text-dim); cursor: not-allowed; }
+
+            /* Keyboard / synth overlay */
+            .keyboard-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: center; justify-content: center; }
+            .keyboard-overlay.visible { display: flex; }
+            .keyboard-box { background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 8px; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 16px; width: 560px; max-width: 94vw; }
+            .keyboard-box h2 { color: var(--logo-color); font-size: 1.1em; margin: 0; }
+            .synth-controls { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; justify-content: center; width: 100%; }
+            .synth-control { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-secondary); }
+            .synth-control label { font-weight: bold; }
+            .synth-control input[type=range] { width: 150px; }
+            .synth-control select { padding: 5px 8px; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-deep); color: var(--text-primary); font-family: inherit; font-size: 13px; }
+            .synth-octave-val { color: var(--text-primary); }
+            /* Piano */
+            .piano { position: relative; display: flex; height: 150px; user-select: none; touch-action: none; }
+            .piano-key { box-sizing: border-box; cursor: pointer; }
+            .piano-key.white { width: 44px; height: 150px; background: #fafafa; border: 1px solid #999; border-radius: 0 0 4px 4px; position: relative; z-index: 1; }
+            .piano-key.white.active { background: var(--accent-green); }
+            .piano-key.black { width: 28px; height: 92px; background: #222; border: 1px solid #000; border-radius: 0 0 3px 3px; position: absolute; top: 0; z-index: 2; }
+            .piano-key.black.active { background: var(--accent-green); }
+            .piano-key .key-label { position: absolute; bottom: 5px; left: 0; right: 0; text-align: center; font-size: 9px; color: #aaa; pointer-events: none; }
+            .piano-key.white .key-label { color: #999; }
+            .keyboard-controls { display: flex; gap: 8px; }
+            .keyboard-controls button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: inherit; font-size: 13px; }
+            .kbd-hint { font-size: 11px; color: var(--text-dim); }
+            .keyboard-preview { width: 100%; }
+            .keyboard-preview audio { width: 100%; }
+            .keyboard-name-input { width: 100%; padding: 8px; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-deep); color: var(--text-primary); font-size: 14px; font-family: inherit; }
+            .keyboard-save-row { display: flex; gap: 8px; width: 100%; }
+            .keyboard-save-row button { flex: 1; padding: 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: inherit; font-size: 13px; }
+            .kbd-btn-record { background: rgba(241, 112, 111, 255); color: #fff; }
+            .kbd-btn-stop { background: #555; color: #fff; }
+            .kbd-btn-stop:hover { background: #666; }
+            .kbd-btn-save { background: var(--accent-green); color: var(--badge-head-text); }
+            .kbd-btn-save:hover { background: var(--accent-green-hover); }
+            .kbd-btn-save:disabled { background: var(--border); color: var(--text-dim); cursor: not-allowed; }
+            .kbd-btn-cancel { background: var(--border); color: var(--text-secondary); }
+            .kbd-btn-cancel:hover { background: var(--border-light); }
+
+            /* Loading spinner */
+            .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #444; border-top-color: var(--accent-green); border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
+            @keyframes spin { to { transform: rotate(360deg); } }
+
+            /* Mobile tab bar — hidden on desktop */
+            #mobile-tab-bar { display: none; }
+
+            /* ============================================================= */
+            /* Mobile layout (<768px)                                        */
+            /* ============================================================= */
+            @media (max-width: 768px) {
+                /* Header */
+                #studio-header { padding: 0 8px; height: 40px; }
+                #studio-header .logo { font-size: 0.9em; }
+                #studio-header .user-info { font-size: 0.75em; }
+
+                /* Blades: no strips on mobile — the active blade fills the screen,
+                   the mobile tab bar switches between them */
+                .blade.strip { display: none; }
+                #blade-games .blade-content { padding: 16px 10px; }
+                #game-blade-body { padding: 12px 8px; }
+                #game-blade-header { flex-wrap: wrap; padding: 8px 10px; }
+
+                #main-content { flex: 1; min-height: 0; }
+
+                /* File tree */
+                #file-tree { display: none; position: fixed; top: 40px; left: 0; right: 0; bottom: 48px; width: 100% !important; z-index: 30; }
+                #file-tree.mobile-visible { display: flex; }
+
+                /* Editor */
+                #editor-area { flex-direction: column; }
+                #editor-pane { min-width: 0; }
+                #editor-textarea, #editor-highlight { font-size: 13px; line-height: 1.5; }
+
+                /* Game header */
+                #game-header { flex-wrap: wrap; gap: 4px; padding: 6px 8px; }
+                .game-desc { display: none; }
+
+                /* Preview panel — full screen on mobile */
+                #preview-panel { display: none; position: fixed; top: 40px; left: 0; right: 0; bottom: 48px; width: 100% !important; z-index: 30; }
+                #preview-panel.open { width: 100% !important; }
+                #preview-panel.mobile-visible { display: flex; }
+
+                /* Bottom bar — hide save bar, use mobile tab bar instead */
+                #bottom-bar { display: none; }
+
+                /* Mobile tab bar */
+                #mobile-tab-bar {
+                    display: flex;
+                    position: fixed;
+                    bottom: 0; left: 0; right: 0;
+                    height: 48px;
+                    background: var(--bg-secondary);
+                    border-top: 1px solid var(--border);
+                    z-index: 40;
+                    justify-content: space-around;
+                    align-items: center;
+                }
+                #mobile-tab-bar .mtab {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    color: var(--text-dim);
+                    font-size: 0.65em;
+                    cursor: pointer;
+                    padding: 4px 0;
+                    gap: 2px;
+                    -webkit-tap-highlight-color: transparent;
+                }
+                #mobile-tab-bar .mtab .mtab-icon { font-size: 1.6em; }
+                #mobile-tab-bar .mtab.active { color: var(--accent-green); }
+
+                /* Modals */
+                .modal-box { width: calc(100vw - 32px); max-width: 380px; }
+                .modal-box input, .modal-box select, .modal-box textarea { font-size: 16px; } /* prevent iOS zoom */
+
+                /* Draw overlay */
+                .draw-box { width: calc(100vw - 32px); }
+                .draw-canvas-wrapper { width: 100% !important; height: auto !important; aspect-ratio: 1; }
+
+                /* Record overlay */
+                .record-box { width: calc(100vw - 32px); }
+
+                /* Asset modal mobile */
+                .asset-modal-box { width: calc(100vw - 16px); height: 90vh; border-radius: 8px; }
+                .asset-modal-toolbar { flex-direction: column; align-items: stretch; }
+                .asset-modal-filters { flex-direction: column; }
+                .asset-modal-search { width: 100%; }
+                .asset-modal-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; padding: 10px; }
+                .asset-modal-card-preview { height: 100px; }
+            }
+            /* ===== Analog control redesign ===== */
+            /* Big tactile header button (ASSETS — opens the asset workspace). */
+            .mode-btn {
+                font-family: inherit; font-size: 0.95em; font-weight: bold;
+                text-transform: uppercase; letter-spacing: 1.5px;
+                padding: 6px 26px; color: var(--text-secondary);
+                background: var(--bg-deep);
+                border: 2px solid var(--border-light); border-radius: 7px;
+                box-shadow: inset 0 -3px 0 rgba(0,0,0,0.35), 0 2px 0 rgba(0,0,0,0.2);
+                cursor: pointer; transition: transform .05s, color .1s, background .1s, border-color .1s;
+            }
+            .mode-btn:hover { color: var(--text-primary); border-color: var(--accent-blue); }
+            .mode-btn:active { transform: translateY(2px); box-shadow: inset 0 2px 5px rgba(0,0,0,0.4); }
+
+            /* Tactile, clearly-labeled treatment for the primary action buttons. */
+            .clone-btn, .preview-toggle, #save-btn, .modal-btn,
+            .asset-modal-action-btn, .asset-modal-tab, #settings-panel .copy-btn, #settings-panel .download-btn {
+                text-transform: uppercase; letter-spacing: 0.6px; font-weight: bold;
+                box-shadow: inset 0 -2px 0 rgba(0,0,0,0.28);
+                transition: transform .05s, box-shadow .05s;
+            }
+            .clone-btn:active, .preview-toggle:active, #save-btn:active, .modal-btn:active,
+            .asset-modal-action-btn:active, .asset-modal-tab:active {
+                transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+            }
+            /* a touch more presence on the chunky ones */
+            .clone-btn { padding: 5px 13px; border-radius: 6px; }
+            .asset-modal-action-btn { padding: 7px 16px; border-radius: 6px; }
+            #save-btn { box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3); }
+            #save-btn:disabled { box-shadow: none; }
+            .modal-btn { box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3); padding: 11px; }
+
+            /* Per-game dashboard — every game action as a big labeled button, in one row. */
+            .game-dashboard { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+            .dash-btn {
+                font-family: inherit; font-size: 0.82em; font-weight: bold;
+                text-transform: uppercase; letter-spacing: 0.6px;
+                padding: 7px 13px; color: var(--text-secondary); white-space: nowrap;
+                background: var(--bg-deep); border: 2px solid var(--border-light); border-radius: 6px;
+                box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3); cursor: pointer;
+                transition: transform .05s, color .1s, border-color .1s, background .1s;
+            }
+            .dash-btn:hover { color: var(--text-primary); border-color: var(--accent-blue); }
+            .dash-btn:active { transform: translateY(2px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.35); }
+            .dash-btn.active { color: var(--badge-head-text); background: var(--accent-blue); border-color: var(--accent-blue); }
+            .dash-btn.publish { color: var(--accent-green); border-color: var(--accent-green); }
+            .dash-btn.publish:hover { background: var(--accent-green); color: var(--badge-head-text); }
+            .dash-btn.danger { color: var(--accent-red); border-color: rgba(241,112,111,0.5); }
+            .dash-btn.danger:hover { background: var(--accent-red); color: #fff; }
+            .dash-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+            /* Assets workspace — big labeled creation buttons matching the Games dashboard. */
+            .asset-create-btn {
+                font-size: 0.92em; padding: 9px 18px; border-radius: 7px;
+                font-weight: bold; text-transform: uppercase; letter-spacing: 0.6px;
+                border: 2px solid var(--border-light); background: var(--bg-deep); color: var(--text-secondary);
+                box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3); cursor: pointer; white-space: nowrap;
+                transition: transform .05s, color .1s, border-color .1s, background .1s;
+            }
+            .asset-create-btn:hover { color: var(--text-primary); border-color: var(--accent-green); }
+            .asset-create-btn:active { transform: translateY(2px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.35); }
+        </style>
+    </head>
+    <body>
+        <div id="studio-login">
+            <h1>Homegames Studio</h1>
+
+            <!-- Login form -->
+            <div id="login-form" class="auth-form">
+                <input type="text" id="login-username" placeholder="Display name or email" autocomplete="username">
+                <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+                <input type="submit" class="login-btn" value="Log in" id="login-btn">
+                <div class="login-error" id="login-error"></div>
+                <div class="auth-toggle">Don't have an account? <a id="show-signup">Sign up</a></div>
+                <div class="auth-toggle"><a href="/reset-password">Forgot password?</a></div>
+            </div>
+
+            <!-- Signup form (hidden by default) -->
+            <div id="signup-form" class="auth-form" style="display: none;">
+                <input type="text" id="signup-username" placeholder="Display name" autocomplete="username">
+                <input type="email" id="signup-email" placeholder="Email" autocomplete="email">
+                <input type="password" id="signup-password" placeholder="Password" autocomplete="new-password">
+                <input type="password" id="signup-password-confirm" placeholder="Confirm password" autocomplete="new-password">
+                <div class="tos-row">
+                    <input type="checkbox" id="signup-tos">
+                    <label for="signup-tos">I agree to the <a href="/terms" target="_blank">Terms of Service</a></label>
+                </div>
+                <input type="submit" class="login-btn" value="Sign up" id="signup-btn">
+                <div class="login-error" id="signup-error"></div>
+                <div class="auth-toggle">Already have an account? <a id="show-login">Log in</a></div>
+            </div>
+        </div>
+
+        <div id="studio-app">
+            <div id="verify-banner" style="display:none;background:#cc8800;color:#fff;padding:8px 16px;text-align:center;font-size:0.9em;">
+                Enter the code we emailed you to publish &amp; upload:
+                <input id="verify-code" type="text" inputmode="numeric" maxlength="6" placeholder="123456" style="width:90px;padding:2px 6px;margin:0 4px;border-radius:4px;border:none;text-align:center;letter-spacing:2px;">
+                <button id="verify-code-btn" style="cursor:pointer;border:none;border-radius:4px;padding:3px 10px;background:#fff;color:#cc8800;font-weight:bold;">Verify</button>
+                <a id="resend-verify" style="color:#fff;text-decoration:underline;cursor:pointer;margin-left:8px;">Resend</a>
+                <span id="resend-status" style="margin-left:8px;"></span>
+            </div>
+            <div id="studio-header">
+                <span class="logo" id="logo-btn">⌂ Homegames Studio</span>
+                <button id="header-asset-btn" class="mode-btn" title="Asset Manager">Assets</button>
+                <div style="display:flex;align-items:center;gap:16px;">
+                    <span id="guide-btn" class="clickable" style="font-size:0.85em;color:#94d2e6;cursor:pointer;" title="squish.js authoring guide — copy as LLM context">📖 Guide</span>
+                    <span id="snippets-btn" class="clickable" style="font-size:0.85em;color:#94d2e6;cursor:pointer;" title="Copy-paste building blocks for common game pieces">✂ Snippets</span>
+                    <a href="/" style="color:var(--text-muted);font-size:0.85em;text-decoration:none;">homegames.io</a>
+                    <span id="admin-btn" style="display:none;cursor:pointer;font-size:0.85em;color:var(--accent-red);font-weight:bold;" title="Admin panel">⚙ Admin</span>
+                    <span id="theme-toggle" style="cursor:pointer;font-size:1.1em;" title="Toggle light/dark mode">☀</span>
+                    <span class="user-info" id="user-info" style="cursor:pointer;" title="Profile settings"></span>
+                    <button id="profile-settings-btn" title="Profile settings" style="background:none;border:none;cursor:pointer;font-size:1.1em;color:var(--text-muted);padding:0;">⚙</button>
+                </div>
+            </div>
+            <div id="studio-body">
+                <div class="blade expanded" id="blade-games">
+                    <div class="blade-strip" data-blade="games"><span class="blade-strip-label">My Games</span></div>
+                    <div class="blade-content">
+                        <div id="games-pane">
+                            <div id="games-pane-header">My Games</div>
+                            <div id="new-game-btn">+ New Game</div>
+                            <div id="game-list"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="blade hidden" id="blade-game">
+                    <div class="blade-strip" data-blade="game"><span class="blade-strip-label" id="blade-game-label">Game</span></div>
+                    <div class="blade-content">
+                        <div id="game-blade-header">
+                            <div id="game-blade-title"></div>
+                            <div id="game-blade-tabs">
+                                <button type="button" class="dash-btn active" id="game-tab-versions">Versions</button>
+                                <button type="button" class="dash-btn" id="game-tab-settings">Settings</button>
+                            </div>
+                        </div>
+                        <div id="game-blade-body">
+                            <div id="game-versions-view">
+                                <div id="version-list"></div>
+                                <div id="version-panel-footer"></div>
+                            </div>
+                            <div id="settings-panel"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="blade hidden" id="blade-editor">
+                    <div class="blade-strip" data-blade="editor"><span class="blade-strip-icon">✎</span><span class="blade-strip-label" id="blade-editor-label">Editor</span></div>
+                    <div class="blade-content" id="main-content"></div>
+                </div>
+            </div>
+            <div id="mobile-tab-bar">
+                <div class="mtab" data-tab="games"><span class="mtab-icon">☰</span>Games</div>
+                <div class="mtab" data-tab="versions"><span class="mtab-icon">🕘</span>Versions</div>
+                <div class="mtab active" data-tab="code"><span class="mtab-icon">✎</span>Code</div>
+                <div class="mtab" data-tab="files"><span class="mtab-icon">📁</span>Files</div>
+                <div class="mtab" data-tab="preview"><span class="mtab-icon">▶</span>Preview</div>
+                <div class="mtab" data-tab="save"><span class="mtab-icon">💾</span>Save</div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="guide-modal">
+            <div class="modal-box" style="width:820px;max-width:calc(100vw - 32px);max-height:85vh;display:flex;flex-direction:column;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <h2 style="margin:0;">squish.js authoring guide</h2>
+                    <span id="guide-close" style="cursor:pointer;font-size:1.2em;color:#888;">✕</span>
+                </div>
+                <p style="color:#888;font-size:0.85em;margin:0 0 8px;">The full context document for writing Homegames games. Copy it into your own LLM to help it write or modify games.</p>
+                <pre id="guide-content" style="flex:1;overflow:auto;background:#11131a;color:#cdd2dc;padding:12px;border-radius:6px;white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,monospace;margin:0;">Loading…</pre>
+                <div class="modal-buttons" style="margin-top:10px;">
+                    <a class="modal-btn secondary" id="guide-open" href="/authoring-guide.md" target="_blank" rel="noopener" style="text-decoration:none;">Open raw</a>
+                    <button class="modal-btn primary" id="guide-copy">Copy to clipboard</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="snippets-modal">
+            <div class="modal-box" style="width:820px;max-width:calc(100vw - 32px);max-height:85vh;display:flex;flex-direction:column;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <h2 style="margin:0;">Snippets</h2>
+                    <span id="snippets-close" style="cursor:pointer;font-size:1.2em;color:#888;">✕</span>
+                </div>
+                <p style="color:#888;font-size:0.85em;margin:0 0 8px;">Copy-paste building blocks for common game pieces. Each one drops into a game as-is.</p>
+                <div id="snippets-list" style="flex:1;overflow:auto;"></div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="new-game-modal">
+            <div class="modal-box">
+                <h2>New Game</h2>
+                <input type="text" id="new-game-name" placeholder="Game name">
+                <input type="text" id="new-game-desc" placeholder="Description (optional)">
+                <label style="color:#888;font-size:0.8em;margin-top:4px;">Template</label>
+                <select id="new-game-template" style="padding:8px;background:#16213e;color:#eee;border:1px solid #444;border-radius:4px;font-family:inherit;font-size:14px;width:100%;max-width:300px;">
+                    <option value="blank">Blank — An empty game with a minimal starting point</option>
+                </select>
+                <div id="new-game-ai-prompt-wrap" style="display:none;">
+                    <label style="color:#888;font-size:0.8em;margin-top:8px;display:block;">Describe your game</label>
+                    <textarea id="new-game-ai-prompt" placeholder="e.g. A two-player game where potatoes race across a field, dodging falling rocks" style="width:100%;min-height:90px;resize:vertical;font-family:inherit;font-size:0.9em;padding:8px;background:var(--bg-deep);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);"></textarea>
+                    <p style="margin:4px 0 0;font-size:0.75em;color:var(--text-dim);">The AI writes the first version of your game. It can take a few minutes — you'll review the code before saving.</p>
+                </div>
+                <div class="modal-error" id="new-game-error"></div>
+                <div class="modal-buttons">
+                    <button class="modal-btn secondary" id="new-game-cancel">Cancel</button>
+                    <button class="modal-btn primary" id="new-game-create">Create</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="profile-modal" style="z-index:110;">
+            <div class="modal-box" style="width:420px;max-width:calc(100vw - 32px);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <h2 style="margin:0;">Profile Settings</h2>
+                    <span id="profile-modal-close" class="clickable" style="font-size:1.2em;color:var(--text-muted);">✕</span>
+                </div>
+
+                <label style="color:var(--text-dim);font-size:0.8em;">Profile Image</label>
+                <div style="display:flex;gap:8px;align-items:center;margin:5px 0;">
+                    <img id="profile-image-preview" style="width:40px;height:40px;border-radius:4px;object-fit:cover;display:none;border:1px solid var(--border-light);" />
+                    <input type="file" id="profile-image-input" accept="image/*" style="flex:1;font-size:0.85em;" />
+                </div>
+                <div id="profile-image-status" style="font-size:0.75em;color:var(--text-dim);min-height:16px;"></div>
+
+                <label style="color:var(--text-dim);font-size:0.8em;margin-top:8px;">About (max 200 chars)</label>
+                <textarea id="profile-desc-input" maxlength="200" rows="3" placeholder="Tell players a bit about yourself"></textarea>
+                <div id="profile-desc-count" style="font-size:0.75em;color:var(--text-dim);text-align:right;">0 / 200</div>
+
+                <label style="color:var(--text-dim);font-size:0.8em;margin-top:4px;">BTC Address</label>
+                <input type="text" id="btc-address-input" placeholder="Your Bitcoin address" />
+
+                <div class="modal-error" id="profile-modal-error"></div>
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn secondary" id="profile-modal-cancel">Cancel</button>
+                    <button type="button" class="modal-btn primary" id="profile-modal-save">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="asset-detail-modal" style="z-index:110;">
+            <div class="modal-box" style="width:480px;max-width:calc(100vw - 32px);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <h2 id="asset-detail-title" style="margin:0;">Asset</h2>
+                    <span id="asset-detail-close" class="clickable" style="font-size:1.2em;color:var(--text-muted);">✕</span>
+                </div>
+                <div id="asset-detail-preview"></div>
+                <div id="asset-detail-meta"></div>
+                <label style="color:var(--text-dim);font-size:0.8em;">Description (catalog, max 80 chars)</label>
+                <input type="text" id="asset-detail-desc" maxlength="80" placeholder="Short description">
+                <label style="color:var(--text-dim);font-size:0.8em;margin-top:8px;">Tags</label>
+                <div id="asset-detail-tags" class="asset-detail-tags"></div>
+                <div id="asset-detail-public-status"></div>
+                <div class="modal-error" id="asset-detail-error"></div>
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn secondary" id="asset-detail-open">Open file</button>
+                    <button type="button" class="modal-btn secondary" id="asset-detail-copy">Copy ID</button>
+                    <button type="button" class="modal-btn primary" id="asset-detail-use">Use in a game</button>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn primary" id="asset-detail-publish">Publish to catalog</button>
+                    <button type="button" class="modal-btn secondary" id="asset-detail-save">Save description</button>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn secondary" id="asset-detail-delete" style="background:rgba(241,112,111,0.9);color:#fff;">Delete asset</button>
+                    <button type="button" class="modal-btn secondary" id="asset-detail-dismiss">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Asset delete confirmation modal -->
+        <div class="modal-overlay" id="asset-delete-confirm-modal" style="z-index:120;">
+            <div class="modal-box" style="width:400px;max-width:calc(100vw - 32px);">
+                <h2 style="color:var(--accent-red);margin-bottom:12px;">Delete Asset</h2>
+                <p id="asset-delete-confirm-text" style="color:var(--text-secondary);font-size:0.9em;line-height:1.5;margin-bottom:6px;"></p>
+                <p style="color:var(--text-dim);font-size:0.8em;margin-bottom:14px;">This cannot be undone.</p>
+                <div class="modal-error" id="asset-delete-confirm-error"></div>
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn secondary" id="asset-delete-confirm-cancel">Cancel</button>
+                    <button type="button" class="modal-btn primary" id="asset-delete-confirm-ok" style="background:rgba(241,112,111,0.9);color:#fff;">Delete</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="llm-modal">
+            <div class="modal-box" style="width:520px;max-width:calc(100vw - 32px);">
+                <h2 id="llm-modal-title">✨ Ask AI to edit your game</h2>
+                <p style="margin:0 0 8px;font-size:0.85em;color:var(--text-secondary);">Describe the change you want. The AI rewrites <code>index.js</code> — review the result and save it as a version when you're happy.</p>
+                <textarea id="llm-prompt-input" placeholder="e.g. Make the potato explode faster and turn the background red" style="width:100%;min-height:90px;resize:vertical;font-family:inherit;font-size:0.9em;padding:8px;background:var(--bg-deep);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);"></textarea>
+                <div class="modal-error" id="llm-modal-error"></div>
+                <div id="llm-modal-status" style="font-size:0.85em;color:var(--text-secondary);min-height:1.2em;"></div>
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn secondary" id="llm-modal-cancel">Cancel</button>
+                    <button type="button" class="modal-btn primary" id="llm-modal-submit">Generate</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="new-file-modal">
+            <div class="modal-box">
+                <h2>New File</h2>
+                <input type="text" id="new-file-name" placeholder="filename.js">
+                <div class="modal-error" id="new-file-error"></div>
+                <div class="modal-buttons">
+                    <button class="modal-btn secondary" id="new-file-cancel">Cancel</button>
+                    <button class="modal-btn primary" id="new-file-create">Create</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin modal -->
+        <!-- Asset modal (full-screen) -->
+        <div class="modal-overlay" id="asset-modal">
+            <div class="asset-modal-box">
+                <div class="asset-modal-header">
+                    <h2 style="margin:0;color:var(--logo-color);">Assets</h2>
+                    <div class="asset-modal-header-actions">
+                        <button type="button" class="asset-create-btn asset-modal-action-btn" id="asset-modal-upload-btn">Upload</button>
+                        <button type="button" class="asset-create-btn asset-modal-action-btn" id="asset-modal-draw-btn">Draw</button>
+                        <button type="button" class="asset-create-btn asset-modal-action-btn" id="asset-modal-record-btn">Record</button>
+                        <button type="button" class="asset-create-btn asset-modal-action-btn" id="asset-modal-keyboard-btn">Keyboard</button>
+                        <span id="asset-modal-close" class="clickable" style="font-size:1.4em;color:var(--text-muted);marg-left:12px;">✕</span>
+                    </div>
+                </div>
+                <div class="asset-modal-toolbar">
+                    <div class="asset-modal-tabs" id="asset-modal-tabs">
+                        <button type="button" class="asset-modal-tab active" data-tab="mine">My Assets</button>
+                        <button type="button" class="asset-modal-tab" data-tab="public">Public Catalog</button>
+                    </div>
+                    <div class="asset-modal-filters">
+                        <label id="asset-modal-nsfw-toggle" class="nsfw-toggle" style="display:none;"><input type="checkbox" id="asset-modal-nsfw-cb"><span>NSFW</span></label>
+                        <input type="text" id="asset-modal-search" placeholder="Search assets..." class="asset-modal-search">
+                        <select id="asset-modal-type-filter" class="asset-modal-type-filter">
+                            <option value="">All types</option>
+                            <option value="image">Images</option>
+                            <option value="audio">Audio</option>
+                            <option value="font">Fonts</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="asset-modal-drop-zone" class="asset-modal-drop-zone">Drop files here or click to upload</div>
+                <div id="asset-modal-scroll" class="asset-modal-scroll">
+                    <div id="asset-modal-grid" class="asset-modal-grid"></div>
+                    <div id="asset-modal-load-more" class="asset-modal-load-more"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Draw overlay -->
+        <div class="draw-overlay" id="draw-overlay">
+            <div class="draw-box">
+                <h2>Draw Image</h2>
+                <canvas class="draw-canvas-wrapper" id="draw-canvas" width="512" height="512"></canvas>
+                <div class="draw-palette" id="draw-palette"></div>
+                <input type="text" class="draw-name-input" id="draw-name" placeholder="Asset name">
+                <div class="draw-buttons">
+                    <button class="draw-btn-clear" id="draw-clear">Clear</button>
+                    <button class="draw-btn-cancel" id="draw-cancel">Cancel</button>
+                    <button class="draw-btn-save" id="draw-save">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Record audio overlay -->
+        <div class="record-overlay" id="record-overlay">
+            <div class="record-box">
+                <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                    <h2>Record Audio</h2>
+                    <span id="rec-close" class="clickable" style="cursor:pointer;font-size:1.2em;color:var(--text-muted);">✕</span>
+                </div>
+                <div>
+                    <span class="record-indicator stopped" id="rec-indicator"></span>
+                    <span class="record-timer" id="rec-timer">0:00</span>
+                </div>
+                <div class="record-controls" id="rec-controls">
+                    <button class="rec-btn-record" id="rec-start">● Record</button>
+                    <button class="rec-btn-pause" id="rec-pause" style="display:none">❚❚ Pause</button>
+                    <button class="rec-btn-stop" id="rec-stop" style="display:none">■ Stop</button>
+                </div>
+                <div class="record-preview" id="rec-preview" style="display:none"></div>
+                <input type="text" class="record-name-input" id="rec-name" placeholder="Asset name" style="display:none">
+                <div class="record-save-row" id="rec-save-row" style="display:none">
+                    <button class="rec-btn-cancel" id="rec-cancel">Cancel</button>
+                    <button class="rec-btn-save" id="rec-save">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Keyboard / synth overlay -->
+        <div class="keyboard-overlay" id="keyboard-overlay">
+            <div class="keyboard-box">
+                <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                    <h2>Keyboard</h2>
+                    <span id="kbd-close" class="clickable" style="cursor:pointer;font-size:1.2em;color:var(--text-muted);">✕</span>
+                </div>
+                <div class="synth-controls">
+                    <div class="synth-control">
+                        <label>Octave: <span class="synth-octave-val" id="synth-octave-val">0</span></label>
+                        <input type="range" id="synth-octave" min="-2" max="2" step="1" value="0">
+                    </div>
+                    <div class="synth-control">
+                        <label for="synth-wave">Sound</label>
+                        <select id="synth-wave">
+                            <option value="sine">Sine</option>
+                            <option value="square">Square</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="triangle" selected>Triangle</option>
+                        </select>
+                    </div>
+                    <div class="synth-control">
+                        <label>Volume</label>
+                        <input type="range" id="synth-volume" min="0" max="100" step="1" value="40">
+                    </div>
+                </div>
+                <div class="piano" id="synth-piano"></div>
+                <div class="kbd-hint">Click the keys or use your computer keyboard (A&ndash;K row) to play.</div>
+                <div>
+                    <span class="record-indicator stopped" id="kbd-indicator"></span>
+                    <span class="record-timer" id="kbd-timer" style="font-size:1.6em;">0:00</span>
+                </div>
+                <div class="keyboard-controls" id="kbd-controls">
+                    <button class="kbd-btn-record" id="kbd-record">● Record</button>
+                    <button class="kbd-btn-stop" id="kbd-stop" style="display:none">■ Stop</button>
+                </div>
+                <div class="keyboard-preview" id="kbd-preview" style="display:none"></div>
+                <input type="text" class="keyboard-name-input" id="kbd-name" placeholder="Asset name" style="display:none">
+                <div class="keyboard-save-row" id="kbd-save-row" style="display:none">
+                    <button class="kbd-btn-cancel" id="kbd-cancel">Cancel</button>
+                    <button class="kbd-btn-save" id="kbd-save">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <script src="homegames-client.js"></script>
+        <script src="studio.js"></script>
+    </body>
+</html>

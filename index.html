@@ -6,12 +6,209 @@
         <link rel="stylesheet" href="app.css">
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
         <link rel="manifest" href="/site.webmanifest">
+        <style>
+            .landing-section {
+                max-width: 860px;
+                margin: 0 auto;
+                padding: 0 24px;
+            }
+
+            /* Header studio link — pinned right, logo stays centered */
+            #header { position: relative; }
+            .header-studio-link {
+                position: absolute;
+                right: 24px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: #94D2E5;
+                color: #1a1a2e;
+                padding: 8px 18px;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: bold;
+                font-size: 1em;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+                transition: background 0.15s;
+            }
+            .header-studio-link:hover { background: #7bc4db; }
+
+            /* Hero */
+            .hero {
+                text-align: center;
+                padding: 60px 24px 0;
+            }
+            .hero h1 {
+                font-size: 2.2em;
+                font-weight: lighter;
+                margin: 0 0 12px;
+                line-height: 1.3;
+            }
+            .hero p {
+                font-size: 1.1em;
+                color: #555;
+                margin: 0;
+                line-height: 1.6;
+            }
+            .section-cta {
+                display: flex;
+                justify-content: center;
+                gap: 20px;
+                flex-wrap: wrap;
+                margin: 24px 0;
+            }
+            .hero-cta {
+                display: inline-block;
+                padding: 14px 36px;
+                border-radius: 8px;
+                font-size: 1.3em;
+                font-weight: bold;
+                text-decoration: none;
+                font-family: 'amateur', sans-serif;
+                color: #1a1a2e;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+                transition: background 0.15s, box-shadow 0.15s, transform 0.15s;
+            }
+            .hero-cta:hover {
+                box-shadow: 0 3px 8px rgba(0,0,0,0.18);
+                transform: translateY(-1px);
+            }
+            .hero-cta.studio { background: #94D2E5; }
+            .hero-cta.studio:hover { background: #7bc4db; }
+            .hero-cta.games { background: #A0EB5D; }
+            .hero-cta.games:hover { background: #8cd94f; }
+            .hero-cta.self-hosting { background: #F1706F; }
+            .hero-cta.self-hosting:hover { background: #ee5a59; }
+            .hero-cta.github { background: #FFF78E; }
+            .hero-cta.github:hover { background: #f7ec6b; }
+
+            /* Featured games */
+            .featured-section {
+                padding: 40px 0;
+            }
+            .featured-section h2 {
+                font-weight: lighter;
+                text-align: center;
+                margin: 0 0 24px;
+                font-size: 1.5em;
+            }
+            .featured-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 16px;
+            }
+            .featured-card {
+                text-decoration: none;
+                color: inherit;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                overflow: hidden;
+                display: block;
+                transition: box-shadow 0.15s;
+            }
+            .featured-card:hover {
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
+            .featured-card img {
+                width: 100%;
+                height: 140px;
+                object-fit: cover;
+                display: block;
+                background: #eee;
+            }
+            .featured-card .placeholder {
+                width: 100%;
+                height: 140px;
+                background: #eee;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #aaa;
+                font-size: 2em;
+            }
+            .featured-card .card-body {
+                padding: 10px;
+            }
+            .featured-card .card-title {
+                font-weight: bold;
+                font-size: 1.05em;
+            }
+            .featured-card .card-desc {
+                font-size: 0.82em;
+                color: #777;
+                margin-top: 4px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            /* Content sections (Developer Studio / Open Source) */
+            .dev-section {
+                padding: 40px 0;
+                border-top: 1px solid #eee;
+            }
+            .dev-section h2 {
+                font-weight: lighter;
+                text-align: center;
+                margin: 0 0 20px;
+                font-size: 1.5em;
+            }
+            /* Wider than the 860px content column: centered on the page via
+               left 50% + translate, so the detailed screenshot gets room. */
+            .studio-screenshot {
+                width: min(1080px, calc(100vw - 48px));
+                position: relative;
+                left: 50%;
+                transform: translateX(-50%);
+                margin: 0 0 28px;
+            }
+            .studio-screenshot img {
+                width: 100%;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                display: block;
+                box-shadow: 0 6px 24px rgba(0,0,0,0.12);
+            }
+            .feature-list {
+                max-width: 640px;
+                margin: 0 auto;
+                padding-left: 24px;
+                color: #555;
+                line-height: 1.7;
+                font-size: 0.95em;
+            }
+            .feature-list li { margin-bottom: 10px; }
+            .feature-list strong { color: #333; }
+            .oss-note {
+                text-align: center;
+                color: #888;
+                font-size: 0.9em;
+                margin: 24px 0 0;
+            }
+
+            /* Footer */
+            .landing-footer {
+                padding: 32px 0;
+                border-top: 1px solid #eee;
+                text-align: center;
+                font-size: 0.9em;
+                color: #888;
+            }
+            .landing-footer a {
+                color: #888;
+                margin: 0 10px;
+            }
+            .landing-footer .email {
+                margin-top: 12px;
+            }
+
+            @media (max-width: 640px) {
+                .hero h1 { font-size: 1.6em; }
+                .section-cta { gap: 12px; }
+                .hero-cta { padding: 12px 24px; font-size: 1.1em; }
+                .featured-grid { grid-template-columns: 1fr; }
+                .header-studio-link { right: 12px; padding: 6px 12px; font-size: 0.85em; }
+            }
+        </style>
     </head>
-    <style>
-        #content h1, #content h2 {
-            font-weight: lighter;
-        }
-    </style>
     <body>
         <div id="modal" class="fade-in" hidden>
             <div id="modal-content">
@@ -22,50 +219,115 @@
         <div id="main">
             <div id="page-container">
                 <div id="header" class="clickable">
-                    <div onclick="showContent('home')" class="hg-button" id="logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png"></img></div>
-                    <div onclick="showModal('login')" class="hg-button amateur" id="settings">
-                        <h1>Developer log in</h1>
-                    </div>
+                    <div onclick="goHome()" class="hg-button clickable" id="logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png" /></div>
+                    <a href="/studio.html" class="header-studio-link amateur">Developer Studio</a>
                 </div>
-                <div id="content" style="font-weight: lighter;">
-                    <div id="info-content">
-                        <div class='headlines amateur'>
-                            <h2>Homegames is a free and open-source game platform built for local multiplayer.</h2>
-                        </div>
-                        <div id="top-buttons" class="amateur">
-                            <div style="width: 100%; display: flex; justify-content: center;">
-                                <div style="text-decoration: none; background: rgba(148, 210, 229, 255); font-family: 'amateur'; font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" onclick="handleDownload(true)" class="clickable hg-button content-button">Download</div>
-                            </div>
-                            <div style="width: 100%; display: flex; justify-content: center;">                      
-                                <a style="text-decoration: none; background: #A0EB5D; font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px; margin-right: 160px;" href="/map.html" class="clickable hg-button content-button">Map</a>
-                                <a style="text-decoration: none; background: rgba(241, 112, 111, 255); font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" href="/catalog.html" class="clickable hg-button content-button">Catalog</a>
-                            </div>
-                            <div style="width: 100%; display: flex; justify-content: center;">
-                                <a style="text-decoration: none; background: rgba(255, 247, 142, 255); font-size: 1.5em; width: 160px; border-radius: 80px; height: 160px; line-height: 160px;" href="https://picodeg.io" target="_blank" class="clickable hg-button content-button">Demo</a>
-                            </div>
-                        </div> 
-                        <div id="links">
-                            <div style="display: grid; grid-template-columns: 1fr; text-align: center;" class="amateur">
-                                <ul>
-                                    <li><a href="/about.html">About</a></li>
-                                    <li><a href="/resources.html">Resources</a></li>
-                                    <li><a href="/blog.html">Blog</a></li>
-                                    <li><a href="/podcast.html">Podcast</a></li>
-                                    <li><a href="/terms.html">Terms of Service</a></li>
-                                </ul>
-                            </div>
-                        </div>
+                <div id="content">
+
+                    <!-- Hero -->
+                    <div class="hero amateur">
+                        <h1>Homegames is a free and open-source game platform.</h1>
+                        <p>Play, make and share games in your browser. No account required to play.</p>
                     </div>
-                    <div hidden id="dashboard-content"></div>
-                </div>
-                <div id="footer" onclick="showModal('support')" class="clickable amateur">
-                    <h1>
-                        Contact 
-                    </h1>
+
+                    <!-- Games -->
+                    <div class="landing-section featured-section amateur">
+                        <h2>Featured Games</h2>
+                        <div class="featured-grid" id="featured-grid">
+                            <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 24px;">Loading...</div>
+                        </div>
+                        <div class="section-cta"><a href="/catalog.html" class="hero-cta games">Browse the Catalog</a></div>
+                    </div>
+
+                    <!-- Developer Studio -->
+                    <div class="landing-section dev-section amateur">
+                        <div class="studio-screenshot" id="studio-screenshot">
+                            <img src="https://api.homegames.io/assets/15c42c63ac3059db66644668c53cac7e" alt="The Homegames Studio editor">
+                        </div>
+                        <ul class="feature-list">
+                            <li><strong>Make games in your browser with a simple code editor</strong></li>
+                            <li><strong>Live game preview lets you test your changes with live multiplayer sessions</strong></li>
+                            <li><strong>Manage game assets right from the studio. Upload your own files or draw/record something in the studio.</strong></li>
+                            <li><strong>Publish games if you want to share them with the world. Or you can just keep them to yourself.</strong></li>
+                        </ul>
+                        <div class="section-cta"><a href="/studio.html" class="hero-cta studio">Open the Studio</a></div>
+                    </div>
+
+                    <!-- Open source -->
+                    <div class="landing-section dev-section amateur">
+                        <h2>Open Source</h2>
+                        <ul class="feature-list">
+                            <li><strong>Everything is GPLv3</strong> from the platform code to the games to this website. You can read the code and fork it if you want to.</li>
+                            <li><strong>Self-host on your own hardware.</strong> Homegames was designed to be self-hostable, including the API.</li>
+                            <li><strong>Preservation.</strong> If this website gets hit by a bus, your games can live on.</li>
+                        </ul>
+                        <div class="section-cta">
+                            <a href="https://github.com/homegamesio" target="_blank" class="hero-cta github">GitHub</a>
+                        </div>
+                        <p class="oss-note">Homegames has been in development as a (mostly) solo side project since 2018.</p>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="landing-footer amateur">
+                        <div>
+                            <a href="https://youtube.com/homegamesio" target="_blank">YouTube</a>
+                            <span>·</span>
+                            <a href="https://x.com/homegamesio" target="_blank">Twitter</a>
+                            <span>·</span>
+                            <a href="/terms.html">Terms</a>
+                        </div>
+                        <div class="email">joseph@homegames.io</div>
+                    </div>
+
                 </div>
             </div>
         </div>
-    </body>
-    <script src="bundle.js"></script>
+        <script src="bundle.js"></script>
+        <script>
+            const grid = document.getElementById('featured-grid');
+            getAllGames(6, 0, true).then((data) => {
+                const games = data.games || [];
+                grid.innerHTML = '';
 
+                if (games.length === 0) {
+                    grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 24px;">No featured games yet</div>';
+                    return;
+                }
+
+                games.forEach((game) => {
+                    const card = document.createElement('a');
+                    card.href = '/game.html?id=' + game.id;
+                    card.className = 'featured-card';
+
+                    if (game.thumbnail) {
+                        const img = document.createElement('img');
+                        img.src = window.API_URL + '/assets/' + game.thumbnail;
+                        img.alt = game.name;
+                        card.appendChild(img);
+                    } else {
+                        const ph = document.createElement('div');
+                        ph.className = 'placeholder';
+                        ph.textContent = '🎮';
+                        card.appendChild(ph);
+                    }
+
+                    const body = document.createElement('div');
+                    body.className = 'card-body';
+                    const title = document.createElement('div');
+                    title.className = 'card-title';
+                    title.textContent = game.name;
+                    body.appendChild(title);
+                    const desc = document.createElement('div');
+                    desc.className = 'card-desc';
+                    desc.textContent = game.description || 'No description available';
+                    body.appendChild(desc);
+                    card.appendChild(body);
+
+                    grid.appendChild(card);
+                });
+            }).catch(() => {
+                grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 24px;">Could not load games</div>';
+            });
+        </script>
+    </body>
 </html>

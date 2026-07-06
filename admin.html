@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Homegames Admin</title>
+    <style>
+        :root { --bg:#15171c; --panel:#1d2027; --line:#2c313c; --text:#e6e8ec; --muted:#8b93a3; --accent:#94d2e6; --danger:#f17070; --ok:#5ac18e; }
+        * { box-sizing:border-box; }
+        body { margin:0; background:var(--bg); color:var(--text); font:14px/1.4 system-ui,sans-serif; }
+        a { color:var(--accent); }
+        button, input { font:inherit; }
+        input { background:#11131a; border:1px solid var(--line); color:var(--text); border-radius:6px; padding:7px 10px; }
+        button { background:var(--panel); border:1px solid var(--line); color:var(--text); border-radius:6px; padding:6px 12px; cursor:pointer; }
+        button:hover { border-color:var(--accent); }
+        button.danger { color:var(--danger); border-color:#5a2b2b; }
+        button.danger:hover { background:#3a1e1e; }
+
+        /* Login */
+        #admin-login { max-width:320px; margin:12vh auto; display:flex; flex-direction:column; gap:10px; padding:24px; background:var(--panel); border:1px solid var(--line); border-radius:10px; }
+        #admin-login h1 { font-size:1.2em; margin:0 0 6px; }
+        #login-error { color:var(--danger); min-height:1.2em; font-size:0.9em; }
+
+        /* App */
+        #admin-app { display:none; }
+        header { display:flex; align-items:center; gap:16px; padding:12px 20px; border-bottom:1px solid var(--line); background:var(--panel); position:sticky; top:0; z-index:5; }
+        header .title { font-weight:bold; }
+        header .spacer { flex:1; }
+        header .who { color:var(--muted); font-size:0.9em; }
+        nav { display:flex; gap:6px; padding:12px 20px 0; flex-wrap:wrap; }
+        nav button.active { border-color:var(--accent); color:var(--accent); }
+        .toolbar { display:flex; gap:8px; padding:12px 20px; align-items:center; }
+        .toolbar input { flex:1; max-width:360px; }
+        .wrap { padding:0 20px 40px; }
+
+        table { width:100%; border-collapse:collapse; }
+        th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+        th { color:var(--muted); font-weight:600; font-size:0.82em; text-transform:uppercase; letter-spacing:0.04em; }
+        th.sortable { cursor:pointer; user-select:none; }
+        th.sortable:hover { color:var(--accent); }
+        td.actions { white-space:nowrap; text-align:right; }
+        tr.json-row td { background:#11131a; }
+        pre { margin:0; white-space:pre-wrap; word-break:break-all; font:12px/1.4 ui-monospace,monospace; color:var(--muted); max-height:320px; overflow:auto; }
+        .pager { display:flex; gap:10px; align-items:center; padding:14px 20px; color:var(--muted); }
+        .empty { padding:40px; text-align:center; color:var(--muted); }
+        .badge { font-size:0.8em; padding:1px 6px; border-radius:4px; border:1px solid var(--line); }
+        .badge.nsfw { color:var(--danger); border-color:#5a2b2b; }
+        .badge.ok { color:var(--ok); }
+        img.asset-thumb { width:56px; height:56px; object-fit:cover; border-radius:6px; border:1px solid var(--line); background:#11131a; display:block; }
+        audio.asset-audio { height:34px; max-width:220px; vertical-align:middle; }
+        .stat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:14px; }
+        .stat { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
+        .stat .n { font-size:1.8em; font-weight:bold; }
+        .stat .l { color:var(--muted); font-size:0.85em; margin-top:4px; }
+    </style>
+</head>
+<body>
+    <div id="admin-login">
+        <h1>Homegames Admin</h1>
+        <input type="text" id="login-username" placeholder="Display name or email" autocomplete="username">
+        <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+        <button id="login-btn">Log in</button>
+        <div id="login-error"></div>
+        <div style="text-align:center;font-size:0.9em;"><a href="/reset-password">Forgot password?</a></div>
+    </div>
+
+    <div id="admin-app">
+        <header>
+            <span class="title">⚙ Homegames Admin</span>
+            <span class="spacer"></span>
+            <span class="who" id="who"></span>
+            <button id="logout-btn">Log out</button>
+        </header>
+        <nav id="tabs">
+            <button data-tab="stats" class="active">Stats</button>
+            <button data-tab="users">Users</button>
+            <button data-tab="games">Games</button>
+            <button data-tab="assets">Assets</button>
+            <button data-tab="publishRequests">Publish Requests</button>
+            <button data-tab="messages">Support Messages</button>
+            <button data-tab="failed">Failed Publishes</button>
+        </nav>
+        <div class="toolbar" id="toolbar" style="display:none;">
+            <input type="text" id="search-input" placeholder="Search (name, id, email, developerId)…">
+            <button id="search-btn">Search</button>
+            <button id="refresh-btn">Refresh</button>
+        </div>
+        <div class="wrap">
+            <div id="content"></div>
+            <div class="pager" id="pager"></div>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>

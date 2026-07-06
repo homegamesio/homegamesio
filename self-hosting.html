@@ -3,10 +3,9 @@
     <head>
         <meta charset="UTF-8">
         <title>Homegames</title>
-        <link rel="stylesheet" href="app.css">
+        <link rel="stylesheet" href="/app.css">
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
         <link rel="manifest" href="/site.webmanifest">
-        <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     </head>
 
     <body>
@@ -23,21 +22,26 @@
                     <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
                 </div>
                 <div id="content">
-                    <div id="map" style="width: 100%; height: 100%;"></div>
-                </div>
-                <div id="footer" onclick="showModal('support')" class="clickable amateur">
-                    <h1>
-                        Contact
-                    </h1>
+                    <h2>Guide coming soon!</h2>
+                    <p>Short version: run homegames-core and homegames-web node servers locally, use homegames.link and ws-relay for public game features. API is also self hostable. Everything is at https://github.com/homegamesio</p> 
                 </div>
             </div>
         </div>
     </body>
-    <script src="/assets/leaflet.js"></script>
-    <script src="/assets/Leaflet.VectorGrid.bundled.js"></script>
-    <script src="bundle.js"></script>
+    <script src="/bundle.js"></script>
     <script>
-        loadMap();
+        const urlParams = new URLSearchParams(window.location.search);
+        const gameParam = urlParams.get('id');
+
+        if (gameParam) {
+            showGamePage(gameParam); 
+        } 
     </script>
+    <style>
+        #content input {height: 40px; line-height: 40px; width: 20%; padding: 5px; margin-left: 2%; margin-right: 78%; margin-top: 1%}
+        #submit-button {margin-top: 1%; margin-left: 2%; text-decoration: underline;}
+        #podcast-content {height: 250px;}
+        #podcast-content ul {text-align: left; list-style-type: none;}
+    </style>
 
 </html>

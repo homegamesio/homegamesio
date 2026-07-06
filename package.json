@@ -22,7 +22,9 @@
   },
   "homepage": "https://github.com/prosif/homegamesio#readme",
   "dependencies": {
-    "marked": "^14.1.2"
+    "dompurify": "^3.4.5",
+    "homegames-client": "file:../homegames-client",
+    "homegames-common": "file:../homegames-common"
   },
   "devDependencies": {
     "webpack": "^5.65.0",
