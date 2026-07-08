@@ -69,7 +69,9 @@
             body { font-family: 'amateur', monospace; background: var(--bg-primary); color: var(--text-primary); height: 100vh; overflow: hidden; }
 
             /* Login */
-            #studio-login { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 6px; }
+            /* The auth screen is an overlay over the always-visible studio; hidden until
+               the user hits Sign in or a gated action (save, online session, assets). */
+            #studio-login { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 200; background: var(--bg-primary); flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
             #studio-login h1 { font-size: 2em; margin-bottom: 16px; color: var(--logo-color); }
             #studio-login input { width: 280px; padding: 10px; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary); font-size: 16px; font-family: inherit; }
             #studio-login .login-btn { background: var(--accent-green); color: var(--badge-head-text); border: none; cursor: pointer; font-weight: bold; }
@@ -79,6 +81,9 @@
             #studio-login .auth-toggle a { color: var(--logo-color); cursor: pointer; text-decoration: none; }
             #studio-login .auth-toggle a:hover { text-decoration: underline; }
             #studio-login .auth-form { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+            #signup-gate-msg { max-width: 340px; text-align: center; color: var(--text-secondary); font-size: 0.9em; line-height: 1.5; margin-bottom: 12px; }
+            #header-signin-btn { background: var(--accent-green); color: var(--badge-head-text); border: none; border-radius: 4px; padding: 4px 14px; cursor: pointer; font-weight: bold; font-size: 0.85em; font-family: inherit; }
+            #header-signin-btn:hover { background: var(--accent-green-hover); }
             #studio-login .tos-row { display: flex; align-items: center; gap: 8px; width: 280px; font-size: 0.8em; color: var(--text-muted); margin-top: 2px; }
             #studio-login .tos-row input[type="checkbox"] { width: auto; margin: 0; }
             #studio-login .tos-row a { color: var(--logo-color); text-decoration: none; }
@@ -182,9 +187,10 @@
             .editor-tab.active { color: var(--text-primary); background: var(--bg-deep); }
             .editor-tab.dirty::after { content: ' ●'; color: var(--accent-yellow); }
             #editor-wrap { flex: 1; position: relative; overflow: hidden; min-height: 0; }
-            #editor-highlight { position: absolute; top: 0; left: 0; right: 0; bottom: 0; padding: 12px; margin: 0; background: var(--bg-deep); color: var(--text-primary); font-family: monospace; font-size: 14px; line-height: 1.6; tab-size: 2; overflow: auto; white-space: pre-wrap; word-wrap: break-word; pointer-events: none; }
+            #editor-gutter { position: absolute; top: 0; left: 0; bottom: 0; width: 48px; margin: 0; padding: 12px 8px; box-sizing: border-box; overflow: hidden; text-align: right; background: var(--bg-deep); border-right: 1px solid var(--border); color: var(--text-dim); font-family: monospace; font-size: 14px; line-height: 1.6; white-space: pre; user-select: none; pointer-events: none; }
+            #editor-highlight { position: absolute; top: 0; left: 48px; right: 0; bottom: 0; padding: 12px; margin: 0; background: var(--bg-deep); color: var(--text-primary); font-family: monospace; font-size: 14px; line-height: 1.6; tab-size: 2; overflow: auto; white-space: pre; pointer-events: none; }
             #editor-highlight code { font-family: inherit; font-size: inherit; line-height: inherit; tab-size: inherit; }
-            #editor-textarea { position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 12px; background: transparent; color: transparent; caret-color: var(--text-primary); border: none; resize: none; font-family: monospace; font-size: 14px; line-height: 1.6; tab-size: 2; outline: none; white-space: pre-wrap; word-wrap: break-word; overflow: auto; z-index: 1; }
+            #editor-textarea { position: absolute; top: 0; left: 48px; right: 0; height: 100%; padding: 12px; background: transparent; color: transparent; caret-color: var(--text-primary); border: none; resize: none; font-family: monospace; font-size: 14px; line-height: 1.6; tab-size: 2; outline: none; white-space: pre; overflow: auto; z-index: 1; }
             #editor-placeholder { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 0.95em; background: var(--bg-deep); }
 
             /* Syntax highlight colors */
@@ -492,7 +498,7 @@
                 /* Editor */
                 #editor-area { flex-direction: column; }
                 #editor-pane { min-width: 0; }
-                #editor-textarea, #editor-highlight { font-size: 13px; line-height: 1.5; }
+                #editor-textarea, #editor-highlight, #editor-gutter { font-size: 13px; line-height: 1.5; }
 
                 /* Game header */
                 #game-header { flex-wrap: wrap; gap: 4px; padding: 6px 8px; }
@@ -619,6 +625,9 @@
         <div id="studio-login">
             <h1>Homegames Studio</h1>
 
+            <!-- Shown when the signup gate opens from guest mode -->
+            <div id="signup-gate-msg" style="display:none;"></div>
+
             <!-- Login form -->
             <div id="login-form" class="auth-form">
                 <input type="text" id="login-username" placeholder="Display name or email" autocomplete="username">
@@ -643,6 +652,8 @@
                 <div class="login-error" id="signup-error"></div>
                 <div class="auth-toggle">Already have an account? <a id="show-login">Log in</a></div>
             </div>
+
+            <div class="auth-toggle"><a id="signup-gate-back">← Back to the studio</a></div>
         </div>
 
         <div id="studio-app">
@@ -664,6 +675,7 @@
                     <span id="theme-toggle" style="cursor:pointer;font-size:1.1em;" title="Toggle light/dark mode">☀</span>
                     <span class="user-info" id="user-info" style="cursor:pointer;" title="Profile settings"></span>
                     <button id="profile-settings-btn" title="Profile settings" style="background:none;border:none;cursor:pointer;font-size:1.1em;color:var(--text-muted);padding:0;">⚙</button>
+                    <button id="header-signin-btn" style="display:none;">Sign in</button>
                 </div>
             </div>
             <div id="studio-body">

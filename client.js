@@ -326,9 +326,11 @@ const renderGamePage = (gameId, gameDetails) => {
     description.textContent = gameDetails?.game?.description || 'No description available';
     description.style = 'margin-top: 24px;';
 
+    // Sessions only make sense for session-based games — revealed once the
+    // local-manifest classifies this as multiplayer (or the hosted fallback).
     const sessionCount = gameDetails?.game?.sessionCount || 0;
     const stats = document.createElement('div');
-    stats.style = 'margin-top: 12px; color: #888; font-size: 0.9em;';
+    stats.style = 'margin-top: 12px; color: #888; font-size: 0.9em; display: none;';
     stats.textContent = `${sessionCount.toLocaleString()} ${sessionCount === 1 ? 'session' : 'sessions'} played`;
 
     const fmtDate = (ts) => ts ? new Date(ts).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : null;
@@ -380,21 +382,63 @@ const renderGamePage = (gameId, gameDetails) => {
     const versionSelect = document.createElement('select');
     versionSelect.style = 'width: 180px; padding: 6px; margin-top: 8px; display: none;';
 
+    // Play section variants, driven by the local-manifest:
+    //   single-player -> Play + Download only
+    //   multiplayer   -> label + Create/Join session buttons + Download w/ note
+    //   unknown       -> legacy hosted-session UI
+    const multiplayerLabel = document.createElement('div');
+    multiplayerLabel.innerHTML = 'MULTIPLAYER GAME';
+    multiplayerLabel.className = 'amateur';
+    multiplayerLabel.style = 'color: #9a7bff; letter-spacing: 2px; font-size: 0.95em; margin-bottom: 6px; display: none;';
+
+    // block + fit-content + auto margins: each button sits on its own line
+    // below the version dropdown, centered in the column
+    const playBtn = document.createElement('div');
+    playBtn.innerHTML = '▶ Play';
+    playBtn.className = 'clickable amateur';
+    playBtn.style = 'background: #A0EB5D; color: #333; padding: 12px 24px; border-radius: 8px; margin: 12px auto 0; width: fit-content; font-size: 1.1em; cursor: pointer; display: none;';
+
+    const downloadLink = document.createElement('a');
+    downloadLink.innerHTML = '⬇ Download';
+    downloadLink.className = 'clickable amateur';
+    downloadLink.style = 'background: #F5D76E; color: #333; padding: 12px 24px; border-radius: 8px; margin: 12px auto 0; width: fit-content; font-size: 1.1em; cursor: pointer; text-decoration: none; display: none;';
+
+    const downloadCount = gameDetails?.game?.downloadCount || 0;
+    const downloadCountLine = document.createElement('div');
+    downloadCountLine.textContent = `${downloadCount.toLocaleString()} download${downloadCount === 1 ? '' : 's'}`;
+    downloadCountLine.style = 'margin-top: 6px; font-size: 0.8em; color: #888; display: none;';
+
+    const downloadNote = document.createElement('div');
+    downloadNote.innerHTML = 'Multiplayer features are unavailable in downloaded games';
+    downloadNote.style = 'margin-top: 6px; font-size: 0.8em; color: #888; display: none;';
+
     const createBtn = document.createElement('div');
     createBtn.innerHTML = '▶ Create Session';
     createBtn.className = 'clickable amateur';
     createBtn.style = 'background: #A0EB5D; color: #333; padding: 12px 24px; border-radius: 8px; display: inline-block; margin-top: 12px; font-size: 1.1em; cursor: pointer; display: none;';
 
+    const joinBtn = document.createElement('div');
+    joinBtn.innerHTML = '👥 Join Multiplayer Session';
+    joinBtn.className = 'clickable amateur';
+    joinBtn.style = 'background: #94D2E6; color: #333; padding: 12px 24px; border-radius: 8px; margin-top: 12px; font-size: 1.1em; cursor: pointer; display: none;';
+
     const statusMsg = document.createElement('div');
     statusMsg.style = 'margin-top: 8px; font-size: 0.9em; color: #888;';
 
+    versionSection.appendChild(multiplayerLabel);
     versionSection.appendChild(versionSelect);
+    versionSection.appendChild(playBtn);
     versionSection.appendChild(createBtn);
+    versionSection.appendChild(joinBtn);
+    versionSection.appendChild(downloadLink);
+    versionSection.appendChild(downloadCountLine);
+    versionSection.appendChild(downloadNote);
     versionSection.appendChild(statusMsg);
 
-    // Session list
+    // Session list — hidden until a flow that needs it (Join button,
+    // session creation, or the legacy fallback) reveals it.
     const sessionSection = document.createElement('div');
-    sessionSection.style = 'margin-top: 24px; text-align: left;';
+    sessionSection.style = 'margin-top: 24px; text-align: left; display: none;';
 
     const sessionHeader = document.createElement('h3');
     sessionHeader.className = 'amateur';
@@ -432,7 +476,6 @@ const renderGamePage = (gameId, gameDetails) => {
 
         versionLabel.innerHTML = 'Version:';
         versionSelect.style.display = '';
-        createBtn.style.display = 'inline-block';
 
         publishedVersions.forEach((v, i) => {
             const opt = document.createElement('option');
@@ -451,12 +494,66 @@ const renderGamePage = (gameId, gameDetails) => {
         viewCodeLink.href = `/view.html?game=${gameId}&sha=${versionSelect.value}`;
         versionSection.appendChild(viewCodeLink);
 
-        versionSelect.onchange = () => {
-            viewCodeLink.href = `/view.html?game=${gameId}&sha=${versionSelect.value}`;
+        const updateDownloadHref = () => {
+            downloadLink.href = `${API_URL}/games/${gameId}/download?ref=${versionSelect.value}`;
         };
 
-        // Load active sessions
-        loadGameSessions(gameId, sessionList);
+        versionSelect.onchange = () => {
+            viewCodeLink.href = `/view.html?game=${gameId}&sha=${versionSelect.value}`;
+            updateDownloadHref();
+        };
+
+        // Legacy hosted UI, for games the manifest can't classify
+        const showHostedFallback = () => {
+            createBtn.style.display = 'inline-block';
+            sessionSection.style.display = '';
+            stats.style.display = '';
+            loadGameSessions(gameId, sessionList);
+        };
+
+        // The local-manifest decides which play UI this game gets. Games are
+        // single-player by default; multiplayer is declared in metadata.
+        makeGet(`${API_URL}/games/${gameId}/local-manifest?ref=${publishedVersions[0].commitSha}`).then(_manifest => {
+            const manifest = JSON.parse(_manifest);
+            if (manifest.localPlayable) {
+                // Single-player: Play + Download, nothing else
+                playBtn.style.display = 'block';
+                if (manifest.downloadable) {
+                    downloadLink.style.display = 'block';
+                    downloadCountLine.style.display = 'block';
+                    updateDownloadHref();
+                }
+            } else if (manifest.multiplayer) {
+                multiplayerLabel.style.display = 'block';
+                stats.style.display = '';
+                createBtn.innerHTML = '▶ Create New Multiplayer Session';
+                createBtn.style.display = 'inline-block';
+                joinBtn.style.display = 'inline-block';
+                if (manifest.downloadable) {
+                    downloadLink.style.display = 'block';
+                    downloadCountLine.style.display = 'block';
+                    downloadNote.style.display = 'block';
+                    updateDownloadHref();
+                }
+            } else {
+                showHostedFallback();
+            }
+        }).catch(err => {
+            console.error('local-manifest check failed', err);
+            showHostedFallback();
+        });
+
+        playBtn.onclick = () => {
+            if (!versionSelect.value) return;
+            // Local plays count toward the game's download total (fire-and-forget)
+            fetch(`${API_URL}/games/${gameId}/play`, { method: 'POST' }).catch(() => {});
+            window.open(`/play.html?localGame=${encodeURIComponent(gameId)}&ref=${encodeURIComponent(versionSelect.value)}`, '_blank');
+        };
+
+        joinBtn.onclick = () => {
+            sessionSection.style.display = '';
+            loadGameSessions(gameId, sessionList);
+        };
 
     }).catch(err => {
         versionLabel.innerHTML = 'Failed to load versions';
@@ -475,7 +572,8 @@ const renderGamePage = (gameId, gameDetails) => {
         makePost(`${API_URL}/sessions`, { gameId, commitSha }).then(sessionData => {
             statusMsg.innerHTML = '';
             createBtn.style.display = 'inline-block';
-            // Refresh session list
+            // Refresh session list (and reveal it — a session now exists)
+            sessionSection.style.display = '';
             loadGameSessions(gameId, sessionList);
             // Connect to the new session
             connectToSession(sessionData, container);
@@ -560,13 +658,37 @@ const loadGameSessions = (gameId, listEl) => {
     });
 };
 
+// Opaque share codes for hosted-session links. Not encryption — just enough
+// structure that links don't advertise a host:port to poke at, and go stale:
+// the checksum binds the payload to a UTC date, so a code only decodes on the
+// day it was minted (or the day after, for links shared near midnight).
+// Format: 1.<fnv1a8(wsUrl|date)>.<base64url(wsUrl XOR checksum)>
+// Keep in sync across studio.js, client.js, and play.html.
+const fnv1a8 = (str) => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return ('0000000' + h.toString(16)).slice(-8);
+};
+
+const shareCodeUtcDay = (daysAgo) => new Date(Date.now() - (daysAgo || 0) * 86400000).toISOString().slice(0, 10);
+
+const encodeShareCode = (wsUrl) => {
+    const sum = fnv1a8(wsUrl + '|' + shareCodeUtcDay(0));
+    const mixed = Array.from(wsUrl, (c, i) => String.fromCharCode(c.charCodeAt(0) ^ sum.charCodeAt(i % 8))).join('');
+    const b64 = btoa(mixed).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return `1.${sum}.${b64}`;
+};
+
 const connectToSession = (sessionData) => {
     const wsUrl = sessionData.wsUrl;
     if (!wsUrl) {
         console.error('No WebSocket URL in session data');
         return;
     }
-    window.open(`/play.html?ws=${encodeURIComponent(wsUrl)}`, '_blank');
+    window.open(`/play.html?s=${encodeShareCode(wsUrl)}`, '_blank');
 };
 
 const renderDevProfile = (devId, devInfo) => {
@@ -604,6 +726,12 @@ const renderDevProfile = (devId, devInfo) => {
         joined.textContent = 'Joined ' + new Date(devInfo.created).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
         profileInfo.appendChild(joined);
     }
+
+    const totalDownloads = devInfo.totalDownloads || 0;
+    const downloadsLine = document.createElement('div');
+    downloadsLine.style = 'margin-top: 4px; font-size: 0.85em; color: #888;';
+    downloadsLine.textContent = `⬇ ${totalDownloads.toLocaleString()} download${totalDownloads === 1 ? '' : 's'} across all games`;
+    profileInfo.appendChild(downloadsLine);
 
     profileHeader.appendChild(profileInfo);
 

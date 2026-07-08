@@ -25,7 +25,8 @@
             #view-editor { flex: 1; display: flex; flex-direction: column; min-width: 0; }
             #view-tab { padding: 4px 12px; background: #16213e; border-bottom: 1px solid #333; font-size: 0.8em; color: #eee; height: 32px; line-height: 24px; flex-shrink: 0; }
             #view-code-wrap { flex: 1; position: relative; overflow: hidden; }
-            #view-highlight { position: absolute; top: 0; left: 0; right: 0; bottom: 0; padding: 12px; margin: 0; background: #0a0a1a; color: #eee; font-family: monospace; font-size: 14px; line-height: 1.6; tab-size: 2; overflow: auto; white-space: pre-wrap; word-wrap: break-word; }
+            #view-gutter { position: absolute; top: 0; left: 0; bottom: 0; width: 48px; margin: 0; padding: 12px 8px; box-sizing: border-box; overflow: hidden; text-align: right; background: #0a0a1a; border-right: 1px solid #333; color: #666; font-family: monospace; font-size: 14px; line-height: 1.6; white-space: pre; user-select: none; pointer-events: none; }
+            #view-highlight { position: absolute; top: 0; left: 48px; right: 0; bottom: 0; padding: 12px; margin: 0; background: #0a0a1a; color: #eee; font-family: monospace; font-size: 14px; line-height: 1.6; tab-size: 2; overflow: auto; white-space: pre; }
             #view-highlight code { font-family: inherit; font-size: inherit; }
             #view-placeholder { flex: 1; display: flex; align-items: center; justify-content: center; color: #555; font-size: 1em; background: #0a0a1a; }
 
@@ -53,6 +54,7 @@
             <div id="view-editor">
                 <div id="view-tab"></div>
                 <div id="view-code-wrap" style="display:none;">
+                    <pre id="view-gutter"></pre>
                     <pre id="view-highlight"><code id="view-highlight-code"></code></pre>
                 </div>
                 <div id="view-placeholder">Select a file to view</div>
@@ -73,21 +75,34 @@
         const highlightJS = (code) => {
             const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             const tokens = [];
-            const re = /\/\/[^\n]*|\/\*[\s\S]*?\*\/|`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\/(?:[^/\\]|\\.)+\/[gimsuy]*|\b(?:const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|new|this|class|extends|super|import|export|default|from|of|in|typeof|instanceof|try|catch|finally|throw|async|await|yield|static|get|set|null|undefined|true|false|NaN|Infinity)\b|\b\d+\.?\d*(?:e[+-]?\d+)?\b|[{}()[\];,]|=>|\.\.\.|\?\.|[+\-*/%=!<>&|^~?:]+|[a-zA-Z_$][a-zA-Z0-9_$]*/g;
+            const re = /\/\/[^\n]*|\/\*[\s\S]*?\*\/|`(?:[^`\\]|\\.)*`|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|\/(?:[^\/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+\/[gimsuy]*|\b(?:const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|new|this|class|extends|super|import|export|default|from|of|in|typeof|instanceof|try|catch|finally|throw|async|await|yield|static|get|set|null|undefined|true|false|NaN|Infinity)\b|\b\d+\.?\d*(?:e[+-]?\d+)?\b|[{}()[\];,]|=>|\.\.\.|\?\.|[+\-*/%=!<>&|^~?:]+|[a-zA-Z_$][a-zA-Z0-9_$]*/g;
             let match, lastIndex = 0;
+            let prev = ''; // last significant token, for regex-vs-division disambiguation
             while ((match = re.exec(code)) !== null) {
                 if (match.index > lastIndex) tokens.push(esc(code.slice(lastIndex, match.index)));
-                const t = match[0];
+                let t = match[0];
                 let cls = '';
-                if (t.startsWith('//') || t.startsWith('/*')) cls = 'hl-comment';
+                const isRegexCandidate = t[0] === '/' && t.length > 1 && !t.startsWith('//') && !t.startsWith('/*');
+                // A slash can only start a regex where an expression can start; after an
+                // identifier, number, string, or closing bracket it's division.
+                const regexAllowed = !prev
+                    || /^(?:return|case|typeof|instanceof|new|delete|void|throw|do|else|in|of|yield|await)$/.test(prev)
+                    || (/^[{([;,:?=&|!+\-*%<>^~]/.test(prev) && prev !== '++' && prev !== '--');
+                if (isRegexCandidate && !regexAllowed) {
+                    t = t[1] === '=' ? '/=' : '/';
+                    re.lastIndex = match.index + t.length;
+                    cls = 'hl-operator';
+                }
+                else if (t.startsWith('//') || t.startsWith('/*')) cls = 'hl-comment';
                 else if (t.startsWith('"') || t.startsWith("'") || t.startsWith('`')) cls = 'hl-string';
-                else if (t.startsWith('/') && t.length > 1 && !t.startsWith('//') && !t.startsWith('/*')) cls = 'hl-regex';
+                else if (isRegexCandidate) cls = 'hl-regex';
                 else if (/^(?:const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|new|this|class|extends|super|import|export|default|from|of|in|typeof|instanceof|try|catch|finally|throw|async|await|yield|static|get|set|null|undefined|true|false|NaN|Infinity)$/.test(t)) cls = 'hl-keyword';
                 else if (/^\d/.test(t)) cls = 'hl-number';
                 else if (/^[a-zA-Z_$]/.test(t)) { cls = code[re.lastIndex] === '(' ? 'hl-function' : ''; }
                 else if (/^[+\-*/%=!<>&|^~?:]+$/.test(t) || t === '=>') cls = 'hl-operator';
                 tokens.push(cls ? `<span class="${cls}">${esc(t)}</span>` : esc(t));
                 lastIndex = re.lastIndex;
+                if (cls !== 'hl-comment') prev = t;
             }
             if (lastIndex < code.length) tokens.push(esc(code.slice(lastIndex)));
             return tokens.join('');
@@ -166,10 +181,21 @@
                 const codeEl = $('view-highlight-code');
                 codeEl.innerHTML = isJS ? highlightJS(content) : content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 if (!codeEl.innerHTML.endsWith('\n')) codeEl.innerHTML += '\n';
+                const lineCount = content.split('\n').length;
+                $('view-gutter').textContent = Array.from({ length: lineCount }, (_, i) => i + 1).join('\n');
+                const gutterWidth = Math.max(48, 21 + String(lineCount).length * 9);
+                $('view-gutter').style.width = gutterWidth + 'px';
+                $('view-highlight').style.left = gutterWidth + 'px';
+                $('view-highlight').scrollTop = 0;
+                $('view-highlight').scrollLeft = 0;
                 $('view-status').textContent = filePath;
             }).catch(err => {
                 $('view-highlight-code').textContent = 'Failed to load file';
             });
         };
+
+        $('view-highlight').addEventListener('scroll', () => {
+            $('view-gutter').scrollTop = $('view-highlight').scrollTop;
+        });
     </script>
 </html>

@@ -17,6 +17,7 @@ const AI_FEATURES_ENABLED = false;
 // ---------------------------------------------------------------------------
 
 let userInfo = null;
+let isGuest = false;     // entered the studio without an account
 let games = [];
 let currentGame = null;
 let fileTree = [];
@@ -30,6 +31,9 @@ let previewClient = null;
 let previewSessionId = null;
 let previewOpen = false;
 let previewDebounceTimer = null;
+// 'local' = LocalSession in this tab (instant reload, no server session);
+// 'online' = hosted Homenames session (shareable link). Sticky until Stop.
+let previewMode = 'local';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -72,10 +76,12 @@ let editorBladeOpened = false; // blade 3 stays hidden until a version is opened
 const setActiveBlade = (name) => {
     // Fall back to the deepest reachable blade.
     if (name === 'editor' && !editorBladeOpened) name = 'game';
+    // Guest games have no versions/settings — skip the game blade entirely.
+    if (name === 'game' && currentGame && currentGame.guest) name = 'editor';
     if (name !== 'games' && !currentGame) name = 'games';
     const blades = {
         games: { el: $('blade-games'), available: true },
-        game: { el: $('blade-game'), available: !!currentGame },
+        game: { el: $('blade-game'), available: !!currentGame && !currentGame.guest },
         editor: { el: $('blade-editor'), available: !!currentGame && editorBladeOpened },
     };
     Object.entries(blades).forEach(([key, { el, available }]) => {
@@ -124,13 +130,26 @@ const updateVerifyBanner = () => {
 
 // Enter the studio app after a successful login/signup.
 const enterStudio = () => {
+    closeSignupGate();
+    isGuest = false;
     $('studio-login').style.display = 'none';
     $('studio-app').style.display = 'flex';
+    // Restore the games blade in case a guest session turned it into the template list
+    $('games-pane-header').textContent = 'My Games';
+    $('new-game-btn').style.display = '';
     $('user-info').textContent = userInfo.displayName || '';
+    $('profile-settings-btn').style.display = '';
+    $('header-signin-btn').style.display = 'none';
     if (userInfo.isAdmin) $('admin-btn').style.display = '';
     updateVerifyBanner();
     loadGames();
     startTokenRefresh();
+    // Arrived via the signup gate with guest work in progress — send them back
+    // to their editor; Save Version now claims the game for their account.
+    if (currentGame && currentGame.guest) {
+        setActiveBlade('editor');
+        setStatus('Logged in — hit "Save Version" to save this game to your account.');
+    }
 };
 
 const doLogin = () => {
@@ -261,6 +280,173 @@ const verifyCodeInput = $('verify-code');
 if (verifyCodeInput) verifyCodeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitVerifyCode(); });
 
 // ---------------------------------------------------------------------------
+// Guest mode — browse templates, edit, and run local previews without an
+// account. Server-backed actions (saving, online sessions, assets, profile)
+// open the signup gate instead. A guest "game" lives only in openFiles /
+// fileTree, seeded from a template; after signup, Save Version claims it as a
+// real game.
+// ---------------------------------------------------------------------------
+
+const GUEST_DRAFT_KEY = 'hg-guest-draft';
+
+const loadGuestDraft = () => {
+    try { return JSON.parse(localStorage.getItem(GUEST_DRAFT_KEY)); } catch (e) { return null; }
+};
+
+const saveGuestDraft = () => {
+    if (!currentGame || !currentGame.guest) return;
+    const files = {};
+    Object.entries(openFiles).forEach(([path, data]) => { files[path] = data.content; });
+    try {
+        localStorage.setItem(GUEST_DRAFT_KEY, JSON.stringify({
+            templateId: currentGame.templateId,
+            name: currentGame.name,
+            files,
+        }));
+    } catch (e) {}
+};
+
+const clearGuestDraft = () => { try { localStorage.removeItem(GUEST_DRAFT_KEY); } catch (e) {} };
+
+const enterGuestStudio = () => {
+    isGuest = true;
+    $('studio-login').style.display = 'none';
+    $('studio-app').style.display = 'flex';
+    $('user-info').textContent = '';
+    $('profile-settings-btn').style.display = 'none';
+    $('header-signin-btn').style.display = '';
+    renderGuestTemplateList();
+};
+
+// In guest mode the games blade lists templates instead of "My Games".
+const renderGuestTemplateList = () => {
+    $('games-pane-header').textContent = 'Start from a template';
+    $('new-game-btn').style.display = 'none';
+    const list = $('game-list');
+    list.innerHTML = '<div class="file-tree-empty">Loading templates...</div>';
+
+    const templateItem = (title, description, onClick) => {
+        const el = document.createElement('div');
+        el.className = 'game-item';
+        const name = document.createElement('span');
+        name.className = 'game-item-name';
+        name.textContent = title;
+        el.appendChild(name);
+        if (description) {
+            const desc = document.createElement('span');
+            desc.className = 'game-item-desc';
+            desc.textContent = description;
+            el.appendChild(desc);
+        }
+        el.onclick = onClick;
+        return el;
+    };
+
+    api('GET', '/studio/templates').then(data => {
+        list.innerHTML = '';
+        const draft = loadGuestDraft();
+        if (draft && draft.files && Object.keys(draft.files).length) {
+            list.appendChild(templateItem(
+                '▶ Resume your draft',
+                'Pick up where you left off' + (draft.name ? ` (${draft.name})` : ''),
+                () => startGuestGame({ id: draft.templateId, label: draft.name }, draft)
+            ));
+        }
+        (data.templates || []).forEach(t => {
+            list.appendChild(templateItem(t.label, t.description, () => startGuestGame(t)));
+        });
+    }).catch(() => { list.innerHTML = '<div class="file-tree-empty">Failed to load templates</div>'; });
+};
+
+// Seed an in-memory guest game from a template (optionally overlaying a saved
+// draft) and jump straight to the editor. No server game is created.
+const startGuestGame = (template, draft) => {
+    if (currentGame && hasUnsavedChanges() && !confirmDiscard()) return;
+    stopPreview();
+    setStatus('<span class="spinner"></span>Loading template...');
+
+    api('GET', `/studio/templates/${template.id}/files`)
+        .then(data => ({ label: data.label || template.label, templateFiles: data.files || {} }))
+        .catch(err => {
+            // A draft can outlive its template — open it with what we have
+            if (draft) return { label: template.label, templateFiles: {} };
+            throw err;
+        })
+        .then(({ label, templateFiles }) => {
+            currentGame = {
+                id: 'guest',
+                guest: true,
+                templateId: template.id,
+                name: (draft && draft.name) || label,
+            };
+            viewingVersion = null;
+            currentFile = null;
+            versions = [];
+            publishStatuses = {};
+            openFiles = {};
+
+            const contents = (draft && draft.files) || templateFiles;
+            Object.entries(contents).forEach(([path, content]) => {
+                const original = templateFiles[path] !== undefined ? templateFiles[path] : null;
+                openFiles[path] = { content, sha: null, dirty: content !== original, original };
+            });
+            fileTree = Object.keys(openFiles).map(p => ({ path: p, type: 'blob', sha: null }));
+            fileTree.sort((a, b) => {
+                const da = a.path.split('/').length, db = b.path.split('/').length;
+                if (da !== db) return da - db;
+                return a.path.localeCompare(b.path);
+            });
+
+            editorBladeOpened = true;
+            renderGameView();
+            renderFileTree();
+            updateVersionBadge();
+            updateSaveButton();
+            setStatus('');
+            if (openFiles['index.js']) switchToFile('index.js');
+            setActiveBlade('editor');
+            // Land guests with the game already running — open the play panel
+            // and start a local session (files are all in memory, no fetches)
+            if (openFiles['index.js']) {
+                if (!previewOpen) togglePreviewPanel();
+                previewMode = 'local';
+                startPreview();
+            }
+        })
+        .catch(err => {
+            console.error('Failed to load template', err);
+            setStatus('Failed to load template');
+        });
+};
+
+// The auth overlay over the running guest session. Gated actions open it on
+// the signup form with a contextual message; the header Sign in button opens
+// it on the login form.
+const openAuthOverlay = (message, mode) => {
+    saveGuestDraft();
+    const msgEl = $('signup-gate-msg');
+    msgEl.textContent = message || '';
+    msgEl.style.display = message ? '' : 'none';
+    const signup = mode === 'signup';
+    $('login-form').style.display = signup ? 'none' : 'flex';
+    $('signup-form').style.display = signup ? 'flex' : 'none';
+    $('login-error').textContent = '';
+    $('signup-error').textContent = '';
+    $('studio-login').style.display = 'flex';
+    (signup ? $('signup-username') : $('login-username')).focus();
+};
+
+const openSignupGate = (message) => openAuthOverlay(message, 'signup');
+
+const closeSignupGate = () => {
+    $('signup-gate-msg').style.display = 'none';
+    $('studio-login').style.display = 'none';
+};
+
+$('signup-gate-back').onclick = closeSignupGate;
+$('header-signin-btn').onclick = () => openAuthOverlay('', 'login');
+
+// ---------------------------------------------------------------------------
 // Game list
 // ---------------------------------------------------------------------------
 
@@ -333,6 +519,10 @@ const updateProfileDescCount = () => {
 };
 
 const openProfileModal = () => {
+    if (!userInfo) {
+        openSignupGate('Create a free account to set up your developer profile.');
+        return;
+    }
     $('profile-image-status').textContent = '';
     $('profile-modal-error').textContent = '';
     // Load current profile
@@ -527,6 +717,9 @@ const renderGameView = () => {
     // Syntax highlight layer (behind textarea)
     const editorWrap = document.createElement('div');
     editorWrap.id = 'editor-wrap';
+    const gutter = document.createElement('pre');
+    gutter.id = 'editor-gutter';
+    editorWrap.appendChild(gutter);
     const highlightPre = document.createElement('pre');
     highlightPre.id = 'editor-highlight';
     const highlightCode = document.createElement('code');
@@ -538,6 +731,7 @@ const renderGameView = () => {
     textarea.id = 'editor-textarea';
     textarea.style.display = 'none';
     textarea.spellcheck = false;
+    textarea.wrap = 'off';
     editorWrap.appendChild(textarea);
 
     editorPane.appendChild(editorWrap);
@@ -546,6 +740,18 @@ const renderGameView = () => {
     textarea.addEventListener('scroll', () => {
         highlightPre.scrollTop = textarea.scrollTop;
         highlightPre.scrollLeft = textarea.scrollLeft;
+        gutter.scrollTop = textarea.scrollTop;
+    });
+    // Clicking into the editor while a local preview runs ends the game and
+    // hands focus back to writing code — typing shouldn't fight a running
+    // session for keyboard input. Online sessions are left alone (stopping
+    // one would kick everyone who joined via the share link).
+    textarea.addEventListener('mousedown', () => {
+        if (previewClient && previewMode === 'local') {
+            stopPreview();
+            setPreviewStatus('Stopped — hit ▶ Run to play again');
+            setTimeout(() => textarea.focus(), 0);
+        }
     });
     editorArea.appendChild(editorPane);
 
@@ -635,12 +841,15 @@ const renderGameView = () => {
 const highlightJS = (code) => {
     const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-    // Tokenize with a single regex that matches in priority order
+    // Tokenize with a single regex that matches in priority order.
+    // Regex literals and quoted strings are bounded to a single line so an
+    // unmatched delimiter can't swallow the rest of the file.
     const tokens = [];
-    const re = /\/\/[^\n]*|\/\*[\s\S]*?\*\/|`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\/(?:[^/\\]|\\.)+\/[gimsuy]*|\b(?:const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|new|this|class|extends|super|import|export|default|from|of|in|typeof|instanceof|try|catch|finally|throw|async|await|yield|static|get|set|null|undefined|true|false|NaN|Infinity)\b|\b\d+\.?\d*(?:e[+-]?\d+)?\b|[{}()[\];,]|=>|\.\.\.|\?\.|[+\-*/%=!<>&|^~?:]+|[a-zA-Z_$][a-zA-Z0-9_$]*/g;
+    const re = /\/\/[^\n]*|\/\*[\s\S]*?\*\/|`(?:[^`\\]|\\.)*`|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|\/(?:[^\/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+\/[gimsuy]*|\b(?:const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|new|this|class|extends|super|import|export|default|from|of|in|typeof|instanceof|try|catch|finally|throw|async|await|yield|static|get|set|null|undefined|true|false|NaN|Infinity)\b|\b\d+\.?\d*(?:e[+-]?\d+)?\b|[{}()[\];,]|=>|\.\.\.|\?\.|[+\-*/%=!<>&|^~?:]+|[a-zA-Z_$][a-zA-Z0-9_$]*/g;
 
     let match;
     let lastIndex = 0;
+    let prev = ''; // last significant token, for regex-vs-division disambiguation
 
     while ((match = re.exec(code)) !== null) {
         // Plain text before this token
@@ -648,14 +857,26 @@ const highlightJS = (code) => {
             tokens.push(esc(code.slice(lastIndex, match.index)));
         }
 
-        const t = match[0];
+        let t = match[0];
         let cls = '';
 
-        if (t.startsWith('//') || t.startsWith('/*')) {
+        const isRegexCandidate = t[0] === '/' && t.length > 1 && !t.startsWith('//') && !t.startsWith('/*');
+        // A slash can only start a regex where an expression can start; after an
+        // identifier, number, string, or closing bracket it's division.
+        const regexAllowed = !prev
+            || /^(?:return|case|typeof|instanceof|new|delete|void|throw|do|else|in|of|yield|await)$/.test(prev)
+            || (/^[{([;,:?=&|!+\-*%<>^~]/.test(prev) && prev !== '++' && prev !== '--');
+
+        if (isRegexCandidate && !regexAllowed) {
+            // Division, not a regex: emit just the slash and re-scan after it
+            t = t[1] === '=' ? '/=' : '/';
+            re.lastIndex = match.index + t.length;
+            cls = 'hl-operator';
+        } else if (t.startsWith('//') || t.startsWith('/*')) {
             cls = 'hl-comment';
         } else if (t.startsWith('"') || t.startsWith("'") || t.startsWith('`')) {
             cls = 'hl-string';
-        } else if (t.startsWith('/') && t.length > 1 && !t.startsWith('//') && !t.startsWith('/*')) {
+        } else if (isRegexCandidate) {
             cls = 'hl-regex';
         } else if (/^(?:const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|new|this|class|extends|super|import|export|default|from|of|in|typeof|instanceof|try|catch|finally|throw|async|await|yield|static|get|set|null|undefined|true|false|NaN|Infinity)$/.test(t)) {
             cls = 'hl-keyword';
@@ -671,6 +892,8 @@ const highlightJS = (code) => {
 
         tokens.push(cls ? `<span class="${cls}">${esc(t)}</span>` : esc(t));
         lastIndex = re.lastIndex;
+        // Comments don't affect whether the next slash can start a regex
+        if (cls !== 'hl-comment') prev = t;
     }
 
     // Remaining text
@@ -694,6 +917,22 @@ const updateHighlight = () => {
 
     // Ensure trailing newline so scroll heights match
     if (!code.innerHTML.endsWith('\n')) code.innerHTML += '\n';
+
+    // Line-number gutter
+    const gutter = $('editor-gutter');
+    if (gutter) {
+        const count = text.split('\n').length;
+        if (+gutter.dataset.count !== count) {
+            gutter.dataset.count = count;
+            gutter.textContent = Array.from({ length: count }, (_, i) => i + 1).join('\n');
+            // Widen the gutter for files beyond 3-digit line counts
+            const width = Math.max(48, 21 + String(count).length * 9);
+            gutter.style.width = width + 'px';
+            textarea.style.left = width + 'px';
+            $('editor-highlight').style.left = width + 'px';
+        }
+        gutter.scrollTop = textarea.scrollTop;
+    }
 };
 
 const onEditorInput = () => {
@@ -708,6 +947,7 @@ const onEditorInput = () => {
     renderFileTree();
     updateHighlight();
     debouncedUpdatePreview();
+    saveGuestDraft();
 };
 
 const onEditorKeydown = (e) => {
@@ -729,15 +969,17 @@ const onEditorKeydown = (e) => {
 // File tree & loading
 // ---------------------------------------------------------------------------
 
+// Returns a promise that settles when the tree is loaded (callers that need
+// the file list — e.g. auto-previewing a version — can chain on it).
 const loadFiles = () => {
-    if (!currentGame) return;
+    if (!currentGame) return Promise.resolve();
     const ref = viewingVersion ? viewingVersion.sha : null;
     const endpoint = ref
         ? `/studio/games/${currentGame.id}/versions/${ref}/files`
         : `/studio/games/${currentGame.id}/files`;
 
     setStatus('<span class="spinner"></span>Loading files...');
-    api('GET', endpoint)
+    return api('GET', endpoint)
         .then(data => {
             fileTree = (data.tree || []).filter(e => e.type === 'blob');
             fileTree.sort((a, b) => {
@@ -904,7 +1146,11 @@ const renderTabs = () => {
 
 const updateSaveButton = () => {
     const btn = $('save-btn');
-    if (btn) btn.disabled = !!viewingVersion || !hasUnsavedChanges();
+    if (!btn) return;
+    // Guest games can always "save" — it opens the signup gate, or claims the
+    // game once logged in.
+    if (currentGame && currentGame.guest) { btn.disabled = false; return; }
+    btn.disabled = !!viewingVersion || !hasUnsavedChanges();
 };
 
 // ---------------------------------------------------------------------------
@@ -927,6 +1173,7 @@ const createNewFile = () => {
     switchToFile(name);
     renderFileTree();
     updateSaveButton();
+    saveGuestDraft();
 };
 
 // ---------------------------------------------------------------------------
@@ -934,6 +1181,15 @@ const createNewFile = () => {
 // ---------------------------------------------------------------------------
 
 const saveVersion = () => {
+    if (currentGame && currentGame.guest) {
+        if (!userInfo) {
+            openSignupGate('Create a free account to save your game and keep working on it from anywhere. Your edits come with you.');
+            return;
+        }
+        claimGuestGame();
+        return;
+    }
+
     const dirtyFiles = Object.entries(openFiles)
         .filter(([, data]) => data.dirty)
         .map(([path, data]) => ({ path, content: data.content, sha: data.sha }));
@@ -973,6 +1229,66 @@ const saveVersion = () => {
         btn.disabled = false;
         setStatus('Save failed');
     });
+};
+
+// Turn the in-memory guest game into a real server-backed game: create it
+// from the same template, then commit the local edits on top. Requires a
+// logged-in, email-verified user (the save endpoints enforce verification).
+const claimGuestGame = () => {
+    const btn = $('save-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+    setStatus('<span class="spinner"></span>Creating your game...');
+
+    const templateId = currentGame.templateId;
+    const baseName = currentGame.name || 'My game';
+    const commitMsgEl = $('commit-msg');
+    const message = (commitMsgEl && commitMsgEl.value.trim()) || 'Save guest session edits';
+
+    // The repo name derives from the game name — retry with a suffix if the
+    // user already has a game by this name.
+    const createWithName = (attempt) => {
+        const name = attempt === 0 ? baseName : `${baseName} ${attempt + 1}`;
+        return api('POST', '/studio/games', { name, description: '', template: templateId })
+            .catch(err => {
+                const errMsg = (err && err.error) || '';
+                if (attempt < 4 && errMsg.includes('repository')) return createWithName(attempt + 1);
+                throw err;
+            });
+    };
+
+    createWithName(0)
+        .then(game =>
+            api('GET', `/studio/games/${game.id}/files`).then(data => {
+                const shaByPath = {};
+                (data.tree || []).forEach(e => { if (e.type === 'blob') shaByPath[e.path] = e.sha; });
+                const dirtyFiles = Object.entries(openFiles)
+                    .filter(([, f]) => f.dirty)
+                    .map(([path, f]) => ({ path, content: f.content, sha: shaByPath[path] }));
+                if (dirtyFiles.length === 0) return game;
+                return api('POST', `/studio/games/${game.id}/save`, { files: dirtyFiles, message }).then(() => game);
+            })
+        )
+        .then(game => {
+            clearGuestDraft();
+            if (commitMsgEl) commitMsgEl.value = '';
+            // Reload it as a normal server-backed game
+            currentGame = null;
+            selectGame({ id: game.id, name: game.name, description: game.description || '' });
+            openEditorAtHead();
+            loadGames();
+            // loadFiles clears the status when it finishes — re-assert after it settles
+            setTimeout(() => setStatus('Game saved to your account 🎉'), 1500);
+        })
+        .catch(err => {
+            console.error('Failed to save guest game', err);
+            const errMsg = (err && err.error) || '';
+            setStatus(errMsg.includes('verification')
+                ? 'Verify your email using the banner above, then hit Save Version again.'
+                : 'Save failed' + (errMsg ? ': ' + errMsg : ''));
+        })
+        .finally(() => {
+            if (btn) { btn.textContent = 'Save Version'; updateSaveButton(); }
+        });
 };
 
 // ---------------------------------------------------------------------------
@@ -1185,7 +1501,7 @@ const viewVersion = (v) => {
     openFiles = {};
     updateVersionBadge();
     renderVersionList();
-    loadFiles();
+    const filesLoaded = loadFiles();
     updateSaveButton();
     // Clear editor
     const textarea = $('editor-textarea');
@@ -1194,6 +1510,14 @@ const viewVersion = (v) => {
     if (placeholder) placeholder.style.display = 'flex';
     renderTabs();
     setActiveBlade('editor');
+    // Opening a commit is for trying it out — open the play panel and run the
+    // commit as a local session once its file tree is in.
+    if (!previewOpen) togglePreviewPanel();
+    previewMode = 'local';
+    filesLoaded.then(() => {
+        // Still on this version, and the tree actually loaded
+        if (viewingVersion && viewingVersion.sha === v.sha && fileTree.length) startPreview();
+    });
 };
 
 // Open the editable working copy (HEAD) in the editor blade.
@@ -2078,11 +2402,112 @@ const fetchAllFilesForPreview = () => new Promise((resolve, reject) => {
 const startPreview = () => {
     setPreviewStatus('Loading files...');
     fetchAllFilesForPreview()
-        .then(files => _doStartPreview(files))
+        .then(files => previewMode === 'local' ? _doStartLocalPreview(files) : _doStartPreview(files))
         .catch(err => setPreviewStatus(err || 'Failed to load files'));
 };
 
+// Pulls { key, id, type } for every `key: new Asset({ id, type })` declared in
+// the entry source. Regex, not AST — studio games declare assets as literals
+// (the asset picker inserts them that way), and a miss just means that asset
+// won't load in local preview. Duplicate keys resolve last-wins like the
+// runtime object.
+const extractDeclaredAssets = (source) => {
+    const byKey = {};
+    const re = /['"]?([\w][\w-]*)['"]?\s*:\s*new\s+Asset\s*\(\s*\{([^}]*)\}/g;
+    let m;
+    while ((m = re.exec(source))) {
+        const body = m[2];
+        const idMatch = body.match(/['"]?id['"]?\s*:\s*['"]([^'"]+)['"]/);
+        const typeMatch = body.match(/['"]?type['"]?\s*:\s*['"]([^'"]+)['"]/);
+        if (idMatch) {
+            byKey[m[1]] = { key: m[1], id: idMatch[1], type: typeMatch ? typeMatch[1] : 'image' };
+        }
+    }
+    return Object.values(byKey);
+};
+
+const fetchPreviewAssetBundle = (files) => {
+    const declared = extractDeclaredAssets(files['index.js'] || '');
+    if (!declared.length) return Promise.resolve(null);
+
+    setPreviewStatus(`Loading ${declared.length} asset${declared.length === 1 ? '' : 's'}...`);
+    return Promise.all(declared.map(a =>
+        fetch(`${API_URL}/assets/${a.id}`)
+            .then(r => {
+                if (!r.ok) throw new Error(`Asset ${a.key} failed: ${r.status}`);
+                return r.arrayBuffer();
+            })
+            .then(ab => ({ key: a.key, type: a.type, data: new Uint8Array(ab) }))
+    )).then(entries => HomegamesClient.packAssetBundle(entries));
+};
+
+// Local preview: the game runs in this tab via LocalSession — no server
+// session, so restarts are instant and cost nothing. The hosted path
+// (_doStartPreview) remains for shareable multi-device previews.
+const _doStartLocalPreview = (files) => {
+    stopPreview();
+
+    const playBtn = $('preview-play-btn');
+    const stopBtn = $('preview-stop-btn');
+    if (playBtn) playBtn.disabled = true;
+
+    fetchPreviewAssetBundle(files).then(assetBundle => {
+        setPreviewStatus('Starting...');
+        startLocalLogCapture();
+
+        previewClient = new HomegamesClient.LocalSession({
+            containerId: 'preview-container',
+            files,
+            entryPoint: 'index.js',
+            assetBundle,
+            onReady: () => {
+                setPreviewStatus('Running locally — click the code to edit');
+                if (playBtn) { playBtn.textContent = '↻ Restart'; playBtn.disabled = false; }
+                if (stopBtn) stopBtn.style.display = '';
+                showOnlinePreviewOffer();
+            },
+            onError: (err) => {
+                appendPreviewLog('error', 'Error: ' + ((err && err.message) || err));
+                setPreviewStatus('Error: ' + ((err && err.message) || err));
+                stopLocalLogCapture();
+                resetPreviewButtons();
+            },
+        });
+        previewClient.start();
+    }).catch(err => {
+        setPreviewStatus((err && err.message) || 'Failed to load assets');
+        if (playBtn) playBtn.disabled = false;
+    });
+};
+
+// In local mode the share area offers the hosted option instead of a link.
+const showOnlinePreviewOffer = () => {
+    const shareEl = $('preview-share');
+    if (!shareEl) return;
+    shareEl.innerHTML = '';
+
+    const onlineBtn = document.createElement('button');
+    onlineBtn.textContent = '🌐 Get share link (runs online)';
+    onlineBtn.className = 'preview-share-copy';
+    onlineBtn.onclick = () => {
+        if (!userInfo) {
+            openSignupGate('Create a free account to host online sessions and share a link with friends. Local preview stays free — no account needed.');
+            return;
+        }
+        previewMode = 'online';
+        startPreview();
+    };
+    shareEl.appendChild(onlineBtn);
+};
+
 const _doStartPreview = (files) => {
+    // Online sessions require an account (frontend gate; local preview does not)
+    if (!userInfo) {
+        previewMode = 'local';
+        openSignupGate('Create a free account to host online sessions and share a link with friends. Local preview stays free — no account needed.');
+        return;
+    }
+
     stopPreview();
 
     setPreviewStatus('Starting session...');
@@ -2141,10 +2566,34 @@ const _doStartPreview = (files) => {
     xhr.send(JSON.stringify({ files }));
 };
 
+// Opaque share codes for hosted-session links. Not encryption — just enough
+// structure that links don't advertise a host:port to poke at, and go stale:
+// the checksum binds the payload to a UTC date, so a code only decodes on the
+// day it was minted (or the day after, for links shared near midnight).
+// Format: 1.<fnv1a8(wsUrl|date)>.<base64url(wsUrl XOR checksum)>
+// Keep in sync across studio.js, client.js, and play.html.
+const fnv1a8 = (str) => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return ('0000000' + h.toString(16)).slice(-8);
+};
+
+const shareCodeUtcDay = (daysAgo) => new Date(Date.now() - (daysAgo || 0) * 86400000).toISOString().slice(0, 10);
+
+const encodeShareCode = (wsUrl) => {
+    const sum = fnv1a8(wsUrl + '|' + shareCodeUtcDay(0));
+    const mixed = Array.from(wsUrl, (c, i) => String.fromCharCode(c.charCodeAt(0) ^ sum.charCodeAt(i % 8))).join('');
+    const b64 = btoa(mixed).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return `1.${sum}.${b64}`;
+};
+
 const showPreviewShareLink = (wsUrl) => {
     const shareEl = $('preview-share');
     if (!shareEl) return;
-    const playUrl = `${window.location.origin}/play.html?ws=${encodeURIComponent(wsUrl)}`;
+    const playUrl = `${window.location.origin}/play.html?s=${encodeShareCode(wsUrl)}`;
     shareEl.innerHTML = '';
 
     const linkInput = document.createElement('input');
@@ -2165,6 +2614,16 @@ const showPreviewShareLink = (wsUrl) => {
 
     shareEl.appendChild(linkInput);
     shareEl.appendChild(copyBtn);
+
+    // Way back to the instant local mode
+    const localBtn = document.createElement('button');
+    localBtn.textContent = '⚡ Back to local preview';
+    localBtn.className = 'preview-share-copy';
+    localBtn.onclick = () => {
+        previewMode = 'local';
+        startPreview();
+    };
+    shareEl.appendChild(localBtn);
 };
 
 const clearPreviewShareLink = () => {
@@ -2242,7 +2701,68 @@ const clearPreviewLogs = () => {
     if (logsEl) logsEl.innerHTML = '';
 };
 
+// ---------------------------------------------------------------------------
+// Local preview log capture — the game runs in this tab, so its console
+// output IS the log stream. Mirror console into the logs pane while a local
+// preview runs (SSE streaming stays for online sessions).
+// ---------------------------------------------------------------------------
+
+let _localLogRestore = null;
+
+const appendPreviewLog = (level, message) => {
+    const logsEl = $('preview-logs');
+    if (!logsEl) return;
+
+    const line = document.createElement('div');
+    line.className = 'log-line log-' + level;
+
+    const ts = document.createElement('span');
+    ts.className = 'log-ts';
+    ts.textContent = new Date().toLocaleTimeString() + ' ';
+
+    const msg = document.createElement('span');
+    msg.className = 'log-msg';
+    msg.textContent = message;
+
+    line.appendChild(ts);
+    line.appendChild(msg);
+    logsEl.appendChild(line);
+    logsEl.scrollTop = logsEl.scrollHeight;
+};
+
+const _formatLogArg = (a) => {
+    if (typeof a === 'string') return a;
+    try { return JSON.stringify(a); } catch (e) { return String(a); }
+};
+
+const startLocalLogCapture = () => {
+    stopPreviewLogs();
+    const logsEl = $('preview-logs');
+    if (logsEl) logsEl.innerHTML = '';
+    if (_localLogRestore) return;
+
+    const orig = { log: console.log, warn: console.warn, error: console.error };
+    ['log', 'warn', 'error'].forEach(level => {
+        console[level] = (...args) => {
+            orig[level].apply(console, args);
+            try { appendPreviewLog(level, args.map(_formatLogArg).join(' ')); } catch (e) {}
+        };
+    });
+    _localLogRestore = () => {
+        console.log = orig.log;
+        console.warn = orig.warn;
+        console.error = orig.error;
+        _localLogRestore = null;
+    };
+};
+
+const stopLocalLogCapture = () => {
+    if (_localLogRestore) _localLogRestore();
+};
+
 const stopPreview = () => {
+    stopLocalLogCapture();
+
     if (previewClient) {
         previewClient.stop();
         previewClient = null;
@@ -2392,6 +2912,10 @@ const bindAssetModalSearch = () => {
 };
 
 const openAssetModal = () => {
+    if (!userInfo) {
+        openSignupGate('Create a free account to upload and manage assets for your games.');
+        return;
+    }
     assetModalOpen = true;
     assetSearchQuery = '';
     assetTypeFilter = '';
@@ -3633,3 +4157,10 @@ document.addEventListener('keyup', onSynthKeyUp);
         }
     });
 })();
+
+// ---------------------------------------------------------------------------
+// Boot — everyone lands in the anonymous studio; the header Sign in button
+// (or a gated action like saving) opens the auth overlay.
+// ---------------------------------------------------------------------------
+
+enterGuestStudio();

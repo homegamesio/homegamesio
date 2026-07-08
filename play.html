@@ -17,13 +17,95 @@
     </body>
     <script src="/homegames-client.js"></script>
     <script>
+        const API_URL = window.API_URL || 'https://api.homegames.io:443';
+
         const params = new URLSearchParams(window.location.search);
-        const wsUrl = params.get('ws');
+        const localGameId = params.get('localGame');
+        const localRef = params.get('ref');
         const statusEl = document.getElementById('status');
 
-        if (!wsUrl) {
-            statusEl.textContent = 'No session URL provided';
-        } else {
+        // Opaque share codes for hosted-session links. Not encryption — just enough
+        // structure that links don't advertise a host:port to poke at, and go stale:
+        // the checksum binds the payload to a UTC date, so a code only decodes on the
+        // day it was minted (or the day after, for links shared near midnight).
+        // Format: 1.<fnv1a8(wsUrl|date)>.<base64url(wsUrl XOR checksum)>
+        // Keep in sync across studio.js, client.js, and play.html.
+        const fnv1a8 = (str) => {
+            let h = 0x811c9dc5;
+            for (let i = 0; i < str.length; i++) {
+                h ^= str.charCodeAt(i);
+                h = Math.imul(h, 0x01000193) >>> 0;
+            }
+            return ('0000000' + h.toString(16)).slice(-8);
+        };
+
+        const shareCodeUtcDay = (daysAgo) => new Date(Date.now() - (daysAgo || 0) * 86400000).toISOString().slice(0, 10);
+
+        const decodeShareCode = (code) => {
+            const parts = (code || '').split('.');
+            if (parts.length !== 3 || parts[0] !== '1') return null;
+            const sum = parts[1];
+            let mixed;
+            try { mixed = atob(parts[2].replace(/-/g, '+').replace(/_/g, '/')); } catch (e) { return null; }
+            const decoded = Array.from(mixed, (c, i) => String.fromCharCode(c.charCodeAt(0) ^ sum.charCodeAt(i % 8))).join('');
+            // Codes are date-bound: valid the day they were minted or the day after
+            if (fnv1a8(decoded + '|' + shareCodeUtcDay(0)) !== sum && fnv1a8(decoded + '|' + shareCodeUtcDay(1)) !== sum) return null;
+            return decoded;
+        };
+
+        const shareCode = params.get('s');
+        // Prefer the opaque share code; fall back to the legacy plain ws param
+        const wsUrl = shareCode ? decodeShareCode(shareCode) : params.get('ws');
+
+        const showStatus = (text) => {
+            statusEl.style.display = '';
+            statusEl.textContent = text;
+        };
+
+        // Local mode: the game runs entirely in this browser — fetch its
+        // source + assets from the API and boot a LocalSession. No server
+        // session, no WebSocket.
+        const startLocal = () => {
+            showStatus('Loading game...');
+
+            const manifestUrl = `${API_URL}/games/${encodeURIComponent(localGameId)}/local-manifest?ref=${encodeURIComponent(localRef)}`;
+            fetch(manifestUrl)
+                .then(r => { if (!r.ok) throw new Error('Manifest fetch failed: ' + r.status); return r.json(); })
+                .then(manifest => {
+                    if (!manifest.localPlayable) {
+                        throw new Error(manifest.reason || 'This game cannot run locally');
+                    }
+                    document.title = `${manifest.name} — Homegames`;
+
+                    const bundlePromise = manifest.assetCount > 0
+                        ? fetch(`${API_URL}${manifest.assetBundleUrl}`)
+                            .then(r => { if (!r.ok) throw new Error('Asset bundle fetch failed: ' + r.status); return r.arrayBuffer(); })
+                            .then(ab => new Uint8ClampedArray(ab))
+                        : Promise.resolve(null);
+
+                    return bundlePromise.then(assetBundle => {
+                        const session = new HomegamesClient.LocalSession({
+                            containerId: 'game-container',
+                            files: manifest.files,
+                            entryPoint: manifest.entryPoint,
+                            assetBundle,
+                            onReady: () => { statusEl.style.display = 'none'; },
+                            onError: (err) => {
+                                console.error(err);
+                                showStatus('Error: ' + ((err && err.message) || err));
+                            },
+                        });
+                        session.start();
+                    });
+                })
+                .catch(err => {
+                    console.error(err);
+                    showStatus('Error: ' + (err.message || err));
+                });
+        };
+
+        // Hosted mode: connect to a running server session over WebSocket.
+        const startHosted = () => {
             const client = new HomegamesClient({
                 containerId: 'game-container',
                 wsUrl: wsUrl,
@@ -31,15 +113,23 @@
                     statusEl.style.display = 'none';
                 },
                 onClose: () => {
-                    statusEl.style.display = '';
-                    statusEl.textContent = 'Disconnected';
+                    showStatus('Disconnected');
                 },
                 onError: (err) => {
-                    statusEl.style.display = '';
-                    statusEl.textContent = 'Connection error';
+                    showStatus('Connection error');
                 },
             });
             client.start();
+        };
+
+        if (localGameId && localRef) {
+            startLocal();
+        } else if (wsUrl) {
+            startHosted();
+        } else if (shareCode) {
+            showStatus('This share link is invalid or has expired');
+        } else {
+            showStatus('No session URL provided');
         }
     </script>
 </html>
