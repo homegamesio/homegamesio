@@ -297,7 +297,7 @@ const renderGamePage = (gameId, gameDetails) => {
     const by = document.createElement('span');
     by.innerHTML = 'by';
     const authorLink = document.createElement('a');
-    authorLink.textContent = gameDetails?.game?.developerId;
+    authorLink.textContent = gameDetails?.game?.developerName || gameDetails?.game?.developerId;
     authorLink.href = `${window.location.origin}/dev.html?id=${gameDetails?.game?.developerId}`;
     authorLink.style = 'color: #F1706F; text-decoration: none; margin-left: 6px;';
     author.appendChild(by);
@@ -717,7 +717,7 @@ const renderDevProfile = (devId, devInfo) => {
 
     const title = document.createElement('h1');
     title.className = 'amateur';
-    title.textContent = devId;
+    title.textContent = devInfo.displayName || devId;
     profileInfo.appendChild(title);
 
     if (devInfo.created) {
