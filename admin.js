@@ -82,6 +82,24 @@ const devLink = (devId, label) => {
     return a;
 };
 
+const anonSpan = () => {
+    const span = document.createElement('span');
+    span.textContent = 'Anonymous';
+    span.style.fontStyle = 'italic';
+    span.style.color = 'var(--muted)';
+    return span;
+};
+
+// Link to a game's public page.
+const gamePageLink = (gameId) => {
+    if (!gameId) { const span = document.createElement('span'); span.textContent = '—'; return span; }
+    const a = document.createElement('a');
+    a.href = `/game.html?id=${encodeURIComponent(gameId)}`;
+    a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = gameId;
+    return a;
+};
+
 // Game thumbnail cell: the thumbnail field is an image asset id.
 const gameThumb = (r) => {
     if (!r.thumbnail) { const span = document.createElement('span'); span.textContent = '—'; span.style.color = 'var(--muted)'; return span; }
@@ -182,6 +200,18 @@ const RESOURCES = {
                 .then(reload).catch(showErr);
             return [btn];
         },
+    },
+    comments: {
+        endpoint: '/admin/comments',
+        cols: [
+            ['Comment', r => r.text, 'text'],
+            ['Author', r => r.userId ? devLink(r.userId, r.displayName) : anonSpan(), 'displayName'],
+            ['Game', r => gamePageLink(r.gameId), 'gameId'],
+            ['Created', r => fmtDate(r.created), 'created'],
+            ['ID', r => r.id],
+        ],
+        del: r => ({ method: 'DELETE', path: `/comments/${encodeURIComponent(r.id)}`,
+            confirm: `Delete this comment${r.displayName ? ` by "${r.displayName}"` : ' (anonymous)'}? This cannot be undone.` }),
     },
 };
 

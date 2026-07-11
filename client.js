@@ -80,6 +80,11 @@ const makePost = (endpoint, payload, notJson, useAuth)  => new Promise((resolve,
     xhr.send(JSON.stringify(payload));
 });
 
+const formatBytes = (bytes) => {
+    if (bytes < 1024 * 1024) return `${Math.max(Math.round(bytes / 1024), 1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 const formatDate = (date) => {
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const ting = new Date(date);
@@ -294,8 +299,9 @@ const renderGamePage = (gameId, gameDetails) => {
     }
 
     const author = document.createElement('h2');
+    author.style = 'margin: 0 0 12px;';
     const by = document.createElement('span');
-    by.innerHTML = 'by';
+    by.textContent = 'Made by:';
     const authorLink = document.createElement('a');
     authorLink.textContent = gameDetails?.game?.developerName || gameDetails?.game?.developerId;
     authorLink.href = `${window.location.origin}/dev.html?id=${gameDetails?.game?.developerId}`;
@@ -304,7 +310,6 @@ const renderGamePage = (gameId, gameDetails) => {
     author.appendChild(authorLink);
 
     col1.appendChild(gameImageWrapper);
-    col1.appendChild(author);
 
     // --- Column 2: Title + Description ---
     const col2 = document.createElement('div');
@@ -324,7 +329,6 @@ const renderGamePage = (gameId, gameDetails) => {
 
     const description = document.createElement('div');
     description.textContent = gameDetails?.game?.description || 'No description available';
-    description.style = 'margin-top: 24px;';
 
     // Sessions only make sense for session-based games — revealed once the
     // local-manifest classifies this as multiplayer (or the hosted fallback).
@@ -362,13 +366,13 @@ const renderGamePage = (gameId, gameDetails) => {
     }
 
     col2.appendChild(gameTitle);
-    col2.appendChild(description);
     col2.appendChild(meta);
     col2.appendChild(stats);
 
-    // --- Column 3: Play section ---
+    // --- Column 3: Made by + description ---
+    // (children appended below, alongside the version elements' col1 append)
     const col3 = document.createElement('div');
-    col3.style = 'text-align: center; padding-top: 24px;';
+    col3.style = 'text-align: left; padding-top: 24px;';
 
     // Fetch published versions from the API
     const versionSection = document.createElement('div');
@@ -377,29 +381,36 @@ const renderGamePage = (gameId, gameDetails) => {
     const versionLabel = document.createElement('div');
     versionLabel.innerHTML = 'Loading versions...';
     versionLabel.className = 'amateur';
-    versionSection.appendChild(versionLabel);
 
     const versionSelect = document.createElement('select');
     versionSelect.style = 'width: 180px; padding: 6px; margin-top: 8px; display: none;';
 
-    // Play section variants, driven by the local-manifest:
-    //   single-player -> Play + Download only
-    //   multiplayer   -> label + Create/Join session buttons + Download w/ note
-    //   unknown       -> legacy hosted-session UI
-    const multiplayerLabel = document.createElement('div');
-    multiplayerLabel.innerHTML = 'MULTIPLAYER GAME';
-    multiplayerLabel.className = 'amateur';
-    multiplayerLabel.style = 'color: #9a7bff; letter-spacing: 2px; font-size: 0.95em; margin-bottom: 6px; display: none;';
+    // Version picker + View Source sit under the thumbnail in the left column;
+    // the play/download buttons stay in the play row below.
+    const versionArea = document.createElement('div');
+    versionArea.style = 'margin-top: 16px;';
+    versionArea.appendChild(versionLabel);
+    versionArea.appendChild(versionSelect);
 
+    // View Source drops in here once versions load
+    const viewSourceSlot = document.createElement('div');
+    versionArea.appendChild(viewSourceSlot);
+
+    col1.appendChild(versionArea);
+    col3.appendChild(author);
+    col3.appendChild(description);
+
+    // Every game gets Play (solo local session) + Download; multiplayer games
+    // additionally get the Multiplayer Sessions section below.
     // block + fit-content + auto margins: each button sits on its own line
     // below the version dropdown, centered in the column
     const playBtn = document.createElement('div');
-    playBtn.innerHTML = '▶ Play';
+    playBtn.textContent = 'Play';
     playBtn.className = 'clickable amateur';
     playBtn.style = 'background: #A0EB5D; color: #333; padding: 12px 24px; border-radius: 8px; margin: 12px auto 0; width: fit-content; font-size: 1.1em; cursor: pointer; display: none;';
 
     const downloadLink = document.createElement('a');
-    downloadLink.innerHTML = '⬇ Download';
+    downloadLink.textContent = 'Download';
     downloadLink.className = 'clickable amateur';
     downloadLink.style = 'background: #F5D76E; color: #333; padding: 12px 24px; border-radius: 8px; margin: 12px auto 0; width: fit-content; font-size: 1.1em; cursor: pointer; text-decoration: none; display: none;';
 
@@ -409,54 +420,60 @@ const renderGamePage = (gameId, gameDetails) => {
     downloadCountLine.style = 'margin-top: 6px; font-size: 0.8em; color: #888; display: none;';
 
     const downloadNote = document.createElement('div');
-    downloadNote.innerHTML = 'Multiplayer features are unavailable in downloaded games';
+    downloadNote.textContent = 'Multiplayer features are unavailable in downloaded games';
     downloadNote.style = 'margin-top: 6px; font-size: 0.8em; color: #888; display: none;';
 
-    const createBtn = document.createElement('div');
-    createBtn.innerHTML = '▶ Create Session';
-    createBtn.className = 'clickable amateur';
-    createBtn.style = 'background: #A0EB5D; color: #333; padding: 12px 24px; border-radius: 8px; display: inline-block; margin-top: 12px; font-size: 1.1em; cursor: pointer; display: none;';
-
-    const joinBtn = document.createElement('div');
-    joinBtn.innerHTML = '👥 Join Multiplayer Session';
-    joinBtn.className = 'clickable amateur';
-    joinBtn.style = 'background: #94D2E6; color: #333; padding: 12px 24px; border-radius: 8px; margin-top: 12px; font-size: 1.1em; cursor: pointer; display: none;';
-
-    const statusMsg = document.createElement('div');
-    statusMsg.style = 'margin-top: 8px; font-size: 0.9em; color: #888;';
-
-    versionSection.appendChild(multiplayerLabel);
-    versionSection.appendChild(versionSelect);
     versionSection.appendChild(playBtn);
-    versionSection.appendChild(createBtn);
-    versionSection.appendChild(joinBtn);
     versionSection.appendChild(downloadLink);
     versionSection.appendChild(downloadCountLine);
     versionSection.appendChild(downloadNote);
-    versionSection.appendChild(statusMsg);
 
-    // Session list — hidden until a flow that needs it (Join button,
-    // session creation, or the legacy fallback) reveals it.
+    // Multiplayer Sessions — list of joinable hosted sessions plus the
+    // create button. Shown for multiplayer games (and the legacy fallback).
     const sessionSection = document.createElement('div');
-    sessionSection.style = 'margin-top: 24px; text-align: left; display: none;';
+    sessionSection.style = 'margin-bottom: 32px; text-align: left; display: none;';
 
     const sessionHeader = document.createElement('h3');
     sessionHeader.className = 'amateur';
-    sessionHeader.innerHTML = 'Active Sessions';
+    sessionHeader.textContent = 'Play with friends';
     sessionHeader.style = 'text-align: center;';
 
     const sessionList = document.createElement('div');
     sessionList.style = 'margin-top: 8px;';
 
+    const createBtn = document.createElement('div');
+    createBtn.textContent = 'Start a new game';
+    createBtn.className = 'clickable amateur';
+    createBtn.style = 'background: #A0EB5D; color: #333; padding: 12px 24px; border-radius: 8px; margin: 12px auto 0; width: fit-content; font-size: 1.1em; cursor: pointer;';
+
+    const statusMsg = document.createElement('div');
+    statusMsg.style = 'margin-top: 8px; font-size: 0.9em; color: #888; text-align: center;';
+
     sessionSection.appendChild(sessionHeader);
     sessionSection.appendChild(sessionList);
+    sessionSection.appendChild(createBtn);
+    sessionSection.appendChild(statusMsg);
 
-    col3.appendChild(versionSection);
-    col3.appendChild(sessionSection);
+    // Play controls — full-width row between the columns and the comments,
+    // centered to match the comments card width.
+    const playSection = document.createElement('div');
+    playSection.style = 'grid-column: 1 / -1; max-width: 640px; width: 100%; margin: 24px auto 0; box-sizing: border-box; text-align: center;';
+    // Multiplayer sessions (hidden for single-player games) sit above the
+    // play/download buttons — joining a live session is the primary action.
+    playSection.appendChild(sessionSection);
+    playSection.appendChild(versionSection);
 
     container.appendChild(col1);
     container.appendChild(col2);
     container.appendChild(col3);
+    container.appendChild(playSection);
+
+    // Comments — full-width row below the play controls
+    const commentsSection = renderCommentsSection(gameId);
+    commentsSection.style.gridColumn = '1 / -1';
+    container.appendChild(commentsSection);
+
+    container.appendChild(renderReportSection(gameId, gameDetails?.game?.name));
 
     // --- Load published versions ---
     makeGet(`${API_URL}/games/${gameId}/published-versions`).then(_data => {
@@ -492,7 +509,9 @@ const renderGamePage = (gameId, gameDetails) => {
         viewCodeLink.textContent = '</> View Source';
         viewCodeLink.target = '_blank';
         viewCodeLink.href = `/view.html?game=${gameId}&sha=${versionSelect.value}`;
-        versionSection.appendChild(viewCodeLink);
+        // View Source sits directly under the version dropdown, above the
+        // Made by line in the right column.
+        viewSourceSlot.appendChild(viewCodeLink);
 
         const updateDownloadHref = () => {
             downloadLink.href = `${API_URL}/games/${gameId}/download?ref=${versionSelect.value}`;
@@ -505,37 +524,36 @@ const renderGamePage = (gameId, gameDetails) => {
 
         // Legacy hosted UI, for games the manifest can't classify
         const showHostedFallback = () => {
-            createBtn.style.display = 'inline-block';
             sessionSection.style.display = '';
             stats.style.display = '';
             loadGameSessions(gameId, sessionList);
         };
 
-        // The local-manifest decides which play UI this game gets. Games are
-        // single-player by default; multiplayer is declared in metadata.
+        // The local-manifest decides which play UI this game gets: Play +
+        // Download for anything the local runtime can handle, plus the
+        // Multiplayer Sessions section for multiplayer games.
         makeGet(`${API_URL}/games/${gameId}/local-manifest?ref=${publishedVersions[0].commitSha}`).then(_manifest => {
             const manifest = JSON.parse(_manifest);
             if (manifest.localPlayable) {
-                // Single-player: Play + Download, nothing else
                 playBtn.style.display = 'block';
-                if (manifest.downloadable) {
-                    downloadLink.style.display = 'block';
-                    downloadCountLine.style.display = 'block';
-                    updateDownloadHref();
+            }
+            if (manifest.downloadable) {
+                downloadLink.style.display = 'block';
+                if (manifest.downloadSizeBytes) {
+                    downloadLink.textContent = `Download (${formatBytes(manifest.downloadSizeBytes)})`;
                 }
-            } else if (manifest.multiplayer) {
-                multiplayerLabel.style.display = 'block';
+                downloadCountLine.style.display = 'block';
+                if (manifest.multiplayer) downloadNote.style.display = 'block';
+                updateDownloadHref();
+            }
+            if (manifest.multiplayer) {
                 stats.style.display = '';
-                createBtn.innerHTML = '▶ Create New Multiplayer Session';
-                createBtn.style.display = 'inline-block';
-                joinBtn.style.display = 'inline-block';
-                if (manifest.downloadable) {
-                    downloadLink.style.display = 'block';
-                    downloadCountLine.style.display = 'block';
-                    downloadNote.style.display = 'block';
-                    updateDownloadHref();
-                }
-            } else {
+                sessionSection.style.display = '';
+                // For multiplayer games the solo local session is the
+                // secondary option — label it accordingly.
+                playBtn.textContent = 'Play offline';
+                loadGameSessions(gameId, sessionList);
+            } else if (!manifest.localPlayable) {
                 showHostedFallback();
             }
         }).catch(err => {
@@ -550,14 +568,9 @@ const renderGamePage = (gameId, gameDetails) => {
             window.open(`/play.html?localGame=${encodeURIComponent(gameId)}&ref=${encodeURIComponent(versionSelect.value)}`, '_blank');
         };
 
-        joinBtn.onclick = () => {
-            sessionSection.style.display = '';
-            loadGameSessions(gameId, sessionList);
-        };
-
     }).catch(err => {
         versionLabel.innerHTML = 'Failed to load versions';
-        versionCountLine.textContent = '📦 Version info unavailable';
+        versionCountLine.textContent = 'Version info unavailable';
         console.error(err);
     });
 
@@ -566,25 +579,40 @@ const renderGamePage = (gameId, gameDetails) => {
         const commitSha = versionSelect.value;
         if (!commitSha) return;
 
+        // Open the tab now, while still inside the click gesture. Session
+        // spin-up (docker) can take longer than the browser's popup-blocker
+        // grace window, so a window.open after the POST resolves is
+        // intermittently blocked — session created, no tab, looks broken.
+        const tab = window.open('', '_blank');
+        if (tab) {
+            try { tab.document.title = 'Starting your game...'; tab.document.body.textContent = 'Starting your game...'; } catch (e) {}
+        }
+
         createBtn.style.display = 'none';
-        statusMsg.innerHTML = 'Starting session...';
+        statusMsg.innerHTML = 'Starting your game...';
 
         makePost(`${API_URL}/sessions`, { gameId, commitSha }).then(sessionData => {
             statusMsg.innerHTML = '';
-            createBtn.style.display = 'inline-block';
+            createBtn.style.display = '';
             // Refresh session list (and reveal it — a session now exists)
             sessionSection.style.display = '';
             loadGameSessions(gameId, sessionList);
             // Connect to the new session
-            connectToSession(sessionData, container);
+            connectToSession(sessionData, tab);
+            // Popup blocked even at gesture time — leave a manual way in
+            if (!tab || tab.closed) {
+                const url = sessionPlayUrl(sessionData);
+                if (url) statusMsg.innerHTML = `<a href="${url}" target="_blank">Your game is ready — click here to join</a>`;
+            }
         }).catch(err => {
-            createBtn.style.display = 'inline-block';
+            if (tab && !tab.closed) tab.close();
+            createBtn.style.display = '';
             if (err && err.status === 429) {
                 let secs = (err.body && err.body.retryAfter) || 30;
                 createBtn.disabled = true;
                 const msg = (err.body && err.body.error) || 'Please wait a moment';
                 const tick = () => {
-                    statusMsg.innerHTML = `⏳ ${msg} (${secs}s)`;
+                    statusMsg.innerHTML = `${msg} (${secs}s)`;
                     if (secs-- <= 0) {
                         clearInterval(timer);
                         statusMsg.innerHTML = '';
@@ -594,13 +622,268 @@ const renderGamePage = (gameId, gameDetails) => {
                 tick();
                 const timer = setInterval(tick, 1000);
             } else {
-                statusMsg.innerHTML = 'Failed to create session';
+                statusMsg.innerHTML = "Couldn't start the game — try again";
             }
             console.error(err);
         });
     };
 
     return container;
+};
+
+// ---------------------------------------------------------------------------
+// Report link for game page — routes to the existing support-message pipeline
+// (/contact), so reports land in the admin Support Messages queue with its
+// per-IP limits. Covers the game and any assets it uses.
+// ---------------------------------------------------------------------------
+
+const renderReportSection = (gameId, gameName) => {
+    const wrap = document.createElement('div');
+    wrap.style = 'grid-column: 1 / -1; text-align: center; margin: 8px 0 24px;';
+
+    const link = document.createElement('span');
+    link.textContent = 'Report this game or its content';
+    link.style = 'color: #888; font-size: 0.85em; text-decoration: underline; cursor: pointer;';
+    wrap.appendChild(link);
+
+    const form = document.createElement('div');
+    form.style = 'display: none; max-width: 480px; margin: 12px auto 0; text-align: left;';
+
+    const reason = document.createElement('textarea');
+    reason.setAttribute('rows', 3);
+    reason.setAttribute('maxlength', 1000);
+    reason.setAttribute('placeholder', "What's wrong? For copyright complaints, tell us what content is infringing and who owns it.");
+    reason.style = 'width: 100%; box-sizing: border-box; padding: 8px; font-family: inherit; font-size: 0.9em; border: 1px solid #ccc; border-radius: 8px; resize: vertical;';
+
+    const email = document.createElement('input');
+    email.type = 'email';
+    email.placeholder = 'Your email (optional, for follow-up)';
+    email.style = 'width: 100%; box-sizing: border-box; padding: 8px; margin-top: 8px; font-family: inherit; font-size: 0.9em; border: 1px solid #ccc; border-radius: 8px;';
+
+    const send = document.createElement('div');
+    send.textContent = 'Send report';
+    send.className = 'clickable amateur';
+    send.style = 'background: #F1706F; color: #fff; padding: 8px 20px; border-radius: 8px; width: fit-content; cursor: pointer; margin-top: 8px;';
+
+    const status = document.createElement('div');
+    status.style = 'margin-top: 8px; font-size: 0.85em; color: #888;';
+
+    form.appendChild(reason);
+    form.appendChild(email);
+    form.appendChild(send);
+    form.appendChild(status);
+    wrap.appendChild(form);
+
+    link.onclick = () => {
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    };
+
+    send.onclick = () => {
+        const text = reason.value.trim();
+        if (!text) { status.textContent = 'Please describe the problem.'; return; }
+        send.style.pointerEvents = 'none';
+        makePost(`${API_URL}/contact`, {
+            message: `[REPORT] Game "${gameName || gameId}" (${window.location.origin}/game.html?id=${gameId}): ${text}`,
+            email: email.value.trim() || null,
+        }).then(() => {
+            form.style.display = 'none';
+            link.textContent = "Report sent — thanks, we'll take a look.";
+            link.style.textDecoration = 'none';
+            link.style.cursor = 'default';
+            link.onclick = null;
+        }).catch((err) => {
+            send.style.pointerEvents = '';
+            status.textContent = (err && err.status === 400)
+                ? 'Too many reports from your connection — please try again later.'
+                : 'Failed to send — please try again.';
+            console.error(err);
+        });
+    };
+
+    return wrap;
+};
+
+// ---------------------------------------------------------------------------
+// Comments for game page
+// ---------------------------------------------------------------------------
+
+const MAX_COMMENT_LENGTH = 200;
+const COMMENTS_PAGE_SIZE = 10;
+
+const renderCommentsSection = (gameId) => {
+    // Centered card on the page's cream background; auto side margins center
+    // it within the full-width grid row.
+    const section = document.createElement('div');
+    section.style = 'margin: 48px auto 24px; max-width: 640px; width: 100%; box-sizing: border-box; background: white; border: 1px solid #e5e5d8; border-radius: 12px; padding: 24px 32px 32px; text-align: left;';
+
+    const header = document.createElement('h3');
+    header.className = 'amateur';
+    header.textContent = 'Comments';
+    section.appendChild(header);
+
+    // --- Post form ---
+    const form = document.createElement('div');
+    form.style = 'margin-bottom: 24px;';
+
+    const textarea = document.createElement('textarea');
+    textarea.setAttribute('maxlength', MAX_COMMENT_LENGTH);
+    textarea.setAttribute('placeholder', 'Leave a comment...');
+    textarea.setAttribute('rows', 3);
+    textarea.style = 'width: 100%; box-sizing: border-box; padding: 8px; font-size: 1em; font-family: inherit; border: 1px solid #ccc; border-radius: 8px; resize: vertical;';
+
+    const formFooter = document.createElement('div');
+    formFooter.style = 'display: flex; align-items: center; gap: 12px; margin-top: 8px;';
+
+    const postBtn = document.createElement('div');
+    postBtn.textContent = 'Post Comment';
+    postBtn.className = 'clickable amateur';
+    postBtn.style = 'background: #A0EB5D; color: #333; padding: 8px 20px; border-radius: 8px; width: fit-content; cursor: pointer;';
+
+    const charCounter = document.createElement('span');
+    charCounter.style = 'color: #888; font-size: 0.8em;';
+    charCounter.textContent = `0/${MAX_COMMENT_LENGTH}`;
+    textarea.addEventListener('input', () => {
+        charCounter.textContent = `${textarea.value.length}/${MAX_COMMENT_LENGTH}`;
+    });
+
+    const anonNote = document.createElement('span');
+    anonNote.style = 'color: #888; font-size: 0.8em;';
+    anonNote.textContent = 'Comments are anonymous — limited to one per hour.';
+
+    const statusLine = document.createElement('div');
+    statusLine.style = 'margin-top: 6px; font-size: 0.9em; color: #e44;';
+
+    formFooter.appendChild(postBtn);
+    formFooter.appendChild(charCounter);
+    formFooter.appendChild(anonNote);
+    form.appendChild(textarea);
+    form.appendChild(formFooter);
+    form.appendChild(statusLine);
+    section.appendChild(form);
+
+    // --- Comment list + pager ---
+    const list = document.createElement('div');
+    section.appendChild(list);
+
+    const pager = document.createElement('div');
+    pager.style = 'display: none; justify-content: center; align-items: center; gap: 16px; margin-top: 16px;';
+
+    const pagerBtn = (label) => {
+        const btn = document.createElement('div');
+        btn.textContent = label;
+        btn.className = 'clickable amateur';
+        btn.style = 'padding: 4px 14px; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; user-select: none;';
+        return btn;
+    };
+
+    const prevBtn = pagerBtn('← Prev');
+    const nextBtn = pagerBtn('Next →');
+    const pageLabel = document.createElement('span');
+    pageLabel.style = 'color: #888; font-size: 0.9em;';
+
+    pager.appendChild(prevBtn);
+    pager.appendChild(pageLabel);
+    pager.appendChild(nextBtn);
+    section.appendChild(pager);
+
+    let currentPage = 0;
+
+    const renderComment = (comment) => {
+        const item = document.createElement('div');
+        item.style = 'padding: 12px 0; border-bottom: 1px solid #eee;';
+
+        const byline = document.createElement('div');
+        byline.style = 'font-size: 0.85em; color: #888; margin-bottom: 4px;';
+
+        const name = document.createElement('span');
+        name.textContent = comment.displayName || 'Anonymous';
+        name.style = comment.displayName ? 'color: #F1706F; font-weight: bold;' : 'font-style: italic;';
+        byline.appendChild(name);
+
+        if (comment.created) {
+            const date = document.createElement('span');
+            date.textContent = ` — ${formatDate(comment.created)}`;
+            byline.appendChild(date);
+        }
+
+        const text = document.createElement('div');
+        text.textContent = comment.text;
+        text.style = 'white-space: pre-wrap; overflow-wrap: break-word;';
+
+        item.appendChild(byline);
+        item.appendChild(text);
+        return item;
+    };
+
+    const loadComments = (page) => {
+        currentPage = page;
+        makeGet(`${API_URL}/games/${gameId}/comments?limit=${COMMENTS_PAGE_SIZE}&offset=${page * COMMENTS_PAGE_SIZE}`).then((_data) => {
+            const data = JSON.parse(_data);
+            const comments = data.comments || [];
+            const total = data.total || 0;
+            const totalPages = Math.max(Math.ceil(total / COMMENTS_PAGE_SIZE), 1);
+
+            header.textContent = total > 0 ? `Comments (${total})` : 'Comments';
+
+            clearChildren(list);
+            if (comments.length === 0) {
+                const empty = document.createElement('div');
+                empty.style = 'color: #888;';
+                empty.textContent = 'No comments yet. Be the first!';
+                list.appendChild(empty);
+            } else {
+                comments.forEach(c => list.appendChild(renderComment(c)));
+            }
+
+            pager.style.display = totalPages > 1 ? 'flex' : 'none';
+            pageLabel.textContent = `Page ${page + 1} of ${totalPages}`;
+            const setEnabled = (btn, enabled) => {
+                btn.style.pointerEvents = enabled ? '' : 'none';
+                btn.style.opacity = enabled ? '' : '0.4';
+            };
+            setEnabled(prevBtn, page > 0);
+            setEnabled(nextBtn, page < totalPages - 1);
+        }).catch((err) => {
+            clearChildren(list);
+            const failed = document.createElement('div');
+            failed.style = 'color: #888;';
+            failed.textContent = 'Failed to load comments';
+            list.appendChild(failed);
+            console.error(err);
+        });
+    };
+
+    prevBtn.onclick = () => loadComments(Math.max(currentPage - 1, 0));
+    nextBtn.onclick = () => loadComments(currentPage + 1);
+
+    postBtn.onclick = () => {
+        const text = textarea.value.trim();
+        statusLine.textContent = '';
+        if (!text) return;
+
+        postBtn.style.pointerEvents = 'none';
+        postBtn.textContent = 'Posting...';
+        const restoreBtn = () => {
+            postBtn.style.pointerEvents = '';
+            postBtn.textContent = 'Post Comment';
+        };
+
+        makePost(`${API_URL}/games/${gameId}/comments`, { text }).then(() => {
+            restoreBtn();
+            textarea.value = '';
+            charCounter.textContent = `0/${MAX_COMMENT_LENGTH}`;
+            // Back to the first page — that's where the new comment appears.
+            loadComments(0);
+        }).catch((err) => {
+            restoreBtn();
+            // 429 carries the useful message (anonymous limit); show it as-is.
+            statusLine.textContent = (err && err.body && err.body.error) || 'Failed to post comment';
+            console.error(err);
+        });
+    };
+
+    loadComments(0);
+    return section;
 };
 
 // ---------------------------------------------------------------------------
@@ -619,7 +902,7 @@ const loadGameSessions = (gameId, listEl) => {
         listEl.innerHTML = '';
 
         if (gameSessions.length === 0) {
-            listEl.innerHTML = '<div style="text-align: center; color: #888;">No active sessions</div>';
+            listEl.innerHTML = '<div style="text-align: center; color: #888;">No one\'s playing right now — start a game!</div>';
             return;
         }
 
@@ -628,7 +911,8 @@ const loadGameSessions = (gameId, listEl) => {
             row.style = 'display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 6px;';
 
             const info = document.createElement('div');
-            info.textContent = `Session #${s.id} — ${s.playerCount || 0} player(s)`;
+            const count = s.playerCount || 0;
+            info.textContent = `${count} ${count === 1 ? 'player' : 'players'} in game #${s.id}`;
             info.style = 'font-size: 0.9em;';
 
             const joinBtn = document.createElement('div');
@@ -645,7 +929,7 @@ const loadGameSessions = (gameId, listEl) => {
                         ? `wss://${homenamesHost}/session/${s.port}`
                         : `ws://${homenamesHost}:${s.port}`;
                 }
-                connectToSession({ wsUrl, sessionId: s.id, port: s.port }, row.closest('#content') || document.getElementById('content'));
+                connectToSession({ wsUrl, sessionId: s.id, port: s.port });
             };
 
             row.appendChild(info);
@@ -682,13 +966,21 @@ const encodeShareCode = (wsUrl) => {
     return `1.${sum}.${b64}`;
 };
 
-const connectToSession = (sessionData) => {
-    const wsUrl = sessionData.wsUrl;
-    if (!wsUrl) {
+const sessionPlayUrl = (sessionData) => sessionData.wsUrl ? `/play.html?s=${encodeShareCode(sessionData.wsUrl)}` : null;
+
+// tab: a window pre-opened synchronously during the user's click, so slow
+// session creation doesn't run afoul of popup blockers. Falls back to
+// window.open when absent (e.g. the Join button, which opens directly
+// inside its click handler).
+const connectToSession = (sessionData, tab) => {
+    const playUrl = sessionPlayUrl(sessionData);
+    if (!playUrl) {
         console.error('No WebSocket URL in session data');
+        if (tab && !tab.closed) tab.close();
         return;
     }
-    window.open(`/play.html?s=${encodeShareCode(wsUrl)}`, '_blank');
+    if (tab && !tab.closed) tab.location = playUrl;
+    else window.open(playUrl, '_blank');
 };
 
 const renderDevProfile = (devId, devInfo) => {
@@ -703,7 +995,7 @@ const renderDevProfile = (devId, devInfo) => {
         const image = document.createElement('img');
         image.src = `${API_URL}/assets/${devInfo.image}`;
         image.alt = 'profile image';
-        image.style = 'width: 120px; height: 120px; border-radius: 8px; object-fit: cover; flex-shrink: 0;';
+        image.style = 'width: 240px; height: 240px; border-radius: 8px; object-fit: cover; flex-shrink: 0;';
         profileHeader.appendChild(image);
     } else {
         const placeholder = document.createElement('div');
@@ -728,9 +1020,10 @@ const renderDevProfile = (devId, devInfo) => {
     }
 
     const totalDownloads = devInfo.totalDownloads || 0;
+    const totalSessions = devInfo.totalSessions || 0;
     const downloadsLine = document.createElement('div');
     downloadsLine.style = 'margin-top: 4px; font-size: 0.85em; color: #888;';
-    downloadsLine.textContent = `⬇ ${totalDownloads.toLocaleString()} download${totalDownloads === 1 ? '' : 's'} across all games`;
+    downloadsLine.textContent = `${totalDownloads.toLocaleString()} download${totalDownloads === 1 ? '' : 's'} and ${totalSessions.toLocaleString()} session${totalSessions === 1 ? '' : 's'} across all published games`;
     profileInfo.appendChild(downloadsLine);
 
     profileHeader.appendChild(profileInfo);
@@ -868,7 +1161,7 @@ const renderDevProfile = (devId, devInfo) => {
                 } else {
                     const placeholder = document.createElement('div');
                     placeholder.style = 'width: 100%; height: 140px; background: #eee; display: flex; align-items: center; justify-content: center; color: #aaa; font-size: 2em;';
-                    placeholder.textContent = '🎮';
+                    placeholder.textContent = (game.name || '?').charAt(0).toUpperCase();
                     card.appendChild(placeholder);
                 }
 
@@ -1265,6 +1558,45 @@ const showGamePage = (gameId) => {
         contentEl.removeAttribute('hidden');
     }); 
 };
+
+// Inline play from game cards (front page). Single-player opens a solo local
+// session; multiplayer creates a hosted session — same flows as the game page.
+// Uses the play capabilities the list endpoint returns (captured at publish),
+// so cards need no extra requests.
+const playGameInline = (game, btnEl) => {
+    const ref = game.latestPublishedSha;
+    if (!ref) return;
+
+    if (!game.multiplayer) {
+        // Local plays count toward the game's download total (fire-and-forget)
+        fetch(`${API_URL}/games/${game.id}/play`, { method: 'POST' }).catch(() => {});
+        window.open(`/play.html?localGame=${encodeURIComponent(game.id)}&ref=${encodeURIComponent(ref)}`, '_blank');
+        return;
+    }
+
+    // Open the tab inside the click gesture — session spin-up can outlast the
+    // popup-blocker grace window (same pattern as the game page).
+    const tab = window.open('', '_blank');
+    if (tab) {
+        try { tab.document.title = 'Starting your game...'; tab.document.body.textContent = 'Starting your game...'; } catch (e) {}
+    }
+
+    const originalText = btnEl ? btnEl.textContent : null;
+    if (btnEl) btnEl.textContent = 'Starting...';
+
+    makePost(`${API_URL}/sessions`, { gameId: game.id, commitSha: ref }).then((sessionData) => {
+        if (btnEl) btnEl.textContent = originalText;
+        connectToSession(sessionData, tab);
+    }).catch((err) => {
+        if (tab && !tab.closed) tab.close();
+        if (btnEl) {
+            btnEl.textContent = (err && err.status === 429) ? 'Busy — try again shortly' : 'Failed — try again';
+            setTimeout(() => { btnEl.textContent = originalText; }, 4000);
+        }
+        console.error(err);
+    });
+};
+window.playGameInline = playGameInline;
 
 window.loadMap = () => {
     const southWest = L.latLng(-85, -180);

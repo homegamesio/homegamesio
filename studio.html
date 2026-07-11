@@ -66,7 +66,9 @@
                 --scrollbar-thumb: #ccc;
             }
 
-            body { font-family: 'amateur', monospace; background: var(--bg-primary); color: var(--text-primary); height: 100vh; overflow: hidden; }
+            /* dvh = the viewport actually visible on phones (excludes the browser
+               URL bar, which 100vh sits behind); 100vh line is the fallback. */
+            body { font-family: 'amateur', monospace; background: var(--bg-primary); color: var(--text-primary); height: 100vh; height: 100dvh; overflow: hidden; }
 
             /* Login */
             /* The auth screen is an overlay over the always-visible studio; hidden until
@@ -90,7 +92,7 @@
             #studio-login .tos-row a:hover { text-decoration: underline; }
 
             /* App shell */
-            #studio-app { display: none; flex-direction: column; height: 100vh; }
+            #studio-app { display: none; flex-direction: column; height: 100vh; height: 100dvh; }
 
             #studio-header { display: flex; justify-content: space-between; align-items: center; padding: 0 16px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); height: 44px; flex-shrink: 0; }
             #studio-header .logo { font-size: 1.1em; color: var(--logo-color); cursor: pointer; text-decoration: none; }
@@ -109,7 +111,6 @@
             .blade.strip .blade-strip { display: flex; }
             .blade-strip:hover { background: var(--bg-hover); }
             .blade-strip:hover .blade-strip-label { color: var(--text-primary); }
-            .blade-strip-icon { font-size: 1.05em; }
             .blade-strip-label { writing-mode: vertical-rl; transform: rotate(180deg); text-transform: uppercase; letter-spacing: 2px; font-size: 0.75em; font-weight: bold; color: var(--text-secondary); white-space: nowrap; overflow: hidden; max-height: 60vh; }
             .blade-content { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
 
@@ -238,6 +239,8 @@
             /* Bottom bar */
             #bottom-bar { display: flex; justify-content: space-between; align-items: center; padding: 0 16px; background: var(--bg-secondary); border-top: 1px solid var(--border); height: 40px; flex-shrink: 0; }
             #status-msg { font-size: 0.82em; color: var(--text-dim); }
+            #error-banner { display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 300; background: var(--accent-red); color: #fff; padding: 10px 44px; text-align: center; font-size: 0.95em; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+            #error-banner-close { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #fff; font-size: 1.15em; font-weight: bold; cursor: pointer; padding: 2px 8px; }
             #bottom-right { display: flex; gap: 12px; align-items: center; }
             #save-btn { background: var(--accent-green); color: var(--badge-head-text); border: none; padding: 6px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; font-family: inherit; }
             #save-btn:hover { background: var(--accent-green-hover); }
@@ -316,6 +319,8 @@
             .asset-modal-drop-zone { border: 2px dashed var(--border); border-radius: 8px; margin: 12px 20px 0; padding: 16px; text-align: center; color: var(--text-faint); font-size: 0.85em; cursor: pointer; transition: border-color 0.15s, color 0.15s; flex-shrink: 0; }
             .asset-modal-drop-zone:hover, .asset-modal-drop-zone.drag-over { border-color: var(--accent-green); color: var(--accent-green); }
             .asset-modal-drop-zone.hidden { display: none; }
+            .asset-upload-notice { margin: 6px 20px 0; text-align: center; font-size: 0.75em; color: var(--text-faint); flex-shrink: 0; }
+            .asset-upload-notice.hidden { display: none; }
             .asset-modal-scroll { flex: 1; min-height: 0; overflow-y: auto; }
             .asset-modal-grid { padding: 16px 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; align-content: start; }
             .asset-modal-card { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; display: flex; flex-direction: column; }
@@ -477,10 +482,15 @@
             /* Mobile layout (<768px)                                        */
             /* ============================================================= */
             @media (max-width: 768px) {
-                /* Header */
+                /* Header — keep logo, Assets, and account controls; the desktop
+                   extras (guide/snippets/site link) don't fit and pushed the
+                   Sign in button off-screen. */
                 #studio-header { padding: 0 8px; height: 40px; }
-                #studio-header .logo { font-size: 0.9em; }
+                #studio-header .logo { font-size: 0.9em; white-space: nowrap; }
                 #studio-header .user-info { font-size: 0.75em; }
+                #studio-header .mode-btn { padding: 5px 12px; font-size: 0.8em; letter-spacing: 0.5px; }
+                #studio-header > div { gap: 8px; }
+                #guide-btn, #snippets-btn, #studio-header a[href="/"] { display: none; }
 
                 /* Blades: no strips on mobile — the active blade fills the screen,
                    the mobile tab bar switches between them */
@@ -490,6 +500,9 @@
                 #game-blade-header { flex-wrap: wrap; padding: 8px 10px; }
 
                 #main-content { flex: 1; min-height: 0; }
+
+                /* Keep blade content clear of the fixed 48px tab bar */
+                #studio-body { margin-bottom: 48px; }
 
                 /* File tree */
                 #file-tree { display: none; position: fixed; top: 40px; left: 0; right: 0; bottom: 48px; width: 100% !important; z-index: 30; }
@@ -531,13 +544,14 @@
                     align-items: center;
                     justify-content: center;
                     color: var(--text-dim);
-                    font-size: 0.65em;
+                    font-size: 0.8em;
+                    font-weight: bold;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
                     cursor: pointer;
                     padding: 4px 0;
-                    gap: 2px;
                     -webkit-tap-highlight-color: transparent;
                 }
-                #mobile-tab-bar .mtab .mtab-icon { font-size: 1.6em; }
                 #mobile-tab-bar .mtab.active { color: var(--accent-green); }
 
                 /* Modals */
@@ -622,6 +636,10 @@
         </style>
     </head>
     <body>
+        <div id="error-banner" role="alert">
+            <span id="error-banner-msg"></span>
+            <button id="error-banner-close" title="Dismiss">✕</button>
+        </div>
         <div id="studio-login">
             <h1>Homegames Studio</h1>
 
@@ -665,16 +683,16 @@
                 <span id="resend-status" style="margin-left:8px;"></span>
             </div>
             <div id="studio-header">
-                <span class="logo" id="logo-btn">⌂ Homegames Studio</span>
+                <span class="logo" id="logo-btn">Homegames Studio</span>
                 <button id="header-asset-btn" class="mode-btn" title="Asset Manager">Assets</button>
                 <div style="display:flex;align-items:center;gap:16px;">
-                    <span id="guide-btn" class="clickable" style="font-size:0.85em;color:#94d2e6;cursor:pointer;" title="squish.js authoring guide — copy as LLM context">📖 Guide</span>
-                    <span id="snippets-btn" class="clickable" style="font-size:0.85em;color:#94d2e6;cursor:pointer;" title="Copy-paste building blocks for common game pieces">✂ Snippets</span>
+                    <span id="guide-btn" class="clickable" style="font-size:0.85em;color:#94d2e6;cursor:pointer;" title="squish.js authoring guide — copy as LLM context">Guide</span>
+                    <span id="snippets-btn" class="clickable" style="font-size:0.85em;color:#94d2e6;cursor:pointer;" title="Copy-paste building blocks for common game pieces">Snippets</span>
                     <a href="/" style="color:var(--text-muted);font-size:0.85em;text-decoration:none;">homegames.io</a>
-                    <span id="admin-btn" style="display:none;cursor:pointer;font-size:0.85em;color:var(--accent-red);font-weight:bold;" title="Admin panel">⚙ Admin</span>
-                    <span id="theme-toggle" style="cursor:pointer;font-size:1.1em;" title="Toggle light/dark mode">☀</span>
+                    <span id="admin-btn" style="display:none;cursor:pointer;font-size:0.85em;color:var(--accent-red);font-weight:bold;" title="Admin panel">Admin</span>
+                    <span id="theme-toggle" class="clickable" style="cursor:pointer;font-size:0.85em;color:var(--text-muted);" title="Toggle light/dark mode">Light</span>
                     <span class="user-info" id="user-info" style="cursor:pointer;" title="Profile settings"></span>
-                    <button id="profile-settings-btn" title="Profile settings" style="background:none;border:none;cursor:pointer;font-size:1.1em;color:var(--text-muted);padding:0;">⚙</button>
+                    <button id="profile-settings-btn" title="Profile settings" style="background:none;border:none;cursor:pointer;font-size:0.85em;font-family:inherit;color:var(--text-muted);padding:0;">Settings</button>
                     <button id="header-signin-btn" style="display:none;">Sign in</button>
                 </div>
             </div>
@@ -709,17 +727,17 @@
                     </div>
                 </div>
                 <div class="blade hidden" id="blade-editor">
-                    <div class="blade-strip" data-blade="editor"><span class="blade-strip-icon">✎</span><span class="blade-strip-label" id="blade-editor-label">Editor</span></div>
+                    <div class="blade-strip" data-blade="editor"><span class="blade-strip-label" id="blade-editor-label">Editor</span></div>
                     <div class="blade-content" id="main-content"></div>
                 </div>
             </div>
             <div id="mobile-tab-bar">
-                <div class="mtab" data-tab="games"><span class="mtab-icon">☰</span>Games</div>
-                <div class="mtab" data-tab="versions"><span class="mtab-icon">🕘</span>Versions</div>
-                <div class="mtab active" data-tab="code"><span class="mtab-icon">✎</span>Code</div>
-                <div class="mtab" data-tab="files"><span class="mtab-icon">📁</span>Files</div>
-                <div class="mtab" data-tab="preview"><span class="mtab-icon">▶</span>Preview</div>
-                <div class="mtab" data-tab="save"><span class="mtab-icon">💾</span>Save</div>
+                <div class="mtab" data-tab="games">Games</div>
+                <div class="mtab" data-tab="versions">Versions</div>
+                <div class="mtab active" data-tab="code">Code</div>
+                <div class="mtab" data-tab="files">Files</div>
+                <div class="mtab" data-tab="preview">Preview</div>
+                <div class="mtab" data-tab="save">Save</div>
             </div>
         </div>
 
@@ -846,7 +864,7 @@
 
         <div class="modal-overlay" id="llm-modal">
             <div class="modal-box" style="width:520px;max-width:calc(100vw - 32px);">
-                <h2 id="llm-modal-title">✨ Ask AI to edit your game</h2>
+                <h2 id="llm-modal-title">Ask AI to edit your game</h2>
                 <p style="margin:0 0 8px;font-size:0.85em;color:var(--text-secondary);">Describe the change you want. The AI rewrites <code>index.js</code> — review the result and save it as a version when you're happy.</p>
                 <textarea id="llm-prompt-input" placeholder="e.g. Make the potato explode faster and turn the background red" style="width:100%;min-height:90px;resize:vertical;font-family:inherit;font-size:0.9em;padding:8px;background:var(--bg-deep);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);"></textarea>
                 <div class="modal-error" id="llm-modal-error"></div>
@@ -901,6 +919,7 @@
                     </div>
                 </div>
                 <div id="asset-modal-drop-zone" class="asset-modal-drop-zone">Drop files here or click to upload</div>
+                <div id="asset-upload-notice" class="asset-upload-notice">Only upload files you own or are authorized to use. Uploaded assets become public — anyone can view them, and they may be bundled into game downloads that live forever.</div>
                 <div id="asset-modal-scroll" class="asset-modal-scroll">
                     <div id="asset-modal-grid" class="asset-modal-grid"></div>
                     <div id="asset-modal-load-more" class="asset-modal-load-more"></div>
@@ -935,9 +954,9 @@
                     <span class="record-timer" id="rec-timer">0:00</span>
                 </div>
                 <div class="record-controls" id="rec-controls">
-                    <button class="rec-btn-record" id="rec-start">● Record</button>
-                    <button class="rec-btn-pause" id="rec-pause" style="display:none">❚❚ Pause</button>
-                    <button class="rec-btn-stop" id="rec-stop" style="display:none">■ Stop</button>
+                    <button class="rec-btn-record" id="rec-start">Record</button>
+                    <button class="rec-btn-pause" id="rec-pause" style="display:none">Pause</button>
+                    <button class="rec-btn-stop" id="rec-stop" style="display:none">Stop</button>
                 </div>
                 <div class="record-preview" id="rec-preview" style="display:none"></div>
                 <input type="text" class="record-name-input" id="rec-name" placeholder="Asset name" style="display:none">
@@ -981,8 +1000,8 @@
                     <span class="record-timer" id="kbd-timer" style="font-size:1.6em;">0:00</span>
                 </div>
                 <div class="keyboard-controls" id="kbd-controls">
-                    <button class="kbd-btn-record" id="kbd-record">● Record</button>
-                    <button class="kbd-btn-stop" id="kbd-stop" style="display:none">■ Stop</button>
+                    <button class="kbd-btn-record" id="kbd-record">Record</button>
+                    <button class="kbd-btn-stop" id="kbd-stop" style="display:none">Stop</button>
                 </div>
                 <div class="keyboard-preview" id="kbd-preview" style="display:none"></div>
                 <input type="text" class="keyboard-name-input" id="kbd-name" placeholder="Asset name" style="display:none">

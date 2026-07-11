@@ -140,6 +140,19 @@
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
+            .featured-card .card-play {
+                display: inline-block;
+                margin-top: 8px;
+                background: #A0EB5D;
+                color: #333;
+                padding: 6px 16px;
+                border-radius: 8px;
+                font-size: 0.9em;
+                cursor: pointer;
+            }
+            .featured-card .card-play:hover {
+                filter: brightness(0.95);
+            }
             /* Content sections (Developer Studio / Open Source) */
             .dev-section {
                 padding: 40px 0;
@@ -226,8 +239,7 @@
 
                     <!-- Hero -->
                     <div class="hero amateur">
-                        <h1>Homegames is a free and open-source game platform.</h1>
-                        <p>Play, make and share games in your browser. No account required to play.</p>
+                        <h1>Play games with your friends for free</h1>
                     </div>
 
                     <!-- Games -->
@@ -236,7 +248,7 @@
                         <div class="featured-grid" id="featured-grid">
                             <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 24px;">Loading...</div>
                         </div>
-                        <div class="section-cta"><a href="/catalog.html" class="hero-cta games">Browse the Catalog</a></div>
+                        <div class="section-cta"><a href="/catalog.html" class="hero-cta games">See All Games</a></div>
                     </div>
 
                     <!-- Developer Studio -->
@@ -321,6 +333,25 @@
                     desc.className = 'card-desc';
                     desc.textContent = game.description || 'No description available';
                     body.appendChild(desc);
+
+                    // Inline play — multiplayer creates a hosted session, single
+                    // player opens a solo local session. Games published before
+                    // play capabilities were recorded have multiplayer: null and
+                    // get no button (card still links to the game page).
+                    if (game.latestPublishedSha && (game.multiplayer || game.localPlayable)) {
+                        const playBtn = document.createElement('div');
+                        playBtn.className = 'card-play';
+                        playBtn.textContent = game.multiplayer ? 'Play with friends' : 'Play';
+                        playBtn.onclick = (e) => {
+                            // The whole card is a link to the game page — keep
+                            // the button from navigating.
+                            e.preventDefault();
+                            e.stopPropagation();
+                            playGameInline(game, playBtn);
+                        };
+                        body.appendChild(playBtn);
+                    }
+
                     card.appendChild(body);
 
                     grid.appendChild(card);

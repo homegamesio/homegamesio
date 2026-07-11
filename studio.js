@@ -41,7 +41,34 @@ let previewMode = 'local';
 
 const $ = (id) => document.getElementById(id);
 
-const api = (method, path, body) => new Promise((resolve, reject) => {
+// Global error banner — fixed to the top of the page so failures are obvious
+// even when the relevant status element is off-screen or in another blade.
+let errorBannerTimer = null;
+const showError = (msg) => {
+    const banner = $('error-banner');
+    const text = $('error-banner-msg');
+    if (!banner || !text) return;
+    text.textContent = msg;
+    banner.style.display = 'block';
+    if (errorBannerTimer) clearTimeout(errorBannerTimer);
+    errorBannerTimer = setTimeout(hideError, 10000);
+};
+const hideError = () => {
+    const banner = $('error-banner');
+    if (banner) banner.style.display = 'none';
+    if (errorBannerTimer) { clearTimeout(errorBannerTimer); errorBannerTimer = null; }
+};
+
+const apiErrorMessage = (err) => {
+    if (err.status === 429) return 'Rate limit hit — you\'re doing that too often. Wait a moment and try again.';
+    if (err.status === 0) return 'Network error — check your connection and try again.';
+    const detail = err.error || err.message;
+    return detail ? String(detail) : `Request failed (HTTP ${err.status})`;
+};
+
+// opts.silent: don't show the global error banner (background polls, forms
+// with their own inline error display).
+const api = (method, path, body, opts = {}) => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open(method, `${API_URL}${path}`, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
@@ -53,7 +80,10 @@ const api = (method, path, body) => new Promise((resolve, reject) => {
                 catch (e) { resolve(xhr.response); }
             } else {
                 let err;
-                try { err = JSON.parse(xhr.response); } catch (e) { err = xhr.response; }
+                try { err = JSON.parse(xhr.response); } catch (e) { err = null; }
+                if (!err || typeof err !== 'object') err = { error: xhr.response };
+                err.status = xhr.status;
+                if (!opts.silent) showError(apiErrorMessage(err));
                 reject(err);
             }
         }
@@ -63,6 +93,14 @@ const api = (method, path, body) => new Promise((resolve, reject) => {
 
 const setStatus = (msg) => { const el = $('status-msg'); if (el) el.innerHTML = msg; };
 const hasUnsavedChanges = () => Object.values(openFiles).some(f => f.dirty);
+
+// The API serves file content base64-encoded. atob() alone yields one char
+// per BYTE (latin1), so multi-byte UTF-8 characters mojibake on load — and
+// then get saved back corrupted. Decode the bytes as UTF-8 properly.
+// Keep in sync with view.html.
+const b64ToUtf8 = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
+
+if ($('error-banner-close')) $('error-banner-close').onclick = hideError;
 const confirmDiscard = () => confirm('You have unsaved changes. Discard them?');
 
 // ---------------------------------------------------------------------------
@@ -109,7 +147,7 @@ const startTokenRefresh = () => {
     if (tokenRefreshInterval) clearInterval(tokenRefreshInterval);
     tokenRefreshInterval = setInterval(() => {
         if (!userInfo) return;
-        api('POST', '/auth/refresh')
+        api('POST', '/auth/refresh', null, { silent: true })
             .then(data => {
                 if (data.token) {
                     userInfo.token = data.token;
@@ -162,7 +200,7 @@ const doLogin = () => {
     $('login-btn').disabled = true;
     $('login-btn').value = 'Logging in...';
 
-    api('POST', '/auth/login', { username, password, type: 'login' })
+    api('POST', '/auth/login', { username, password, type: 'login' }, { silent: true })
         .then(data => {
             if (data.token) {
                 userInfo = {
@@ -203,7 +241,7 @@ const doSignup = () => {
     $('signup-btn').disabled = true;
     $('signup-btn').value = 'Signing up...';
 
-    api('POST', '/auth/signup', { displayName, email, password })
+    api('POST', '/auth/signup', { displayName, email, password }, { silent: true })
         .then(data => {
             if (data.token) {
                 userInfo = {
@@ -347,7 +385,7 @@ const renderGuestTemplateList = () => {
         const draft = loadGuestDraft();
         if (draft && draft.files && Object.keys(draft.files).length) {
             list.appendChild(templateItem(
-                '▶ Resume your draft',
+                'Resume your draft',
                 'Pick up where you left off' + (draft.name ? ` (${draft.name})` : ''),
                 () => startGuestGame({ id: draft.templateId, label: draft.name }, draft)
             ));
@@ -664,15 +702,15 @@ const renderGameView = () => {
         return b;
     };
 
-    dashBtn('▶ Play', '', togglePreviewPanel, 'preview-toggle-btn');
+    dashBtn('Play', '', togglePreviewPanel, 'preview-toggle-btn');
     if (AI_FEATURES_ENABLED) {
-        dashBtn('✨ AI Edit', '', () => {
+        dashBtn('AI Edit', '', () => {
             if (viewingVersion) { alert('Switch back to HEAD to use AI edits'); return; }
             showLLMModal();
         });
     }
     // Only visible when viewing a historical version (toggled by updateVersionBadge).
-    const restoreBtn = dashBtn('↩ Restore', 'publish', () => {
+    const restoreBtn = dashBtn('Restore', 'publish', () => {
         if (viewingVersion) restoreVersion(viewingVersion);
     }, 'header-restore-btn');
     restoreBtn.style.display = 'none';
@@ -749,7 +787,7 @@ const renderGameView = () => {
     textarea.addEventListener('mousedown', () => {
         if (previewClient && previewMode === 'local') {
             stopPreview();
-            setPreviewStatus('Stopped — hit ▶ Run to play again');
+            setPreviewStatus('Stopped — hit Run to play again');
             setTimeout(() => textarea.focus(), 0);
         }
     });
@@ -767,12 +805,12 @@ const renderGameView = () => {
     previewControls.id = 'preview-controls';
 
     const playBtn = document.createElement('button');
-    playBtn.textContent = '▶ Run';
+    playBtn.textContent = 'Run';
     playBtn.id = 'preview-play-btn';
     playBtn.onclick = startPreview;
 
     const stopBtn = document.createElement('button');
-    stopBtn.textContent = '■ Stop';
+    stopBtn.textContent = 'Stop';
     stopBtn.className = 'stop-btn';
     stopBtn.id = 'preview-stop-btn';
     stopBtn.onclick = stopPreview;
@@ -1031,7 +1069,7 @@ const renderFileTree = () => {
                     folderEl.className = 'file-item folder';
                     const folderDepth = i - 1;
                     folderEl.style.paddingLeft = (10 + folderDepth * 14) + 'px';
-                    folderEl.textContent = '📁 ' + parts[i - 1];
+                    folderEl.textContent = parts[i - 1] + '/';
                     folderEl.title = folderPath;
                     list.appendChild(folderEl);
                 }
@@ -1066,7 +1104,7 @@ const openFile = (file) => {
 
     api('GET', `/studio/games/${currentGame.id}/file?path=${encodeURIComponent(file.path)}${refParam}`)
         .then(data => {
-            const content = data.content ? atob(data.content) : '';
+            const content = data.content ? b64ToUtf8(data.content) : '';
             if (viewingVersion) {
                 // Read-only view — don't store in openFiles
                 currentFile = { path: file.path };
@@ -1277,7 +1315,7 @@ const claimGuestGame = () => {
             openEditorAtHead();
             loadGames();
             // loadFiles clears the status when it finishes — re-assert after it settles
-            setTimeout(() => setStatus('Game saved to your account 🎉'), 1500);
+            setTimeout(() => setStatus('Game saved to your account'), 1500);
         })
         .catch(err => {
             console.error('Failed to save guest game', err);
@@ -1313,7 +1351,7 @@ const renderVersionList = () => {
     // Pinned entry: the editable working copy (HEAD).
     const headEl = document.createElement('div');
     headEl.className = 'version-item head-item' + (!viewingVersion && editorBladeOpened ? ' active' : '');
-    headEl.innerHTML = '<span class="head-title">✎ Current version (HEAD)</span><span class="head-sub">Open the editor — saving creates the next version</span>';
+    headEl.innerHTML = '<span class="head-title">Current version (HEAD)</span><span class="head-sub">Open the editor — saving creates the next version</span>';
     headEl.onclick = () => openEditorAtHead();
     list.appendChild(headEl);
 
@@ -1365,14 +1403,14 @@ const renderVersionList = () => {
             if (pubStatus.status === 'FAILED') {
                 const retryBtn = document.createElement('span');
                 retryBtn.className = 'v-publish-btn';
-                retryBtn.textContent = '↻ Retry';
+                retryBtn.textContent = 'Retry';
                 retryBtn.onclick = (e) => { e.stopPropagation(); submitForPublishing(v.sha); };
                 pubRow.appendChild(retryBtn);
             }
         } else {
             const publishBtn = document.createElement('span');
             publishBtn.className = 'v-publish-btn';
-            publishBtn.textContent = '📦 Publish';
+            publishBtn.textContent = 'Publish';
             publishBtn.onclick = (e) => { e.stopPropagation(); submitForPublishing(v.sha); };
             pubRow.appendChild(publishBtn);
         }
@@ -1382,7 +1420,7 @@ const renderVersionList = () => {
         if (isActive && viewingVersion) {
             const restore = document.createElement('span');
             restore.className = 'v-restore';
-            restore.textContent = '↩ Restore this version';
+            restore.textContent = 'Restore this version';
             restore.onclick = (e) => { e.stopPropagation(); restoreVersion(v); };
             el.appendChild(restore);
         }
@@ -1417,7 +1455,7 @@ const renderVersionList = () => {
 
 const loadPublishStatuses = () => {
     if (!currentGame) return;
-    api('GET', `/studio/games/${currentGame.id}/publish-status`)
+    api('GET', `/studio/games/${currentGame.id}/publish-status`, null, { silent: true })
         .then(data => {
             publishStatuses = {};
             (data.requests || []).forEach(r => {
@@ -1468,7 +1506,7 @@ const pollPublishStatus = (commitSha) => {
         const current = publishStatuses[commitSha];
         if (!current || current.status === 'PUBLISHED' || current.status === 'FAILED') return;
 
-        api('GET', `/studio/games/${gameId}/publish-status`)
+        api('GET', `/studio/games/${gameId}/publish-status`, null, { silent: true })
             .then(data => {
                 (data.requests || []).forEach(r => {
                     if (!publishStatuses[r.commitSha] || r.created >= publishStatuses[r.commitSha].created) {
@@ -1481,7 +1519,7 @@ const pollPublishStatus = (commitSha) => {
                 if (updated && (updated.status === 'PENDING' || updated.status === 'PROCESSING')) {
                     setTimeout(poll, 3000);
                 } else if (updated && updated.status === 'PUBLISHED') {
-                    setStatus('Version published successfully! 🎉');
+                    setStatus('Version published successfully!');
                 } else if (updated && updated.status === 'FAILED') {
                     setStatus('Publish failed: ' + (updated.error || 'unknown error'));
                 }
@@ -1627,7 +1665,7 @@ const loadTemplates = () => {
         // game and hands the description to the AI worker (see startLLMCreate).
         const opt = document.createElement('option');
         opt.value = 'ai';
-        opt.textContent = '✨ Generate with AI — describe the game you want';
+        opt.textContent = 'Generate with AI — describe the game you want';
         $('new-game-template').appendChild(opt);
     });
 };
@@ -1643,7 +1681,7 @@ $('new-game-template').addEventListener('change', () => {
 
 $('theme-toggle').onclick = () => {
     const isLight = document.body.classList.toggle('light');
-    $('theme-toggle').textContent = isLight ? '🌙' : '☀';
+    $('theme-toggle').textContent = isLight ? 'Dark' : 'Light';
     try { localStorage.setItem('hg-studio-theme', isLight ? 'light' : 'dark'); } catch (e) {}
 };
 
@@ -1651,7 +1689,7 @@ $('theme-toggle').onclick = () => {
 try {
     if (localStorage.getItem('hg-studio-theme') === 'light') {
         document.body.classList.add('light');
-        $('theme-toggle').textContent = '🌙';
+        $('theme-toggle').textContent = 'Dark';
     }
 } catch (e) {}
 
@@ -1709,7 +1747,7 @@ const showLLMModal = () => {
     const errEl = $('llm-modal-error');
     if (errEl) errEl.textContent = '';
     const titleEl = $('llm-modal-title');
-    if (titleEl) titleEl.textContent = '✨ Ask AI to edit your game';
+    if (titleEl) titleEl.textContent = 'Ask AI to edit your game';
     setLLMBusy(false, '');
     showModal('llm-modal', 'llm-prompt-input');
 };
@@ -1735,7 +1773,7 @@ const pollLLMStatus = (gameId, requestId) => {
         // Stop if the user navigated away or started a different request.
         if (!currentGame || currentGame.id !== gameId || llmActiveRequest !== requestId) return;
 
-        api('GET', `/studio/games/${gameId}/llm-status?id=${encodeURIComponent(requestId)}`)
+        api('GET', `/studio/games/${gameId}/llm-status?id=${encodeURIComponent(requestId)}`, null, { silent: true })
             .then(data => {
                 const r = data.request;
                 if (!r) { setTimeout(poll, 3000); return; }
@@ -1767,7 +1805,7 @@ const startLLMCreate = (gameId, prompt) => {
     const input = $('llm-prompt-input');
     if (input) input.value = prompt;
     const titleEl = $('llm-modal-title');
-    if (titleEl) titleEl.textContent = '✨ Generating your game';
+    if (titleEl) titleEl.textContent = 'Generating your game';
     const errEl = $('llm-modal-error');
     if (errEl) errEl.textContent = '';
     showModal('llm-modal'); // no focusId: keep the prefilled prompt
@@ -1782,7 +1820,7 @@ const startLLMCreate = (gameId, prompt) => {
             setLLMBusy(false, '');
             if (errEl) {
                 errEl.textContent = ((err && err.error) || 'Failed to start AI generation')
-                    + ' — your game was still created; retry from the ✨ AI Edit button.';
+                    + ' — your game was still created; retry from the AI Edit button.';
             }
         });
 };
@@ -2231,7 +2269,7 @@ const renderSettingsContent = (panel) => {
     const descSave = document.createElement('button');
     descSave.className = 'dash-btn publish';
     descSave.style.marginTop = '8px';
-    descSave.textContent = '💾 Save Description';
+    descSave.textContent = 'Save Description';
     descSave.onclick = () => {
         const desc = descArea.value.trim();
         if (!desc) { setStatus('Description cannot be empty'); return; }
@@ -2239,7 +2277,7 @@ const renderSettingsContent = (panel) => {
         api('POST', `/games/${currentGame.id}/update`, { description: desc })
             .then(() => { currentGame.description = desc; renderGameBladeTitle(); renderGameList(); setStatus('Description updated'); })
             .catch(() => setStatus('Failed to save description'))
-            .finally(() => { descSave.disabled = false; descSave.textContent = '💾 Save Description'; });
+            .finally(() => { descSave.disabled = false; descSave.textContent = 'Save Description'; });
     };
     descSection.appendChild(descSave);
     panel.appendChild(descSection);
@@ -2328,7 +2366,7 @@ const renderSettingsContent = (panel) => {
     const dangerSection = settingsSection('Danger Zone', 'Deleting a game removes it and all of its versions permanently.');
     const delBtn = document.createElement('button');
     delBtn.className = 'dash-btn danger';
-    delBtn.textContent = '🗑 Delete Game';
+    delBtn.textContent = 'Delete Game';
     delBtn.onclick = () => {
         if (!confirm(`Permanently delete "${currentGame.name}" and all of its versions? This cannot be undone.`)) return;
         delBtn.disabled = true;
@@ -2345,7 +2383,7 @@ const renderSettingsContent = (panel) => {
             setActiveBlade('games');
         }).catch(() => {
             delBtn.disabled = false;
-            delBtn.textContent = '🗑 Delete Game';
+            delBtn.textContent = 'Delete Game';
             setStatus('Failed to delete game');
         });
     };
@@ -2389,7 +2427,7 @@ const fetchAllFilesForPreview = () => new Promise((resolve, reject) => {
         const refParam = ref ? `&ref=${ref}` : '';
         api('GET', `/studio/games/${currentGame.id}/file?path=${encodeURIComponent(f.path)}${refParam}`)
             .then(data => {
-                files[f.path] = data.content ? atob(data.content) : '';
+                files[f.path] = data.content ? b64ToUtf8(data.content) : '';
                 fetched++;
                 if (fetched === filesToFetch.length) resolve(files);
             })
@@ -2462,7 +2500,7 @@ const _doStartLocalPreview = (files) => {
             assetBundle,
             onReady: () => {
                 setPreviewStatus('Running locally — click the code to edit');
-                if (playBtn) { playBtn.textContent = '↻ Restart'; playBtn.disabled = false; }
+                if (playBtn) { playBtn.textContent = 'Restart'; playBtn.disabled = false; }
                 if (stopBtn) stopBtn.style.display = '';
                 showOnlinePreviewOffer();
             },
@@ -2487,7 +2525,7 @@ const showOnlinePreviewOffer = () => {
     shareEl.innerHTML = '';
 
     const onlineBtn = document.createElement('button');
-    onlineBtn.textContent = '🌐 Get share link (runs online)';
+    onlineBtn.textContent = 'Get share link (runs online)';
     onlineBtn.className = 'preview-share-copy';
     onlineBtn.onclick = () => {
         if (!userInfo) {
@@ -2541,7 +2579,7 @@ const _doStartPreview = (files) => {
                 wsUrl: wsUrl,
                 onReady: (playerId) => {
                     setPreviewStatus('Running (player ' + playerId + ')');
-                    if (playBtn) { playBtn.textContent = '↻ Restart'; playBtn.disabled = false; }
+                    if (playBtn) { playBtn.textContent = 'Restart'; playBtn.disabled = false; }
                     if (stopBtn) stopBtn.style.display = '';
                     showPreviewShareLink(wsUrl);
                     startPreviewLogs(previewSessionId);
@@ -2617,7 +2655,7 @@ const showPreviewShareLink = (wsUrl) => {
 
     // Way back to the instant local mode
     const localBtn = document.createElement('button');
-    localBtn.textContent = '⚡ Back to local preview';
+    localBtn.textContent = 'Back to local preview';
     localBtn.className = 'preview-share-copy';
     localBtn.onclick = () => {
         previewMode = 'local';
@@ -2785,7 +2823,7 @@ const stopPreview = () => {
 const resetPreviewButtons = () => {
     const playBtn = $('preview-play-btn');
     const stopBtn = $('preview-stop-btn');
-    if (playBtn) { playBtn.textContent = '▶ Run'; playBtn.disabled = false; }
+    if (playBtn) { playBtn.textContent = 'Run'; playBtn.disabled = false; }
     if (stopBtn) stopBtn.style.display = 'none';
 };
 
@@ -2840,6 +2878,8 @@ const updateAssetModalChrome = () => {
     if (dropZone) {
         if (isMine) { dropZone.classList.remove('hidden'); } else { dropZone.classList.add('hidden'); }
     }
+    const uploadNotice = $('asset-upload-notice');
+    if (uploadNotice) uploadNotice.classList.toggle('hidden', !isMine);
     const nsfwToggle = $('asset-modal-nsfw-toggle');
     if (nsfwToggle) nsfwToggle.style.display = isMine ? 'none' : '';
     const searchBox = $('asset-modal-search');
@@ -2876,7 +2916,12 @@ const apiUpload = (file, description) => new Promise((resolve, reject) => {
                 try { resolve(JSON.parse(xhr.response)); }
                 catch (e) { resolve(xhr.response); }
             } else {
-                reject(xhr.response);
+                let err;
+                try { err = JSON.parse(xhr.response); } catch (e) { err = null; }
+                if (!err || typeof err !== 'object') err = { error: xhr.response };
+                err.status = xhr.status;
+                showError(apiErrorMessage(err));
+                reject(err);
             }
         }
     };
@@ -3051,6 +3096,21 @@ const openAssetDetailModal = (asset) => {
         <div><strong>Size:</strong> ${formatAssetSize(asset.size)}</div>
         <div><strong>Uploaded:</strong> ${createdStr}</div>
     `;
+
+    // Report — goes to the support-message queue the admin panel reads.
+    const reportLink = document.createElement('div');
+    reportLink.textContent = 'Report this asset';
+    reportLink.style = 'margin-top:10px;color:var(--text-faint);font-size:0.8em;text-decoration:underline;cursor:pointer;';
+    reportLink.onclick = () => {
+        const reason = prompt("What's wrong with this asset? For copyright complaints, tell us who owns the content.");
+        if (!reason || !reason.trim()) return;
+        api('POST', '/contact', {
+            message: `[REPORT] Asset ${asset.id} "${asset.name || ''}" uploaded by ${asset.developerId || 'unknown'}: ${reason.trim()}`,
+        }, { silent: true })
+            .then(() => setStatus('Report sent — thanks.'))
+            .catch(() => setStatus('Failed to send report'));
+    };
+    meta.appendChild(reportLink);
 
     setAssetDetailEditable(isAssetOwnedByUser(asset));
     renderAssetDetailTags();
@@ -3317,7 +3377,7 @@ const renderAssetGrid = () => {
         } else {
             const badge = document.createElement('div');
             badge.className = 'type-badge';
-            badge.textContent = type === 'audio' ? '🔊' : type === 'font' ? 'Aa' : '📄';
+            badge.textContent = type === 'audio' ? 'AUD' : type === 'font' ? 'Aa' : 'IMG';
             preview.appendChild(badge);
         }
         if (asset.public) {
@@ -3754,7 +3814,7 @@ const startRecording = () => {
             $('rec-indicator').className = 'record-indicator recording';
             $('rec-start').style.display = 'none';
             $('rec-pause').style.display = '';
-            $('rec-pause').textContent = '❚❚ Pause';
+            $('rec-pause').textContent = 'Pause';
             $('rec-stop').style.display = '';
         })
         .catch(err => {
@@ -3769,12 +3829,12 @@ const pauseRecording = () => {
         mediaRecorder.pause();
         recPauseStart = Date.now();
         $('rec-indicator').className = 'record-indicator paused';
-        $('rec-pause').textContent = '▶ Continue';
+        $('rec-pause').textContent = 'Continue';
     } else if (mediaRecorder.state === 'paused') {
         if (recPauseStart) { recPausedDuration += Date.now() - recPauseStart; recPauseStart = null; }
         mediaRecorder.resume();
         $('rec-indicator').className = 'record-indicator recording';
-        $('rec-pause').textContent = '❚❚ Pause';
+        $('rec-pause').textContent = 'Pause';
     }
 };
 

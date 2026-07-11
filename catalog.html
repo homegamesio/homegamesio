@@ -97,6 +97,21 @@
                 desc.style = 'font-size: 0.85em; color: #777; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
                 desc.textContent = game.description || 'No description available';
                 body.appendChild(desc);
+
+                // Same inline play as the front page cards. Games published
+                // before play capabilities were recorded get no button.
+                if (game.latestPublishedSha && (game.multiplayer || game.localPlayable)) {
+                    const playBtn = document.createElement('div');
+                    playBtn.style = 'display: inline-block; margin-top: 8px; background: #A0EB5D; color: #333; padding: 6px 16px; border-radius: 8px; font-size: 0.9em; cursor: pointer;';
+                    playBtn.textContent = game.multiplayer ? 'Play with friends' : 'Play';
+                    playBtn.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        playGameInline(game, playBtn);
+                    };
+                    body.appendChild(playBtn);
+                }
+
                 card.appendChild(body);
 
                 container.appendChild(card);

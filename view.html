@@ -175,8 +175,11 @@
             $('view-code-wrap').style.display = '';
             $('view-highlight-code').textContent = 'Loading...';
 
+            // atob() yields one char per byte (latin1) — decode as UTF-8 so
+            // non-ASCII characters don't mojibake. Keep in sync with studio.js.
+            const b64ToUtf8 = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
             apiGet(`/games/${gameId}/source?path=${encodeURIComponent(filePath)}&ref=${ref}`).then(data => {
-                const content = data.content ? atob(data.content) : '';
+                const content = data.content ? b64ToUtf8(data.content) : '';
                 const isJS = filePath.endsWith('.js') || filePath.endsWith('.mjs');
                 const codeEl = $('view-highlight-code');
                 codeEl.innerHTML = isJS ? highlightJS(content) : content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
