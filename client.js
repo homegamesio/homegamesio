@@ -598,10 +598,10 @@ const renderGamePage = (gameId, gameDetails) => {
             sessionSection.style.display = '';
             loadGameSessions(gameId, sessionList);
             // Connect to the new session
-            connectToSession(sessionData, tab);
+            connectToSession(sessionData, tab, true);
             // Popup blocked even at gesture time — leave a manual way in
             if (!tab || tab.closed) {
-                const url = sessionPlayUrl(sessionData);
+                const url = sessionPlayUrl(sessionData, true);
                 if (url) statusMsg.innerHTML = `<a href="${url}" target="_blank">Your game is ready — click here to join</a>`;
             }
         }).catch(err => {
@@ -966,14 +966,16 @@ const encodeShareCode = (wsUrl) => {
     return `1.${sum}.${b64}`;
 };
 
-const sessionPlayUrl = (sessionData) => sessionData.wsUrl ? `/play.html?s=${encodeShareCode(sessionData.wsUrl)}` : null;
+// created: this tab belongs to whoever spun the session up (vs joined an
+// existing one) — play.html uses the flag to nudge them to share the link.
+const sessionPlayUrl = (sessionData, created) => sessionData.wsUrl ? `/play.html?s=${encodeShareCode(sessionData.wsUrl)}${created ? '&created=1' : ''}` : null;
 
 // tab: a window pre-opened synchronously during the user's click, so slow
 // session creation doesn't run afoul of popup blockers. Falls back to
 // window.open when absent (e.g. the Join button, which opens directly
 // inside its click handler).
-const connectToSession = (sessionData, tab) => {
-    const playUrl = sessionPlayUrl(sessionData);
+const connectToSession = (sessionData, tab, created) => {
+    const playUrl = sessionPlayUrl(sessionData, created);
     if (!playUrl) {
         console.error('No WebSocket URL in session data');
         if (tab && !tab.closed) tab.close();
@@ -1586,7 +1588,7 @@ const playGameInline = (game, btnEl) => {
 
     makePost(`${API_URL}/sessions`, { gameId: game.id, commitSha: ref }).then((sessionData) => {
         if (btnEl) btnEl.textContent = originalText;
-        connectToSession(sessionData, tab);
+        connectToSession(sessionData, tab, true);
     }).catch((err) => {
         if (tab && !tab.closed) tab.close();
         if (btnEl) {
