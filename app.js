@@ -201,6 +201,13 @@ const server = http.createServer((req, res) => {
                 res.setHeader("Content-Type", 'text/html');
                 const payload = fs.readFileSync(path.join(__dirname, 'reset-password.html'));
                 res.end(payload);
+            } else if (req.url.startsWith('/docs')) {
+                // Human-facing "how to make games" docs (the authoring guide
+                // below is the machine/LLM-context counterpart).
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/html');
+                const payload = fs.readFileSync(path.join(__dirname, 'docs.html'));
+                res.end(payload);
             } else if (req.url.startsWith('/authoring-guide')) {
                 // squish.js authoring guide — single source of truth in
                 // homegames-common. Served raw so the studio can show/copy it

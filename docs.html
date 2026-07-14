@@ -1,0 +1,838 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Homegames Docs — How to make games</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <style>
+        @font-face { font-family: 'amateur'; src: url('/amateur.ttf'); }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-deep: #0a0a1a;
+            --bg-hover: #1a1a3e;
+            --border: #333;
+            --border-light: #444;
+            --text-primary: #eee;
+            --text-secondary: #aaa;
+            --text-muted: #888;
+            --accent-green: #A0EB5D;
+            --accent-blue: rgba(148, 210, 229, 255);
+            --accent-red: rgba(241, 112, 111, 255);
+            --accent-yellow: rgba(255, 247, 142, 255);
+            --logo-color: rgba(241, 112, 111, 255);
+            --code-bg: #0a0a1a;
+        }
+
+        body.light {
+            --bg-primary: #fbfff2;
+            --bg-secondary: #f0f4e8;
+            --bg-deep: #e8ecdf;
+            --bg-hover: #eef2e5;
+            --border: #ccc;
+            --border-light: #bbb;
+            --text-primary: #333;
+            --text-secondary: #555;
+            --text-muted: #777;
+            --accent-green: #4a9e2f;
+            --accent-blue: rgba(100, 170, 200, 255);
+            --accent-red: rgba(220, 90, 90, 255);
+            --accent-yellow: rgba(160, 150, 40, 255);
+            --logo-color: rgba(220, 90, 90, 255);
+            --code-bg: #f4f7ec;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.65;
+        }
+
+        /* Header */
+        #docs-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 20px; height: 48px;
+            background: var(--bg-secondary); border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; z-index: 10;
+        }
+        #docs-header .logo { font-family: 'amateur', monospace; font-size: 1.15em; color: var(--logo-color); text-decoration: none; }
+        #docs-header nav { display: flex; align-items: center; gap: 18px; font-size: 0.9em; }
+        #docs-header nav a { color: var(--accent-blue); text-decoration: none; }
+        #docs-header nav a:hover { text-decoration: underline; }
+        #theme-toggle { cursor: pointer; color: var(--text-muted); background: none; border: none; font-size: 0.9em; font-family: inherit; }
+
+        /* Layout: sidebar + content */
+        #layout { display: flex; max-width: 1200px; margin: 0 auto; align-items: flex-start; }
+
+        #sidebar {
+            width: 250px; flex-shrink: 0;
+            position: sticky; top: 48px;
+            max-height: calc(100vh - 48px); overflow-y: auto;
+            padding: 28px 8px 40px 20px;
+            font-size: 0.88em;
+        }
+        #sidebar .toc-group { color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; font-size: 0.78em; margin: 18px 0 6px; }
+        #sidebar a { display: block; color: var(--text-secondary); text-decoration: none; padding: 3px 8px; border-radius: 4px; }
+        #sidebar a:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+        main {
+            flex: 1; min-width: 0;
+            padding: 32px 40px 120px;
+        }
+
+        main h1 { font-family: 'amateur', monospace; font-size: 2.2em; color: var(--logo-color); margin-bottom: 4px; line-height: 1.2; }
+        main .subtitle { color: var(--text-secondary); margin-bottom: 36px; font-size: 1.05em; }
+        main h2 {
+            font-family: 'amateur', monospace; font-size: 1.6em; color: var(--accent-green);
+            margin: 56px 0 14px; padding-top: 14px; border-top: 1px solid var(--border);
+        }
+        main h3 { font-size: 1.12em; color: var(--text-primary); margin: 30px 0 10px; }
+        main p { margin: 12px 0; color: var(--text-primary); max-width: 76ch; }
+        main ul, main ol { margin: 12px 0 12px 26px; max-width: 74ch; }
+        main li { margin: 6px 0; }
+        main a { color: var(--accent-blue); }
+        main strong { color: var(--text-primary); }
+
+        code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.88em;
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1px 5px;
+        }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+            overflow-x: auto;
+            margin: 14px 0;
+            max-width: 860px;
+        }
+        pre code { background: none; border: none; padding: 0; font-size: 0.85em; line-height: 1.55; }
+
+        .callout {
+            border-left: 4px solid var(--accent-yellow);
+            background: var(--bg-secondary);
+            border-radius: 0 8px 8px 0;
+            padding: 12px 16px;
+            margin: 16px 0;
+            max-width: 820px;
+        }
+        .callout.danger { border-left-color: var(--accent-red); }
+        .callout.tip { border-left-color: var(--accent-green); }
+        .callout p { margin: 6px 0; }
+
+        table { border-collapse: collapse; margin: 14px 0; font-size: 0.92em; }
+        th, td { border: 1px solid var(--border); padding: 7px 12px; text-align: left; vertical-align: top; }
+        th { background: var(--bg-secondary); }
+
+        .comment { color: var(--text-muted); }
+
+        @media (max-width: 820px) {
+            #sidebar { display: none; }
+            main { padding: 24px 16px 100px; }
+            #docs-header nav { gap: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="docs-header">
+        <a class="logo" href="/">Homegames</a>
+        <nav>
+            <a href="/studio">Studio</a>
+            <a href="/authoring-guide.md" target="_blank" rel="noopener" title="The full technical reference (also used as LLM context)">Reference</a>
+            <button id="theme-toggle">Light</button>
+        </nav>
+    </div>
+
+    <div id="layout">
+        <aside id="sidebar">
+            <div class="toc-group">Start</div>
+            <a href="#start-here">Start here</a>
+            <a href="#big-picture">The big picture</a>
+            <a href="#first-game">Your first game</a>
+            <div class="toc-group">Core concepts</div>
+            <a href="#drawing">Drawing things</a>
+            <a href="#changing">Making things change</a>
+            <a href="#players">Players &amp; multiplayer</a>
+            <a href="#input">Input: taps, buttons, keys</a>
+            <a href="#game-loop">Movement &amp; game loops</a>
+            <div class="toc-group">Building your game</div>
+            <a href="#recipes">Recipes: "how do I make…"</a>
+            <a href="#assets">Images &amp; sound</a>
+            <a href="#gotchas">Gotchas</a>
+            <div class="toc-group">Shipping</div>
+            <a href="#testing">Test &amp; share</a>
+            <a href="#publishing">Publish to the catalog</a>
+            <a href="#further">Going further</a>
+        </aside>
+
+        <main>
+            <h1>How to make Homegames games</h1>
+            <p class="subtitle">
+                What a Homegames game is, how it works, and how to build and publish one. Basic JavaScript
+                is the only prerequisite.
+            </p>
+
+            <h2 id="start-here">Start here</h2>
+            <p>
+                A Homegames game is a JavaScript class exported from an <code>index.js</code>. No framework,
+                no build step. Bigger games can split into multiple files with relative <code>require</code>s.
+                The platform runs your class and renders what it describes: single-player games run in the
+                player's browser, multiplayer games run in a hosted session that players connect to. Input
+                comes back to your code the same way in both.
+            </p>
+            <p>To try it:</p>
+            <ol>
+                <li>Open the <a href="/studio">Studio</a> (no account needed).</li>
+                <li>Pick a template.</li>
+                <li>Hit <strong>Play</strong>.</li>
+                <li>Change something and hit Play again.</li>
+            </ol>
+            <p>The rest of this page explains what the code means.</p>
+
+            <h2 id="big-picture">The big picture</h2>
+            <p>Five things to know before the code makes sense.</p>
+
+            <h3>1. Your code runs inside the Homegames runtime</h3>
+            <p>
+                The runtime creates one instance of your class and keeps it alive for the whole session.
+                Single-player games run in the player's browser (this is also how downloaded games work
+                offline). Multiplayer games run on a hosted server that players' browsers connect to. Your
+                game can't tell the difference and shouldn't try. In both cases:
+            </p>
+            <ul>
+                <li>You never draw anything. No canvas, no CSS, no HTML. You describe what exists (a red square here, some text there) and the platform renders it.</li>
+                <li>You never write networking. If four people join a hosted session, they're all in your one game instance.</li>
+                <li>Your code gets no browser objects — no <code>window</code>, <code>document</code>, <code>location</code>, or <code>alert</code>. Hosted sessions run in Node.js where those don't exist, and the local runtime doesn't expose them either. See the <a href="#gotchas">gotchas</a>.</li>
+            </ul>
+
+            <h3>2. The screen is a 100×100 grid</h3>
+            <p>
+                Every position and size is a number from 0 to 100. <code>(0, 0)</code> is the top-left corner,
+                <code>(100, 100)</code> is the bottom-right, on every screen size. "A button a third of the way
+                down, half the screen wide" is <code>y: 33, width: 50</code>.
+            </p>
+
+            <h3>3. Everything on screen is a node in a tree</h3>
+            <p>
+                There are three node types: <strong>Shape</strong> (polygons), <strong>Text</strong>, and
+                <strong>Asset</strong> (an image or sound). They form a tree rooted at one node — usually a
+                full-screen rectangle called <code>this.base</code> that acts as the background. Nodes added
+                later draw on top of nodes added earlier.
+            </p>
+
+            <h3>4. When you change something, you have to say so</h3>
+            <p>
+                The platform doesn't watch your variables. After changing node properties, call
+                <code>this.base.node.onStateChange()</code> once to push the new state to players. Forgetting
+                this is the most common bug: the code runs but the screen never updates.
+            </p>
+
+            <h3>5. Players are just numbers</h3>
+            <p>
+                When someone joins, your game gets their <code>playerId</code>. Every tap and key press comes
+                with the acting player's id. You decide what the ids mean — whose ship is whose, whose turn it
+                is. Nodes can also be scoped to specific players, which is how card games keep hands secret in
+                a shared game.
+            </p>
+
+            <h2 id="first-game">Your first game, line by line</h2>
+            <p>
+                A complete working game: a square you tap to score points. Every game has this structure —
+                <code>metadata</code>, constructor, <code>getLayers</code>.
+            </p>
+<pre><code>const { Game, GameNode, Colors, Shapes, ShapeUtils } = require('squish-142');
+const { COLORS } = Colors;
+
+class TapGame extends Game {
+
+    // Describes your game to the platform. squishVersion must
+    // match the number in the require() line above.
+    static metadata() {
+        return {
+            squishVersion: '142',
+            name: 'Tap Game',
+            author: 'You',
+            description: 'Tap the square. Get points.',
+            aspectRatio: { x: 16, y: 9 }
+        };
+    }
+
+    // Runs once when a session starts. Build your starting scene here.
+    constructor() {
+        super();                     // always call super() first
+        this.score = 0;
+
+        // The root of everything: a full-screen background.
+        this.base = new GameNode.Shape({
+            shapeType: Shapes.POLYGON,
+            coordinates2d: ShapeUtils.rectangle(0, 0, 100, 100),
+            fill: COLORS.HG_BLUE
+        });
+
+        // A text label. size is a relative font size (2-4 is typical).
+        this.scoreText = new GameNode.Text({
+            textInfo: { text: 'Score: 0', x: 50, y: 10,
+                        size: 4, align: 'center', color: COLORS.WHITE }
+        });
+
+        // A tappable square. onClick fires when any player taps it.
+        this.target = new GameNode.Shape({
+            shapeType: Shapes.POLYGON,
+            coordinates2d: ShapeUtils.rectangle(40, 40, 20, 20),
+            fill: COLORS.CANDY_RED,
+            onClick: (playerId, x, y) => {
+                this.score++;
+                // To change text, replace the whole text object...
+                this.scoreText.node.text = { text: `Score: ${this.score}`,
+                    x: 50, y: 10, size: 4, align: 'center', color: COLORS.WHITE };
+                // ...then tell the platform something changed.
+                this.base.node.onStateChange();
+            }
+        });
+
+        this.base.addChildren(this.scoreText, this.target);
+    }
+
+    // Tells the platform what to render. Almost always exactly this.
+    getLayers() {
+        return [{ root: this.base }];
+    }
+}
+
+module.exports = TapGame;
+</code></pre>
+            <p>Paste it into a blank game in the Studio and hit Play. Some things to try:</p>
+            <ul>
+                <li>Delete the <code>onStateChange()</code> line. Taps still register but the score on screen never changes.</li>
+                <li>Change <code>rectangle(40, 40, 20, 20)</code> to <code>rectangle(10, 70, 40, 15)</code> to move and resize the square.</li>
+                <li>Change <code>COLORS.CANDY_RED</code> to <code>[0, 200, 100, 255]</code>. Colors are <code>[red, green, blue, alpha]</code>, each 0–255.</li>
+            </ul>
+
+            <h2 id="drawing">Drawing things</h2>
+
+            <h3>Shapes</h3>
+            <p>
+                A <code>Shape</code> is a polygon: a list of <code>[x, y]</code> corner points. Two helpers
+                cover most cases:
+            </p>
+<pre><code>ShapeUtils.rectangle(x, y, width, height)   // a box, from its top-left corner
+ShapeUtils.triangle(x1, y1, x2, y2, x3, y3) // any three points</code></pre>
+            <p>
+                For anything else, write the points yourself: <code>coordinates2d: [[10,10], [90,10], [50,90],
+                [10,10]]</code> is a triangle (the last point repeats the first to close the loop). Stars,
+                arrows, ships, terrain — all point lists.
+            </p>
+            <p>Useful Shape options:</p>
+<pre><code>new GameNode.Shape({
+    shapeType: Shapes.POLYGON,
+    coordinates2d: ShapeUtils.rectangle(10, 10, 30, 20),
+    fill: COLORS.CORAL,               // interior color
+    color: COLORS.WHITE,              // OUTLINE color (only used with border)
+    border: 4,                        // outline width — a NUMBER. Setting border
+                                      // requires setting color too.
+    effects: {                        // a glow! great for neon looks
+        shadow: { color: [0, 255, 255, 255], blur: 12 }
+    },
+    onClick: (playerId, x, y) => { /* tapped! */ }
+});</code></pre>
+
+            <div class="callout danger">
+                <p><strong>There are no circles.</strong> A <code>Shapes.CIRCLE</code> constant exists, but it does not render. Draw a many-sided polygon instead — 16 sides reads as a circle:</p>
+<pre><code>const polyCircle = (cx, cy, r, sides = 16) =&gt; {
+    const pts = [];
+    for (let i = 0; i &lt;= sides; i++) {
+        const a = (i / sides) * Math.PI * 2;
+        pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]);
+    }
+    return pts;
+};</code></pre>
+            </div>
+
+            <h3>Text</h3>
+<pre><code>new GameNode.Text({
+    textInfo: {
+        text: 'Hello!',
+        x: 50, y: 20,           // where the text sits, 0-100 space
+        size: 3,                // 1 = small, 3 = heading, 6 = title
+        align: 'center',        // 'left' | 'center' | 'right'
+        color: COLORS.WHITE
+    }
+});</code></pre>
+            <div class="callout">
+                <p><strong>Text can't be tapped.</strong> <code>onClick</code> on a Text node is silently ignored. To make a button, put the <code>onClick</code> on a Shape and draw the Text on top of it — see the <a href="#recipe-button">button recipe</a>.</p>
+            </div>
+
+            <h3>Colors</h3>
+            <p>
+                A color is <code>[red, green, blue, alpha]</code>, each channel an integer from 0 to 255.
+                Alpha 255 is solid, 0 is invisible. There's a named palette on <code>Colors.COLORS</code>
+                (<code>RED</code>, <code>GOLD</code>, <code>EMERALD</code>, <code>HG_BLUE</code>,
+                <code>CANDY_PINK</code>, ~100 more), and <code>Colors.randomColor()</code>.
+            </p>
+            <div class="callout danger">
+                <p><strong>Channels outside 0–255 wrap around</strong> instead of clamping — an alpha of 400 renders as 144. If you compute a color (a fade, say), clamp it: <code>Math.max(0, Math.min(255, Math.round(v)))</code>.</p>
+            </div>
+
+            <h3>The aspect-ratio stretch</h3>
+            <p>
+                The 100×100 grid is stretched to fit your <code>aspectRatio</code>. At 16:9 an x-unit is wider
+                than a y-unit, so <code>rectangle(0, 0, 10, 10)</code> renders wide and circles render as ovals.
+                Fine for menus and party games. For geometry-heavy games (orbits, true circles, precise angles),
+                use <code>aspectRatio: { x: 1, y: 1 }</code>.
+            </p>
+
+            <h2 id="changing">Making things change</h2>
+
+            <h3>Changing a node's properties</h3>
+            <p>
+                Set fields on <code>yourNode.node</code>, then notify. One <code>onStateChange()</code> at the
+                end covers any number of changes:
+            </p>
+<pre><code>this.ball.node.coordinates2d = ShapeUtils.rectangle(newX, newY, 5, 5);
+this.ball.node.fill = COLORS.GOLD;
+this.scoreText.node.text = { text: 'Score: 3', x: 50, y: 10,
+                             size: 4, align: 'center', color: COLORS.WHITE };
+this.base.node.onStateChange();   // one call, after all the changes</code></pre>
+
+            <h3>Adding and removing nodes</h3>
+            <p>Tree operations notify automatically — no <code>onStateChange()</code> needed after these:</p>
+<pre><code>this.base.addChild(node);            // put a node on screen
+this.base.addChildren(a, b, c);      // several at once
+this.base.removeChild(node.id);      // take one off (by id!)
+this.base.clearChildren();           // remove everything under this node</code></pre>
+
+            <div class="callout tip">
+                <p><strong>Cost:</strong> every notification re-sends the entire scene to every player (changes in the same moment get bundled into one send). Notify once per batch or per tick, only when something changed, and keep the node count in the low hundreds.</p>
+            </div>
+
+            <h2 id="players">Players &amp; multiplayer</h2>
+            <p>
+                Player-handling code is the same for single-player and multiplayer games. What differs is one
+                metadata declaration:
+            </p>
+<pre><code>// Single-player: no services. Plays in-browser, downloadable for offline play.
+static metadata() {
+    return { squishVersion: '142', name: 'My Game', aspectRatio: { x: 16, y: 9 } };
+}
+
+// Multiplayer: declare the service. The game's page gets "Play with friends",
+// which starts a hosted session with a shareable join link.
+static metadata() {
+    return { squishVersion: '142', name: 'My Party Game',
+             aspectRatio: { x: 16, y: 9 }, services: ['multiplayer'] };
+}</code></pre>
+            <p>
+                Multiplayer games are also playable solo — the catalog offers them as "Play offline", running
+                as a one-player local session — so they should still work with one player (bots filling empty
+                seats is the usual fix). In a local session the player's id is <code>1</code>; hosted sessions
+                assign arbitrary ids, so don't hardcode it. Players arrive and leave through two methods:
+            </p>
+<pre><code>handleNewPlayer({ playerId, info }) {
+    // playerId is a number. info.name is their display name (may be absent).
+    // Typical move: create their avatar and remember it.
+    const avatar = new GameNode.Shape({
+        shapeType: Shapes.POLYGON,
+        coordinates2d: ShapeUtils.rectangle(47, 47, 6, 6),
+        fill: Colors.randomColor(['ALMOST_BLACK'])   // exclude your bg color BY NAME
+    });
+    this.players[playerId] = { avatar, x: 47, y: 47 };
+    this.base.addChild(avatar);
+}
+
+handlePlayerDisconnect(playerId) {
+    // Clean up their stuff or it stays on screen forever.
+    const p = this.players[playerId];
+    if (p) {
+        this.base.removeChild(p.avatar.id);
+        delete this.players[playerId];
+    }
+}</code></pre>
+
+            <h3>Private things: <code>playerIds</code></h3>
+            <p>
+                Every node has an optional <code>playerIds</code> array controlling <em>who can see it</em>.
+                This is how one shared game shows different things to different people — secret cards, personal
+                HUDs, "YOUR TURN" banners:
+            </p>
+            <table>
+                <tr><th>Value</th><th>Who sees the node</th></tr>
+                <tr><td>omitted</td><td>Everyone (this is the default — use it for almost everything)</td></tr>
+                <tr><td><code>[42]</code></td><td>Only player 42</td></tr>
+                <tr><td><code>[42, 99]</code></td><td>Players 42 and 99</td></tr>
+                <tr><td><code>[0]</code></td><td><strong>Nobody</strong> — the standard trick for temporarily hiding a node</td></tr>
+            </table>
+            <div class="callout danger">
+                <p><strong><code>playerIds</code> means visibility, not ownership.</strong> Tagging each player's ship with <code>playerIds: [playerId]</code> "because it's theirs" makes every ship invisible to every other player. Ships, bullets, and enemies belong to the shared world — leave <code>playerIds</code> off and scope only genuinely private things. Input handlers already receive the acting player's id.</p>
+            </div>
+
+            <h2 id="input">Input: taps, buttons, keyboards</h2>
+
+            <h3>Taps and clicks</h3>
+            <p>
+                Put <code>onClick: (playerId, x, y) =&gt; { ... }</code> on any Shape or Asset. It fires for
+                mouse clicks and taps alike. Most players are on phones, so make tap targets big — a 30×12
+                button, not an 8×3 one.
+            </p>
+            <div class="callout">
+                <p><strong>Taps land on the topmost node and stop there.</strong> If a decorative shape covers your button, the tap hits the decoration and is dropped — it doesn't fall through. Two habits prevent this: give invisible grouping containers zero size (<code>rectangle(0,0,0,0)</code>), and add tappable things to the tree after the scenery they sit on.</p>
+            </div>
+
+            <h3>Keyboard</h3>
+<pre><code>handleKeyDown(playerId, key) {
+    // key is 'ArrowUp', 'w', ' ', 'Enter', ... Support arrows AND wasd.
+    const p = this.players[playerId];
+    if (!p) return;
+    if (key === 'ArrowLeft' || key === 'a') p.vx = -1;
+    if (key === 'ArrowRight' || key === 'd') p.vx = 1;
+}
+
+handleKeyUp(playerId, key) {
+    const p = this.players[playerId];
+    if (!p) return;
+    if (key === 'ArrowLeft' || key === 'a' || key === 'ArrowRight' || key === 'd') p.vx = 0;
+}</code></pre>
+            <p>
+                While a key is held, the runtime keeps re-sending <code>keydown</code>. That's what you want
+                for movement (set a velocity on down, clear it on up, like above) but wrong for typing — one
+                keystroke arrives as "hhhh". For typed input, see the live-typing section of the
+                <a href="/authoring-guide.md" target="_blank" rel="noopener">full reference</a>.
+            </p>
+            <div class="callout tip">
+                <p><strong>Phones don't have keyboards.</strong> If keys are your only controls, phone players can't play. Either design tap-first, or add on-screen buttons alongside the key handlers.</p>
+            </div>
+
+            <h3>Text fields</h3>
+            <p>
+                For entering a name or a guess, give a Shape an <code>input</code> — the player gets a text
+                prompt, and you get the result:
+            </p>
+<pre><code>input: {
+    type: 'text',
+    oninput: (playerId, value) =&gt; {
+        this.names[playerId] = value;
+        // ...update a label, then onStateChange()
+    }
+}</code></pre>
+
+            <h2 id="game-loop">Movement &amp; game loops</h2>
+            <p>
+                For anything that moves on its own (enemies, gravity, timers), add <code>tickRate</code> to
+                your metadata and implement <code>tick()</code>:
+            </p>
+<pre><code>static metadata() {
+    return {
+        squishVersion: '142',
+        name: 'My Action Game',
+        aspectRatio: { x: 16, y: 9 },
+        tickRate: 20        // tick() runs 20 times per second
+    };
+}
+
+tick() {
+    if (this.phase !== 'playing') return;   // see the warning below!
+
+    let changed = false;
+    for (const id in this.players) {
+        const p = this.players[id];
+        if (p.vx === 0 && p.vy === 0) continue;
+        p.x = Math.max(0, Math.min(94, p.x + p.vx));
+        p.y = Math.max(0, Math.min(94, p.y + p.vy));
+        p.avatar.node.coordinates2d = ShapeUtils.rectangle(p.x, p.y, 6, 6);
+        changed = true;
+    }
+    if (changed) this.base.node.onStateChange();   // ONE notify, only if needed
+}</code></pre>
+            <p>
+                Pick the lowest <code>tickRate</code> that feels good: 15–30 for action games, 8–15 for casual
+                ones, none at all for turn-based games (just update inside your click handlers). Every ticking
+                frame costs real bandwidth for every player.
+            </p>
+            <div class="callout danger">
+                <p><strong><code>tick()</code> starts the moment your game is created</strong> — before anyone joins, before anyone presses Start, and it keeps running on menus and game-over screens. Two rules keep you safe:</p>
+                <p>1. Track a phase (<code>this.phase = 'lobby'</code> / <code>'playing'</code> / <code>'over'</code>) and bail out of <code>tick()</code> when you're not playing — otherwise enemies spawn behind your start screen.</p>
+                <p>2. Never let <code>tick()</code> touch a node you haven't created yet. If <code>tick()</code> references <code>this.scoreText</code> but you only create it when the game starts, your game crashes while sitting on the menu. Create everything <code>tick()</code> uses in the constructor.</p>
+            </div>
+
+            <h3>Timers and cooldowns</h3>
+            <p>
+                In a ticking game, count ticks: <code>this.ticks++</code> each <code>tick()</code>, and
+                "explode in 3 seconds" becomes <code>this.explodeAt = this.ticks + 3 * TICK_RATE</code>. For
+                event-driven games, use the built-in tracked timers — they clean themselves up when the session
+                ends:
+            </p>
+<pre><code>this.setTimeout(() =&gt; this.reveal(), 5000);
+this.setInterval(() =&gt; this.spawnEnemy(), 1000);</code></pre>
+
+            <h3>Collision</h3>
+            <p>Most games compare rectangles:</p>
+<pre><code>const overlaps = (a, b) =&gt;
+    a.x &lt; b.x + b.w &amp;&amp; a.x + a.w &gt; b.x &amp;&amp;
+    a.y &lt; b.y + b.h &amp;&amp; a.y + a.h &gt; b.y;</code></pre>
+
+            <h2 id="recipes">Recipes: "how do I make…"</h2>
+
+            <h3 id="recipe-button">…a button?</h3>
+            <p>
+                There's no button node, and Text can't be tapped — so a button is a tappable Shape with a Text
+                label on top. Make it a helper and reuse it everywhere:
+            </p>
+<pre><code>makeButton({ x, y, w, h, label, fill, onClick }) {
+    const bg = new GameNode.Shape({
+        shapeType: Shapes.POLYGON,
+        coordinates2d: ShapeUtils.rectangle(x, y, w, h),
+        fill,
+        onClick                       // the shape is the tap target
+    });
+    bg.addChild(new GameNode.Text({
+        textInfo: { text: label, x: x + w / 2, y: y + h / 2 - 1.5,
+                    size: 2, align: 'center', color: COLORS.WHITE }
+    }));
+    return bg;
+}</code></pre>
+
+            <h3>…a start screen?</h3>
+            <p>
+                Keep one <code>this.phase</code> variable and gate everything on it. Start in
+                <code>'lobby'</code>, build the title and a Start button; when it's pressed, remove the lobby
+                nodes, build the play field, and flip the phase. <code>tick()</code> checks the phase first thing.
+            </p>
+<pre><code>constructor() {
+    super();
+    this.phase = 'lobby';
+    this.players = {};
+    this.base = /* full-screen background */;
+    this.lobby = new GameNode.Shape({ shapeType: Shapes.POLYGON,
+        coordinates2d: ShapeUtils.rectangle(0, 0, 0, 0) });   // zero-size container
+    this.lobby.addChild(this.makeButton({ x: 35, y: 55, w: 30, h: 14,
+        label: 'START', fill: COLORS.GREEN,
+        onClick: () =&gt; this.startRound() }));
+    this.base.addChild(this.lobby);
+}
+
+startRound() {
+    if (this.phase === 'playing') return;
+    this.lobby.node.clearChildren();
+    this.phase = 'playing';
+    // reset scores/positions, show the play field...
+}</code></pre>
+
+            <h3>…a "play again" button?</h3>
+            <p>
+                Reset your own state: positions and scores back to start, clear the game-over nodes, flip the
+                phase back to playing. Don't use <code>location.reload()</code> — your game has no page to
+                reload, and that line crashes hosted sessions. If setup lives in one <code>startRound()</code>
+                method, play-again is just calling it again.
+            </p>
+
+            <h3>…enemies that chase players?</h3>
+<pre><code>// each enemy: { x, y, speed, node }
+for (const e of this.enemies) {
+    let target = null, best = Infinity;
+    for (const id in this.players) {
+        const p = this.players[id];
+        const d = Math.hypot(p.x - e.x, p.y - e.y);
+        if (d &lt; best) { best = d; target = p; }
+    }
+    if (target) {
+        const a = Math.atan2(target.y - e.y, target.x - e.x);
+        e.x += Math.cos(a) * e.speed;
+        e.y += Math.sin(a) * e.speed;
+        e.node.node.coordinates2d = ShapeUtils.rectangle(e.x, e.y, 3, 3);
+    }
+}</code></pre>
+            <div class="callout tip">
+                <p>Spawn enemies <em>at</em> the screen edge, not beyond it — coordinates below 0 get pinned to 0 on the wire, so an enemy "hiding" at <code>y = -5</code> is actually sitting visibly on the top edge. Spawning off the right/bottom (up to 255) does work.</p>
+            </div>
+
+            <h3>…explosions, particles, trails?</h3>
+            <p>
+                Don't create shapes when something explodes and delete them as they fade — creating and
+                destroying nodes every frame is the main cause of slow games. Make a fixed pool once and
+                recycle it:
+            </p>
+<pre><code>// Constructor: 40 permanently-allocated particles, hidden (zero size).
+this.particles = [];
+for (let i = 0; i &lt; 40; i++) {
+    const node = new GameNode.Shape({
+        shapeType: Shapes.POLYGON,
+        coordinates2d: ShapeUtils.rectangle(0, 0, 0, 0),
+        fill: [0, 0, 0, 0],
+        color: [255, 255, 255, 255]
+    });
+    this.particles.push({ active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, node });
+    this.base.addChild(node);
+}
+
+// Explosion: claim idle slots. If the pool runs dry, emit fewer — that's the budget.
+boom(x, y, fill) {
+    let n = 12;
+    for (const p of this.particles) {
+        if (!n) break;
+        if (p.active) continue;
+        n--;
+        p.active = true; p.life = 20; p.x = x; p.y = y;
+        const a = Math.random() * Math.PI * 2;
+        p.vx = Math.cos(a) * 0.5; p.vy = Math.sin(a) * 0.5;
+        p.node.node.fill = fill;
+    }
+}
+
+// tick(): move the live ones; dead ones go back to zero-size, never removed.
+for (const p of this.particles) {
+    if (!p.active) continue;
+    p.x += p.vx; p.y += p.vy; p.life--;
+    if (p.life &lt;= 0) {
+        p.active = false;
+        p.node.node.coordinates2d = ShapeUtils.rectangle(0, 0, 0, 0);
+        p.node.node.fill = [0, 0, 0, 0];
+        continue;
+    }
+    p.node.node.coordinates2d = ShapeUtils.rectangle(p.x, p.y, 0.7, 0.7);
+    p.node.node.color = [255, 255, 255, Math.round(255 * p.life / 20)];  // fade out
+}</code></pre>
+            <p>
+                Note the fade uses the <code>color</code> field's alpha, not <code>fill</code>'s —
+                <code>fill</code> alpha is effectively on/off (anything above 0 renders solid), while
+                <code>color</code> alpha actually fades the node.
+            </p>
+
+            <h3>…a winner?</h3>
+            <p>
+                If the rule is "last player alive wins," special-case solo play — with one player in the
+                session, they're the last one alive the moment the game starts. Require two participants for
+                last-one-standing and give solo players a survival timer or score target instead.
+            </p>
+
+            <h3>…a secret hand of cards?</h3>
+            <p>
+                Scope each player's hand nodes with <code>playerIds: [playerId]</code>, and give every player at
+                least one scoped node the moment they join (a zero-size invisible one works) — see the privacy
+                notes in the <a href="/authoring-guide.md" target="_blank" rel="noopener">full reference</a> for why that matters.
+            </p>
+
+            <h2 id="assets">Images &amp; sound</h2>
+            <p>
+                Images and audio live in the Homegames asset store, and your game references them by id. Declare
+                them in metadata, then place them with an Asset node:
+            </p>
+<pre><code>const { Asset } = require('squish-142');
+
+// in metadata():
+assets: {
+    'hero': new Asset({ id: 'your-asset-id-here', type: 'image' }),
+    'ding': new Asset({ id: 'another-asset-id',   type: 'audio' })
+}
+
+// an image on screen:
+const hero = new GameNode.Asset({
+    coordinates2d: ShapeUtils.rectangle(30, 30, 20, 20),   // its tappable bounds
+    assetInfo: { 'hero': { pos: { x: 30, y: 30 }, size: { x: 20, y: 20 } } }
+});
+this.base.addChild(hero);
+
+// a sound (zero size; plays while in the tree):
+const ding = new GameNode.Asset({
+    coordinates2d: ShapeUtils.rectangle(0, 0, 0, 0),
+    assetInfo: { 'ding': { pos: { x: 0, y: 0 }, size: { x: 0, y: 0 }, startTime: 0 } }
+});
+this.base.addChild(ding);
+this.setTimeout(() =&gt; this.base.removeChild(ding.id), 500);</code></pre>
+            <p>
+                Upload images and sounds with the <strong>Assets</strong> button in the Studio; it gives you
+                ids to paste into your metadata. A made-up asset id renders nothing — until you have real
+                assets, draw with shapes and text.
+            </p>
+
+            <h2 id="gotchas">Gotchas</h2>
+            <p>Common problems and their usual causes.</p>
+            <ul>
+                <li><strong>Screen not updating:</strong> missing <code>this.base.node.onStateChange()</code> after changing node properties.</li>
+                <li><strong>Button not working:</strong> the <code>onClick</code> is on a Text node (ignored — put it on a Shape), or something invisible is drawn over it and swallowing the tap.</li>
+                <li><strong>Crash on the menu:</strong> <code>tick()</code> is touching a node that doesn't exist yet, or the code references a browser global (<code>location</code>, <code>window</code>, <code>alert</code>).</li>
+                <li><strong>Other players can't see something:</strong> <code>playerIds</code> is set on a shared object. It's for private UI only.</li>
+                <li><strong>Game slows down over time:</strong> nodes created every tick and not all removed. Pool and reuse instead.</li>
+                <li><strong>Fade looks broken:</strong> fade with <code>color</code> alpha, not <code>fill</code> alpha, and clamp computed channels to 0–255 (they wrap).</li>
+                <li><strong>Multiline text renders on one line:</strong> <code>\n</code> doesn't line-break in Text nodes. Use one Text node per line.</li>
+                <li><strong>Shape doesn't appear:</strong> often a made-up color name. <code>COLORS.CHOCOLATE</code> isn't an error, it's <code>undefined</code>, and the shape renders with no fill. Use a real palette name or an explicit <code>[r,g,b,a]</code>.</li>
+                <li><strong>Circles are ovals:</strong> the grid stretches to your aspect ratio. Use <code>{ x: 1, y: 1 }</code> for geometric games.</li>
+                <li><strong>"Off-screen" spawn visible at the edge:</strong> negative coordinates pin to 0. Spawn at the edge moving inward, or off the right/bottom.</li>
+                <li><strong>Client renders slowly:</strong> too many glowing nodes. The glow effect is expensive — use it on a few focal objects.</li>
+                <li><strong>Single player instantly wins:</strong> a last-one-standing check firing with one person in the session.</li>
+            </ul>
+
+            <h2 id="testing">Test &amp; share</h2>
+            <p>The Studio's <strong>Play</strong> button runs your game two ways:</p>
+            <ul>
+                <li><strong>Local preview</strong> — runs instantly in your own tab, no account needed. This is the same in-browser runtime players get when they click Play on a published game.</li>
+                <li><strong>Online session</strong> — hosts a real session with a shareable link so friends can join from their phones. Requires a free account.</li>
+            </ul>
+            <p>
+                Test on a phone early — that's how most people play. It shows you quickly whether your buttons
+                are big enough and whether the game secretly requires a keyboard.
+            </p>
+            <p><strong>Save Version</strong> snapshots your code; any earlier version can be restored.</p>
+
+            <h2 id="publishing">Publish to the catalog</h2>
+            <p>Publishing happens from the Studio:</p>
+            <ol>
+                <li>Hit <strong>Publish</strong> on a saved version (verified account required).</li>
+                <li>Automated checks run the game briefly in a sandbox. It has to load, run, and not crash, and it can only use the squish library and its own files — no network calls, no filesystem, no <code>eval</code>.</li>
+                <li>Once it passes, the game is privately shareable. Request a review to get it publicly listed in the catalog.</li>
+            </ol>
+            <p>A published game gets a page on homegames.io with:</p>
+            <ul>
+                <li><strong>Play</strong> — single-player games run in the visitor's browser when they click it.</li>
+                <li><strong>Play with friends</strong> — for games that declare <code>services: ['multiplayer']</code>. Starts a hosted session and gives the creator a link; anyone who opens the link joins.</li>
+                <li><strong>Download</strong> — a single HTML file containing the game, the runtime, and its assets. Runs offline. Multiplayer features don't work in a downloaded copy; it runs as a solo local session.</li>
+                <li><strong>View Source</strong> — the published code is browsable from the page.</li>
+            </ul>
+            <p>
+                Note: the platform decides these play modes by reading your <code>metadata()</code> without
+                running your code, so keep it a plain literal — <code>name: 'My Game'</code>, not
+                <code>name: computeName()</code>.
+            </p>
+            <p>Published games are open source under GPLv3, like every game on the platform.</p>
+
+            <h2 id="further">Going further</h2>
+            <ul>
+                <li><a href="/authoring-guide.md" target="_blank" rel="noopener"><strong>Full technical reference</strong></a> — the complete contract: every node option, scrolling worlds and per-player cameras (<code>ViewableGame</code>), spritesheets, live typing, bot AI. It's also written to work as LLM context — the Studio's <em>Guide</em> button copies it for pasting into an AI assistant.</li>
+                <li><strong>Snippets</strong> — the <em>Snippets</em> button in the Studio has copy-paste blocks for buttons, sounds, glow, per-player visibility, and more.</li>
+                <li><strong>Read real games</strong> — every first-party game is open source in the <a href="https://github.com/homegamesio" target="_blank" rel="noopener">homegamesio GitHub org</a>.</li>
+                <li><strong>Self-hosting</strong> — the whole platform can run on your own machine; see <a href="/self-hosting.html">self-hosting</a>.</li>
+            </ul>
+
+            <p style="margin-top:48px;color:var(--text-muted);">
+                Something wrong or confusing on this page? Use the contact form on the
+                <a href="/">homepage</a> or open an issue on <a href="https://github.com/prosif/homegamesio" target="_blank" rel="noopener">GitHub</a>.
+            </p>
+        </main>
+    </div>
+
+    <script>
+        (() => {
+            const btn = document.getElementById('theme-toggle');
+            const apply = (light) => {
+                document.body.classList.toggle('light', light);
+                btn.textContent = light ? 'Dark' : 'Light';
+            };
+            let light = false;
+            try { light = localStorage.getItem('hg-studio-theme') === 'light'; } catch (e) {}
+            apply(light);
+            btn.onclick = () => {
+                light = !light;
+                apply(light);
+                try { localStorage.setItem('hg-studio-theme', light ? 'light' : 'dark'); } catch (e) {}
+            };
+        })();
+    </script>
+</body>
+</html>

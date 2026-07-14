@@ -6,11 +6,10 @@
 const API_URL = 'https://api.homegames.io';//'http://localhost:80';
 const HOMENAMES_URL = 'https://core.homegames.io:7400';//'https://api.homegames.io/homenames';
 
-// Hides the AI entry points (dashboard "AI Edit" button, "Generate with AI"
-// template option) while the current model isn't good enough. The full
-// pipeline (modal, polling, API, worker) stays intact — flip to true to
-// bring it all back.
-const AI_FEATURES_ENABLED = false;
+// Gates the AI entry points (dashboard "AI Edit" button, "Generate with AI"
+// template option). The full pipeline (modal, polling, API, worker) is always
+// present — this flag only controls whether the UI exposes it.
+const AI_FEATURES_ENABLED = true;
 
 // ---------------------------------------------------------------------------
 // State
@@ -27,6 +26,7 @@ let versions = [];
 let versionPage = 1;
 let viewingVersion = null; // null = HEAD, or { sha, message, date }
 let publishStatuses = {};  // commitSha -> { status, error, requestId, ... }
+let llmJob = null;         // { requestId, prompt } — open AI edit for currentGame; locks the editor
 let previewClient = null;
 let previewSessionId = null;
 let previewOpen = false;
@@ -422,6 +422,7 @@ const startGuestGame = (template, draft) => {
             versions = [];
             publishStatuses = {};
             openFiles = {};
+            llmJob = null; // any open AI job belongs to a server game — stop watching it here
 
             const contents = (draft && draft.files) || templateFiles;
             Object.entries(contents).forEach(([path, content]) => {
@@ -531,12 +532,14 @@ const selectGame = (game) => {
     viewingVersion = null;
     publishStatuses = {};
     editorBladeOpened = false;
+    llmJob = null;
     renderGameList();
     renderGameBlade();
     renderGameView();
     loadFiles();
     loadVersions();
     loadPublishStatuses();
+    checkLLMJob();
     setActiveBlade('game');
 };
 
@@ -706,6 +709,11 @@ const renderGameView = () => {
     if (AI_FEATURES_ENABLED) {
         dashBtn('AI Edit', '', () => {
             if (viewingVersion) { alert('Switch back to HEAD to use AI edits'); return; }
+            if (currentGame && currentGame.guest) { alert('Save your game to an account first to use AI edits'); return; }
+            if (llmJob) { alert('An AI edit is already in progress for this game'); return; }
+            // The AI works from the last saved version; unsaved buffers would
+            // be silently overwritten by its commit.
+            if (hasUnsavedChanges()) { alert('Save or discard your changes first — the AI edits your last saved version.'); return; }
             showLLMModal();
         });
     }
@@ -717,6 +725,13 @@ const renderGameView = () => {
 
     header.appendChild(dash);
     main.appendChild(header);
+
+    // AI-edit banner — visible while an LLM job is open for this game; the
+    // editor is read-only until the job resolves (see updateLLMBanner).
+    const aiBanner = document.createElement('div');
+    aiBanner.id = 'ai-banner';
+    aiBanner.style.display = 'none';
+    main.appendChild(aiBanner);
 
     // Editor area
     const editorArea = document.createElement('div');
@@ -733,6 +748,7 @@ const renderGameView = () => {
     newFileBtn.textContent = '+ New';
     newFileBtn.onclick = () => {
         if (viewingVersion) { alert('Switch back to HEAD to create files'); return; }
+        if (llmJob) { alert('An AI edit is in progress — wait for it to finish'); return; }
         showModal('new-file-modal', 'new-file-name');
     };
     ftHeader.appendChild(newFileBtn);
@@ -865,6 +881,7 @@ const renderGameView = () => {
     bottom.appendChild(rightDiv);
     main.appendChild(bottom);
 
+    updateLLMBanner();
     initAssetDetailModal();
 };
 
@@ -974,7 +991,7 @@ const updateHighlight = () => {
 };
 
 const onEditorInput = () => {
-    if (!currentFile || viewingVersion) return;
+    if (!currentFile || viewingVersion || llmJob) return;
     const textarea = $('editor-textarea');
     const file = openFiles[currentFile.path];
     if (!file) return;
@@ -1146,7 +1163,7 @@ const showEditor = () => {
     if (currentFile && openFiles[currentFile.path]) {
         textarea.value = openFiles[currentFile.path].content;
         textarea.style.display = 'block';
-        textarea.readOnly = !!viewingVersion;
+        textarea.readOnly = !!viewingVersion || !!llmJob;
         if (editorWrap) editorWrap.style.display = '';
         if (placeholder) placeholder.style.display = 'none';
         updateHighlight();
@@ -1188,7 +1205,7 @@ const updateSaveButton = () => {
     // Guest games can always "save" — it opens the signup gate, or claims the
     // game once logged in.
     if (currentGame && currentGame.guest) { btn.disabled = false; return; }
-    btn.disabled = !!viewingVersion || !hasUnsavedChanges();
+    btn.disabled = !!viewingVersion || !!llmJob || !hasUnsavedChanges();
 };
 
 // ---------------------------------------------------------------------------
@@ -1219,6 +1236,7 @@ const createNewFile = () => {
 // ---------------------------------------------------------------------------
 
 const saveVersion = () => {
+    if (llmJob) return;
     if (currentGame && currentGame.guest) {
         if (!userInfo) {
             openSignupGate('Create a free account to save your game and keep working on it from anywhere. Your edits come with you.');
@@ -1581,7 +1599,7 @@ const switchToHead = () => {
     updateSaveButton();
     const textarea = $('editor-textarea');
     const placeholder = $('editor-placeholder');
-    if (textarea) { textarea.style.display = 'none'; textarea.readOnly = false; }
+    if (textarea) { textarea.style.display = 'none'; textarea.readOnly = !!llmJob; }
     if (placeholder) placeholder.style.display = 'flex';
     renderTabs();
 };
@@ -1627,7 +1645,7 @@ const restoreVersion = (v) => {
             renderTabs();
             const textarea = $('editor-textarea');
             const placeholder = $('editor-placeholder');
-            if (textarea) { textarea.style.display = 'none'; textarea.readOnly = false; }
+            if (textarea) { textarea.style.display = 'none'; textarea.readOnly = !!llmJob; }
             if (placeholder) placeholder.style.display = 'flex';
         })
         .catch(err => {
@@ -1730,16 +1748,18 @@ $('new-file-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') c
 // AI ("Ask AI to edit") modal
 // ---------------------------------------------------------------------------
 
-let llmActiveRequest = null; // requestId currently being polled, or null
+// The modal only collects the prompt. Submitting registers an open job
+// (llmJob) that locks the whole editor — banner + read-only — until the
+// server resolves it. The server commits a COMPLETED result as a new version
+// (commit message = the prompt), so completion here is "reload and unlock";
+// the job survives page reloads because checkLLMJob finds it on game open.
 
 const setLLMBusy = (busy, statusMsg) => {
     const submit = $('llm-modal-submit');
-    const cancel = $('llm-modal-cancel');
     const input = $('llm-prompt-input');
     const statusEl = $('llm-modal-status');
-    if (submit) { submit.disabled = busy; submit.textContent = busy ? 'Generating…' : 'Generate'; }
+    if (submit) { submit.disabled = busy; submit.textContent = busy ? 'Submitting…' : 'Generate'; }
     if (input) input.disabled = busy;
-    if (cancel) cancel.textContent = busy ? 'Close' : 'Cancel';
     if (statusEl) statusEl.innerHTML = statusMsg || '';
 };
 
@@ -1752,80 +1772,135 @@ const showLLMModal = () => {
     showModal('llm-modal', 'llm-prompt-input');
 };
 
-// Drop the AI's rewrite into the editor as an unsaved change to index.js,
-// so the author reviews and explicitly saves it.
-const applyLLMResult = (code) => {
-    const path = 'index.js';
-    const existing = openFiles[path];
-    const treeEntry = fileTree.find(f => f.path === path);
-    openFiles[path] = {
-        content: code,
-        sha: existing ? existing.sha : (treeEntry ? treeEntry.sha : null),
-        dirty: true,
-        original: existing ? existing.original : null,
-    };
-    switchToFile(path);
-    setStatus('AI edit applied to index.js — review it and Save Version when ready.');
+const updateLLMBanner = () => {
+    const banner = $('ai-banner');
+    if (!banner) return;
+    banner.innerHTML = '';
+    if (!llmJob) { banner.style.display = 'none'; return; }
+    banner.style.display = 'flex';
+
+    const spin = document.createElement('span');
+    spin.className = 'spinner';
+    banner.appendChild(spin);
+
+    const label = document.createElement('span');
+    label.id = 'ai-banner-label';
+    const prompt = llmJob.prompt || '';
+    const shortPrompt = prompt.length > 120 ? prompt.substring(0, 117) + '…' : prompt;
+    label.textContent = `Working on your game edit${shortPrompt ? ` — “${shortPrompt}”` : ''}. The editor is read-only until it finishes.`;
+    banner.appendChild(label);
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.id = 'ai-banner-cancel';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.onclick = cancelLLMJob;
+    banner.appendChild(cancelBtn);
+};
+
+// Lock state is derived, not stored: read-only whenever a job is open (or a
+// historical version is being viewed).
+const setEditorLock = () => {
+    const textarea = $('editor-textarea');
+    if (textarea) textarea.readOnly = !!viewingVersion || !!llmJob;
+    updateSaveButton();
+    updateLLMBanner();
+};
+
+// A job resolved (completed, failed, or cancelled): unlock and, on success,
+// pull the AI's commit — it's the new HEAD. Open buffers are stale (they
+// predate the commit and were clean, since submission requires a clean tree),
+// so drop them and let loadFiles reopen index.js fresh.
+const finishLLMJob = (outcome, message) => {
+    llmJob = null;
+    setEditorLock();
+    if (message) setStatus(message);
+    if (outcome === 'COMPLETED') {
+        if (!viewingVersion) {
+            openFiles = {};
+            currentFile = null;
+            loadFiles();
+        }
+        loadVersions();
+    }
+};
+
+const startLLMJob = (gameId, requestId, prompt) => {
+    llmJob = { requestId, prompt };
+    setEditorLock();
+    pollLLMStatus(gameId, requestId);
+};
+
+// On game open: resume watching any job that's still in flight (submitted
+// from a previous visit or another tab).
+const checkLLMJob = () => {
+    if (!AI_FEATURES_ENABLED || !currentGame || currentGame.guest || !userInfo) return;
+    const gameId = currentGame.id;
+    api('GET', `/studio/games/${gameId}/llm-status`, null, { silent: true })
+        .then(data => {
+            if (!currentGame || currentGame.id !== gameId || llmJob) return;
+            const open = (data.requests || []).find(r => r.status === 'PENDING' || r.status === 'PROCESSING');
+            if (open) startLLMJob(gameId, open.requestId, open.prompt || '');
+        })
+        .catch(() => {});
 };
 
 const pollLLMStatus = (gameId, requestId) => {
+    let notFound = 0;
     const poll = () => {
-        // Stop if the user navigated away or started a different request.
-        if (!currentGame || currentGame.id !== gameId || llmActiveRequest !== requestId) return;
+        // Stop if the user navigated away or the job already resolved.
+        if (!currentGame || currentGame.id !== gameId || !llmJob || llmJob.requestId !== requestId) return;
 
         api('GET', `/studio/games/${gameId}/llm-status?id=${encodeURIComponent(requestId)}`, null, { silent: true })
             .then(data => {
                 const r = data.request;
-                if (!r) { setTimeout(poll, 3000); return; }
-
-                if (r.status === 'PENDING' || r.status === 'PROCESSING') {
-                    setLLMBusy(true, '<span class="spinner"></span>Working… this can take a minute.');
-                    setTimeout(poll, 3000);
-                } else if (r.status === 'COMPLETED') {
-                    llmActiveRequest = null;
-                    setLLMBusy(false, '');
-                    hideModal('llm-modal');
-                    applyLLMResult(r.result || '');
-                } else if (r.status === 'FAILED') {
-                    llmActiveRequest = null;
-                    setLLMBusy(false, '');
-                    const errEl = $('llm-modal-error');
-                    if (errEl) errEl.textContent = 'AI edit failed: ' + (r.error || 'unknown error');
+                if (!r || r.status === 'PENDING' || r.status === 'PROCESSING') { setTimeout(poll, 5000); return; }
+                if (r.status === 'COMPLETED') {
+                    finishLLMJob('COMPLETED', 'AI edit saved as a new version — your prompt is the commit message.');
+                } else if (r.status === 'CANCELLED') {
+                    finishLLMJob('CANCELLED', 'AI edit cancelled.');
+                } else {
+                    finishLLMJob('FAILED', 'AI edit failed: ' + (r.error || 'unknown error'));
                 }
             })
-            .catch(() => setTimeout(poll, 5000));
+            .catch(err => {
+                // The record can disappear server-side; a dead id must not keep
+                // the editor locked forever.
+                if (err && err.status === 404 && ++notFound >= 3) {
+                    finishLLMJob('FAILED', 'AI edit request disappeared — it may have expired. Try again.');
+                    return;
+                }
+                setTimeout(poll, 8000);
+            });
     };
-    setTimeout(poll, 2000);
+    setTimeout(poll, 3000);
 };
 
-// Kick off generation for a game just created via the "Generate with AI"
-// template choice. Reuses the AI modal + polling from the edit flow; the
-// result drops into the editor for review, same as an edit.
-const startLLMCreate = (gameId, prompt) => {
-    const input = $('llm-prompt-input');
-    if (input) input.value = prompt;
-    const titleEl = $('llm-modal-title');
-    if (titleEl) titleEl.textContent = 'Generating your game';
-    const errEl = $('llm-modal-error');
-    if (errEl) errEl.textContent = '';
-    showModal('llm-modal'); // no focusId: keep the prefilled prompt
-    setLLMBusy(true, '<span class="spinner"></span>Submitting…');
-    api('POST', `/studio/games/${gameId}/llm-modify`, { prompt, mode: 'CREATE' })
-        .then(data => {
-            llmActiveRequest = data.requestId;
-            setLLMBusy(true, '<span class="spinner"></span>Queued… the AI is writing your game. This can take a few minutes.');
-            pollLLMStatus(gameId, data.requestId);
-        })
-        .catch(err => {
-            setLLMBusy(false, '');
-            if (errEl) {
-                errEl.textContent = ((err && err.error) || 'Failed to start AI generation')
-                    + ' — your game was still created; retry from the AI Edit button.';
-            }
+const cancelLLMJob = () => {
+    if (!llmJob || !currentGame) return;
+    api('POST', `/studio/games/${currentGame.id}/llm-cancel`, { id: llmJob.requestId }, { silent: true })
+        .then(() => finishLLMJob('CANCELLED', 'AI edit cancelled.'))
+        .catch(() => {
+            // Probably resolved in the meantime — the poller picks it up.
+            setStatus('Could not cancel — the job may have just finished.');
         });
 };
 
-$('llm-modal-cancel').onclick = () => { llmActiveRequest = null; hideModal('llm-modal'); };
+// Kick off generation for a game just created via the "Generate with AI"
+// template choice — same job flow as an edit, no modal.
+const startLLMCreate = (gameId, prompt) => {
+    api('POST', `/studio/games/${gameId}/llm-modify`, { prompt, mode: 'CREATE' })
+        .then(data => {
+            startLLMJob(gameId, data.requestId, prompt);
+            // Land in the editor so the progress banner is in view.
+            openEditorAtHead();
+        })
+        .catch(err => {
+            setStatus(((err && err.error) || 'Failed to start AI generation')
+                + ' — your game was still created; retry from the AI Edit button.');
+        });
+};
+
+$('llm-modal-cancel').onclick = () => hideModal('llm-modal');
 $('llm-modal-submit').onclick = () => {
     const input = $('llm-prompt-input');
     const errEl = $('llm-modal-error');
@@ -1835,18 +1910,29 @@ $('llm-modal-submit').onclick = () => {
         if (errEl) errEl.textContent = 'Describe the change you want.';
         return;
     }
-    if (!currentGame) return;
+    if (!currentGame || llmJob) return;
+    if (hasUnsavedChanges()) {
+        if (errEl) errEl.textContent = 'Save or discard your changes first — the AI edits your last saved version.';
+        return;
+    }
 
     const gameId = currentGame.id;
     setLLMBusy(true, '<span class="spinner"></span>Submitting…');
-    api('POST', `/studio/games/${gameId}/llm-modify`, { prompt })
+    api('POST', `/studio/games/${gameId}/llm-modify`, { prompt }, { silent: true })
         .then(data => {
-            llmActiveRequest = data.requestId;
-            setLLMBusy(true, '<span class="spinner"></span>Queued… waiting for the model.');
-            pollLLMStatus(gameId, data.requestId);
+            setLLMBusy(false, '');
+            if (input) input.value = '';
+            hideModal('llm-modal');
+            startLLMJob(gameId, data.requestId, prompt);
         })
         .catch(err => {
             setLLMBusy(false, '');
+            // 409 = a job is already open (e.g. from another tab) — adopt it.
+            if (err && err.status === 409) {
+                hideModal('llm-modal');
+                checkLLMJob();
+                return;
+            }
             if (errEl) errEl.textContent = (err && err.error) ? err.error : 'Failed to submit request';
         });
 };
