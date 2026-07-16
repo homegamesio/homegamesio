@@ -1,47 +1,345 @@
 <!DOCTYPE HTML>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <title>Homegames</title>
-        <link rel="stylesheet" href="/app.css">
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-        <link rel="manifest" href="/site.webmanifest">
-    </head>
-
-    <body>
-        <div id="modal" class="fade-in" hidden>
-            <div id="modal-content">
-                <div class="close clickable" onclick="hideModal()">X</div>
-                <div class="back"></div>
-                <div class="content"></div>
-            </div>
-        </div>
-        <div id="main">
-            <div id="page-container">
-                <div id="header">
-                    <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
-                </div>
-                <div id="content">
-                    <h2>Guide coming soon!</h2>
-                    <p>Short version: run homegames-core and homegames-web node servers locally, use homegames.link and ws-relay for public game features. API is also self hostable. Everything is at https://github.com/homegamesio</p> 
-                </div>
-            </div>
-        </div>
-    </body>
-    <script src="/bundle.js"></script>
-    <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const gameParam = urlParams.get('id');
-
-        if (gameParam) {
-            showGamePage(gameParam); 
-        } 
-    </script>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Homegames — Self-hosting</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
     <style>
-        #content input {height: 40px; line-height: 40px; width: 20%; padding: 5px; margin-left: 2%; margin-right: 78%; margin-top: 1%}
-        #submit-button {margin-top: 1%; margin-left: 2%; text-decoration: underline;}
-        #podcast-content {height: 250px;}
-        #podcast-content ul {text-align: left; list-style-type: none;}
-    </style>
+        @font-face { font-family: 'amateur'; src: url('/amateur.ttf'); }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-deep: #0a0a1a;
+            --bg-hover: #1a1a3e;
+            --border: #333;
+            --border-light: #444;
+            --text-primary: #eee;
+            --text-secondary: #aaa;
+            --text-muted: #888;
+            --accent-green: #A0EB5D;
+            --accent-blue: rgba(148, 210, 229, 255);
+            --accent-red: rgba(241, 112, 111, 255);
+            --accent-yellow: rgba(255, 247, 142, 255);
+            --logo-color: rgba(241, 112, 111, 255);
+            --code-bg: #0a0a1a;
+        }
+
+        body.light {
+            --bg-primary: #fbfff2;
+            --bg-secondary: #f0f4e8;
+            --bg-deep: #e8ecdf;
+            --bg-hover: #eef2e5;
+            --border: #ccc;
+            --border-light: #bbb;
+            --text-primary: #333;
+            --text-secondary: #555;
+            --text-muted: #777;
+            --accent-green: #4a9e2f;
+            --accent-blue: rgba(100, 170, 200, 255);
+            --accent-red: rgba(220, 90, 90, 255);
+            --accent-yellow: rgba(160, 150, 40, 255);
+            --logo-color: rgba(220, 90, 90, 255);
+            --code-bg: #f4f7ec;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.65;
+        }
+
+        #docs-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 20px; height: 48px;
+            background: var(--bg-secondary); border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; z-index: 10;
+        }
+        #docs-header .logo { font-family: 'amateur', monospace; font-size: 1.15em; color: var(--logo-color); text-decoration: none; }
+        #docs-header nav { display: flex; align-items: center; gap: 18px; font-size: 0.9em; }
+        #docs-header nav a { color: var(--accent-blue); text-decoration: none; }
+        #docs-header nav a:hover { text-decoration: underline; }
+        #theme-toggle { cursor: pointer; color: var(--text-muted); background: none; border: none; font-size: 0.9em; font-family: inherit; }
+
+        #layout { display: flex; max-width: 1200px; margin: 0 auto; align-items: flex-start; }
+
+        #sidebar {
+            width: 250px; flex-shrink: 0;
+            position: sticky; top: 48px;
+            max-height: calc(100vh - 48px); overflow-y: auto;
+            padding: 28px 8px 40px 20px;
+            font-size: 0.88em;
+        }
+        #sidebar .toc-group { color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; font-size: 0.78em; margin: 18px 0 6px; }
+        #sidebar a { display: block; color: var(--text-secondary); text-decoration: none; padding: 3px 8px; border-radius: 4px; }
+        #sidebar a:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+        main {
+            flex: 1; min-width: 0;
+            padding: 32px 40px 120px;
+        }
+
+        main h1 { font-family: 'amateur', monospace; font-size: 2.2em; color: var(--logo-color); margin-bottom: 4px; line-height: 1.2; }
+        main .subtitle { color: var(--text-secondary); margin-bottom: 36px; font-size: 1.05em; }
+        main h2 {
+            font-family: 'amateur', monospace; font-size: 1.6em; color: var(--accent-green);
+            margin: 56px 0 14px; padding-top: 14px; border-top: 1px solid var(--border);
+        }
+        main h3 { font-size: 1.12em; color: var(--text-primary); margin: 30px 0 10px; }
+        main p { margin: 12px 0; color: var(--text-primary); max-width: 76ch; }
+        main ul, main ol { margin: 12px 0 12px 26px; max-width: 74ch; }
+        main li { margin: 6px 0; }
+        main a { color: var(--accent-blue); }
+        main strong { color: var(--text-primary); }
+
+        code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.88em;
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1px 5px;
+        }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+            overflow-x: auto;
+            margin: 14px 0;
+            max-width: 860px;
+        }
+        pre code { background: none; border: none; padding: 0; font-size: 0.85em; line-height: 1.55; }
+
+        .callout {
+            border-left: 4px solid var(--accent-yellow);
+            background: var(--bg-secondary);
+            border-radius: 0 8px 8px 0;
+            padding: 12px 16px;
+            margin: 16px 0;
+            max-width: 820px;
+        }
+        .callout.danger { border-left-color: var(--accent-red); }
+        .callout.tip { border-left-color: var(--accent-green); }
+        .callout p { margin: 6px 0; }
+
+        table { border-collapse: collapse; margin: 14px 0; font-size: 0.92em; }
+        th, td { border: 1px solid var(--border); padding: 7px 12px; text-align: left; vertical-align: top; }
+        th { background: var(--bg-secondary); }
+
+        @media (max-width: 820px) {
+            #sidebar { display: none; }
+            main { padding: 24px 16px 100px; }
+            #docs-header nav { gap: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="docs-header">
+        <a class="logo" href="/">Homegames</a>
+        <nav>
+            <a href="/how_it_works.html">How it works</a>
+            <a href="/docs.html">Make games</a>
+            <a href="/studio.html">Developer Studio</a>
+            <button id="theme-toggle">Light</button>
+        </nav>
+    </div>
+
+    <div id="layout">
+        <aside id="sidebar">
+            <div class="toc-group">Setup</div>
+            <a href="#overview">What you get</a>
+            <a href="#requirements">Requirements</a>
+            <a href="#quick-start">Quick start</a>
+            <a href="#first-boot">What happens on first boot</a>
+            <div class="toc-group">Details</div>
+            <a href="#lan-only">LAN-only / dev mode</a>
+            <a href="#config">Configuration</a>
+            <a href="#ports">Ports &amp; firewall</a>
+            <a href="#troubleshooting">Troubleshooting</a>
+            <div class="toc-group">Beyond</div>
+            <a href="#full-platform">Hosting the whole platform</a>
+        </aside>
+
+        <main>
+            <h1>Self-hosting Homegames</h1>
+            <p class="subtitle">
+                Run a Homegames server on a machine in your house. Everyone on your network gets a game
+                dashboard by typing <code>homegames.link</code> into any browser — no installs on their
+                devices. (Curious how the URL magic works? See <a href="/how_it_works.html">how it works</a>.)
+            </p>
+
+            <h2 id="overview">What you get</h2>
+            <p>A self-hosted server runs two things:</p>
+            <ul>
+                <li>a <strong>web server</strong> that serves the Homegames client (the thing browsers render games with), and</li>
+                <li>a <strong>game server</strong> that runs the dashboard and game sessions — including the
+                    built-in games and any games you download from the <a href="/catalog.html">catalog</a>.</li>
+            </ul>
+            <p>
+                With the link service enabled, your server registers itself with homegames.link, gets its own
+                <code>*.homegames.link</code> subdomain pointed at its LAN address, and is issued a real TLS
+                certificate — so every device on your network gets a secure, zero-config connection to a
+                server in your own house. Game traffic itself never leaves your network.
+            </p>
+
+            <h2 id="requirements">Requirements</h2>
+            <ul>
+                <li>A machine that stays on while people play — a spare laptop, a Mac mini, a desktop. (Raspberry-Pi-class hardware works for lighter use.)</li>
+                <li><strong>Node.js 18 or newer</strong> and <strong>git</strong>.</li>
+                <li>Permission to bind ports 80/443 (i.e. <code>sudo</code>, or a port capability on Linux).</li>
+                <li>Internet access on first boot for certificate provisioning (play itself is LAN-local).</li>
+            </ul>
+
+            <h2 id="quick-start">Quick start</h2>
+            <p>
+                The repos reference each other as sibling directories, so clone them side by side into one
+                folder:
+            </p>
+<pre><code>mkdir homegames-server &amp;&amp; cd homegames-server
+git clone https://github.com/homegamesio/homegames-common
+git clone https://github.com/homegamesio/homegames-core
+git clone https://github.com/homegamesio/homegames-client
+git clone https://github.com/homegamesio/homegames-web
+git clone https://github.com/homegamesio/homegames
+
+cd homegames
+npm install        # links the sibling repos + installs deps
+npm run build      # builds the browser client bundle
+sudo node index.js # sudo because the web server binds ports 80/443</code></pre>
+            <p>
+                Then open <code>localhost</code> on the server machine, or <code>homegames.link</code> from
+                any other device on the same network.
+            </p>
+
+            <h2 id="first-boot">What happens on first boot</h2>
+            <p>The <code>homegames</code> launcher does three things, in order:</p>
+            <ol>
+                <li><strong>Gets your server a certificate.</strong> It asks the Homegames API which
+                    <code>*.homegames.link</code> subdomain your network is assigned, generates a keypair
+                    <em>locally</em>, and submits a certificate signing request. The private key never leaves
+                    your machine. Issuance usually takes a minute or two on the very first boot; the key and
+                    certificate are stored in your OS's application-data directory (e.g.
+                    <code>~/Library/Application Support/homegames/hg-certs</code> on macOS,
+                    <code>~/.homegames/hg-certs</code> on Linux) and renewed automatically when they near
+                    expiry.</li>
+                <li><strong>Starts the web server</strong> — HTTPS on 443, with port 80 redirecting to it.</li>
+                <li><strong>Starts the game server</strong> — the dashboard, plus one process per running
+                    game session on its own port. It also registers with homegames.link so browsers on your
+                    network get redirected to it.</li>
+            </ol>
+            <div class="callout tip">
+                <p>While the certificate is being issued, visitors to homegames.link see a "setting up a
+                secure connection" page that refreshes itself — it flips to your dashboard automatically once
+                HTTPS is up.</p>
+            </div>
+
+            <h2 id="lan-only">LAN-only / dev mode</h2>
+            <p>
+                You can also run the two servers directly, without the launcher or the certificate flow.
+                This is the fastest loop for development (it's how the games in
+                <a href="/docs.html">the docs</a> are typically iterated on locally), at the cost of plain
+                HTTP:
+            </p>
+<pre><code># terminal 1 — the game server (dashboard on port 9801 by default)
+cd homegames-core &amp;&amp; npm install &amp;&amp; npm start
+
+# terminal 2 — the web server (port 80)
+cd homegames-web &amp;&amp; npm install &amp;&amp; npm run build &amp;&amp; sudo npm start</code></pre>
+            <p>
+                Then open <code>http://localhost</code>. To boot straight into one game instead of the
+                dashboard (great while building a game), set <code>START_PATH</code> in
+                <code>homegames-core</code>'s <code>config.json</code> to that game's <code>index.js</code>.
+            </p>
+
+            <h2 id="config">Configuration</h2>
+            <p>
+                Configuration lives in each repo's <code>config.json</code>; any key can be overridden with
+                an environment variable of the same name. The keys you're most likely to touch:
+            </p>
+            <table>
+                <tr><th>Key</th><th>Default</th><th>Meaning</th></tr>
+                <tr><td><code>LINK_ENABLED</code></td><td><code>true</code></td><td>Register with homegames.link so devices on your network can find the server</td></tr>
+                <tr><td><code>HOME_PORT</code></td><td><code>9801</code></td><td>Port the dashboard game server listens on</td></tr>
+                <tr><td><code>HOMENAMES_PORT</code></td><td><code>7400</code></td><td>Port of the session/player management API</td></tr>
+                <tr><td><code>GAME_SERVER_PORT_RANGE_MIN</code> / <code>MAX</code></td><td><code>8300</code>–<code>8400</code></td><td>Port pool for individual game sessions</td></tr>
+                <tr><td><code>HTTPS_ENABLED</code></td><td><code>false</code></td><td>Serve TLS using certs from <code>hg-certs</code> (the launcher manages this for you)</td></tr>
+                <tr><td><code>START_PATH</code></td><td>—</td><td>Boot directly into one game instead of the dashboard</td></tr>
+                <tr><td><code>TESTS_ENABLED</code></td><td><code>false</code></td><td>Show the built-in diagnostic/test games in the dashboard</td></tr>
+            </table>
+
+            <h2 id="ports">Ports &amp; firewall</h2>
+            <p>Devices on your LAN need to reach the server on:</p>
+            <ul>
+                <li><strong>80 / 443</strong> — the web client</li>
+                <li><strong>9801</strong> — the dashboard's WebSocket</li>
+                <li><strong>8300–8400</strong> — game session WebSockets (players are redirected into this range when a game launches)</li>
+            </ul>
+            <p>
+                Nothing needs to be reachable <em>from the internet</em> — no port forwarding, no router
+                configuration. The homegames.link connection is outbound-only.
+            </p>
+
+            <h2 id="troubleshooting">Troubleshooting</h2>
+            <ul>
+                <li><strong>"No Homegames servers found" at homegames.link</strong> — the visiting device and
+                    the server aren't on the same network as far as the internet can tell. Guest wifi,
+                    VLANs, and VPNs on either device are the usual culprits (the service matches server and
+                    visitor by public IP). Also confirm the server is actually running and
+                    <code>LINK_ENABLED</code> is true.</li>
+                <li><strong>Stuck on "setting up a secure connection"</strong> — the certificate is still
+                    being issued; first boot can take a couple of minutes. If it never resolves, check the
+                    server logs for the cert flow.</li>
+                <li><strong><code>EACCES</code> binding port 80</strong> — run with <code>sudo</code>, or
+                    grant Node the bind capability
+                    (<code>setcap 'cap_net_bind_service=+ep' $(which node)</code> on Linux).</li>
+                <li><strong>Dashboard loads but games don't</strong> — launching a game redirects the browser
+                    to a port in the 8300–8400 range; a firewall on the server blocking that range is the
+                    usual cause.</li>
+                <li><strong>Works on the server, not on phones</strong> — same as above, or client isolation
+                    ("AP isolation") is enabled on the wifi network, which blocks LAN devices from talking to
+                    each other.</li>
+            </ul>
+
+            <h2 id="full-platform">Hosting the whole platform</h2>
+            <p>
+                Everything behind homegames.io is open source too — the API, the website, the link service,
+                and the background worker. Running your own complete platform (your own catalog, studio, and
+                cert authority) is possible but is a much bigger project: the API alone wants MongoDB,
+                RabbitMQ, a Forgejo git server, and Docker, and the cert flow needs a domain with DNS you
+                control. If you're seriously interested, start with the READMEs in the
+                <a href="https://github.com/homegamesio" target="_blank" rel="noopener">homegamesio GitHub
+                org</a> — each repo documents its own moving parts — or email
+                <a href="mailto:joseph@homegames.io">joseph@homegames.io</a>.
+            </p>
+
+            <p style="margin-top:48px;color:var(--text-muted);">
+                Something wrong or confusing on this page? Email <a href="mailto:joseph@homegames.io">joseph@homegames.io</a>
+                or open an issue on <a href="https://github.com/homegamesio" target="_blank" rel="noopener">GitHub</a>.
+            </p>
+        </main>
+    </div>
+
+    <script>
+        (() => {
+            const btn = document.getElementById('theme-toggle');
+            const apply = (light) => {
+                document.body.classList.toggle('light', light);
+                btn.textContent = light ? 'Dark' : 'Light';
+            };
+            let light = false;
+            try { light = localStorage.getItem('hg-studio-theme') === 'light'; } catch (e) {}
+            apply(light);
+            btn.onclick = () => {
+                light = !light;
+                apply(light);
+                try { localStorage.setItem('hg-studio-theme', light ? 'light' : 'dark'); } catch (e) {}
+            };
+        })();
+    </script>
+</body>
 </html>

@@ -81,6 +81,77 @@
             .hero-cta.github { background: #FFF78E; }
             .hero-cta.github:hover { background: #f7ec6b; }
 
+            /* Active sessions */
+            .active-sessions-section {
+                padding: 40px 0 0;
+            }
+            .active-sessions-section h2 {
+                font-weight: lighter;
+                text-align: center;
+                margin: 0 0 24px;
+                font-size: 1.5em;
+            }
+            .active-session-row {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 10px 14px;
+                margin-bottom: 10px;
+                background: #fff;
+            }
+            .active-session-row .session-thumb {
+                width: 56px;
+                height: 56px;
+                border-radius: 6px;
+                background: #eee;
+                flex-shrink: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.4em;
+                color: #aaa;
+                overflow: hidden;
+            }
+            .active-session-row .session-thumb img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                display: block;
+            }
+            .active-session-row .session-info {
+                flex: 1;
+                min-width: 0;
+            }
+            .active-session-row .session-name {
+                font-weight: bold;
+                font-size: 1.05em;
+                color: inherit;
+                text-decoration: none;
+                display: block;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .active-session-row .session-name:hover { text-decoration: underline; }
+            .active-session-row .session-players {
+                font-size: 0.85em;
+                color: #777;
+                margin-top: 2px;
+            }
+            .active-session-row .session-join {
+                background: #A0EB5D;
+                color: #333;
+                padding: 8px 24px;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: bold;
+                flex-shrink: 0;
+                transition: filter 0.15s;
+            }
+            .active-session-row .session-join:hover { filter: brightness(0.95); }
+
             /* Featured games */
             .featured-section {
                 padding: 40px 0;
@@ -243,6 +314,13 @@
                         <p>Play, make and share games for free</p>
                     </div>
 
+                    <!-- Active sessions — hidden until at least one live
+                         session loads, so an empty list never shows. -->
+                    <div class="landing-section active-sessions-section amateur" id="active-sessions" hidden>
+                        <h2>Active Multiplayer Sessions</h2>
+                        <div id="active-sessions-list"></div>
+                    </div>
+
                     <!-- Games -->
                     <div class="landing-section featured-section amateur">
                         <h2>Featured Games</h2>
@@ -263,7 +341,7 @@
                             <li><strong>Manage game assets right from the studio. Upload your own files or draw/record something in the studio.</strong></li>
                             <li><strong>Publish games if you want to share them with the world. Or you can just keep them to yourself.</strong></li>
                         </ul>
-                        <div class="section-cta"><a href="/studio.html" class="hero-cta studio">Open the Studio</a></div>
+                        <div class="section-cta"><a href="/studio.html" class="hero-cta studio">Open the Studio</a> <a href="/docs.html" class="hero-cta games">Read the Docs</a></div>
                     </div>
 
                     <!-- Open source -->
@@ -271,10 +349,11 @@
                         <h2>Open Source</h2>
                         <ul class="feature-list">
                             <li><strong>Everything is GPLv3</strong> from the platform code to the games to this website. You can read the code and fork it if you want to.</li>
-                            <li><strong>Self-host on your own hardware.</strong> Homegames was designed to be self-hostable, including the API.</li>
+                            <li><strong>Self-host on your own hardware.</strong> Homegames was designed to be self-hostable, including the API. See the <a href="/self-hosting.html">self-hosting guide</a>.</li>
                             <li><strong>Preservation.</strong> If this website gets hit by a bus, your games can live on.</li>
                         </ul>
                         <div class="section-cta">
+                            <a href="/self-hosting.html" class="hero-cta self-hosting">Self-Hosting Guide</a>
                             <a href="https://github.com/homegamesio" target="_blank" class="hero-cta github">GitHub</a>
                         </div>
                         <p class="oss-note">Homegames has been in development as a (mostly) solo side project since 2018.</p>
@@ -283,6 +362,12 @@
                     <!-- Footer -->
                     <div class="landing-footer amateur">
                         <div>
+                            <a href="/how_it_works.html">How It Works</a>
+                            <span>·</span>
+                            <a href="/docs.html">Docs</a>
+                            <span>·</span>
+                            <a href="/self-hosting.html">Self-Hosting</a>
+                            <span>·</span>
                             <a href="https://youtube.com/homegamesio" target="_blank">YouTube</a>
                             <span>·</span>
                             <a href="https://x.com/homegamesio" target="_blank">Twitter</a>
@@ -297,6 +382,12 @@
         </div>
         <script src="bundle.js"></script>
         <script>
+            loadActiveSessions(
+                document.getElementById('active-sessions'),
+                document.getElementById('active-sessions-list'),
+                3
+            );
+
             const grid = document.getElementById('featured-grid');
             getAllGames(6, 0, true).then((data) => {
                 const games = data.games || [];

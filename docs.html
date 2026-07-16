@@ -135,6 +135,54 @@
 
         .comment { color: var(--text-muted); }
 
+        /* Ask-something box */
+        #ask-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px 18px;
+            margin: 0 0 8px;
+            max-width: 860px;
+        }
+        #ask-box .ask-label { font-size: 0.92em; color: var(--text-secondary); margin-bottom: 10px; }
+        #ask-form { display: flex; gap: 8px; }
+        #ask-input {
+            flex: 1;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.95em;
+            padding: 9px 12px;
+        }
+        #ask-input:focus { outline: none; border-color: var(--accent-blue); }
+        #ask-submit {
+            background: var(--accent-green);
+            border: none;
+            border-radius: 6px;
+            color: #1a1a2e;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 0.95em;
+            padding: 9px 18px;
+        }
+        #ask-submit:disabled { opacity: 0.55; cursor: default; }
+        #ask-status { color: var(--text-muted); font-size: 0.88em; margin-top: 10px; }
+        #ask-answer {
+            display: none;
+            margin-top: 12px;
+            padding: 12px 14px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.94em;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+        }
+        #ask-answer.error { border-left: 4px solid var(--accent-red); }
+
         @media (max-width: 820px) {
             #sidebar { display: none; }
             main { padding: 24px 16px 100px; }
@@ -146,7 +194,9 @@
     <div id="docs-header">
         <a class="logo" href="/">Homegames</a>
         <nav>
-            <a href="/studio">Studio</a>
+            <a href="/how_it_works.html">How it works</a>
+            <a href="/self-hosting.html">Self-hosting</a>
+            <a href="/studio.html">Developer Studio</a>
             <a href="/authoring-guide.md" target="_blank" rel="noopener" title="The full technical reference (also used as LLM context)">Reference</a>
             <button id="theme-toggle">Light</button>
         </nav>
@@ -181,6 +231,16 @@
                 is the only prerequisite.
             </p>
 
+            <div id="ask-box">
+                <div class="ask-label">Have a question about Homegames or making games? Ask here — answered by a model running on Homegames hardware, so it may take a minute.</div>
+                <form id="ask-form">
+                    <input id="ask-input" type="text" maxlength="500" placeholder="e.g. Why isn't my screen updating when I change a node?" autocomplete="off">
+                    <button id="ask-submit" type="submit">Ask</button>
+                </form>
+                <div id="ask-status"></div>
+                <div id="ask-answer"></div>
+            </div>
+
             <h2 id="start-here">Start here</h2>
             <p>
                 A Homegames game is a JavaScript class exported from an <code>index.js</code>. No framework,
@@ -199,7 +259,11 @@
             <p>The rest of this page explains what the code means.</p>
 
             <h2 id="big-picture">The big picture</h2>
-            <p>Five things to know before the code makes sense.</p>
+            <p>
+                Five things to know before the code makes sense. (For the platform-level view — what runs
+                where, how multiplayer sessions and publishing work under the hood — see
+                <a href="/how_it_works.html">how Homegames works</a>.)
+            </p>
 
             <h3>1. Your code runs inside the Homegames runtime</h3>
             <p>
@@ -786,7 +850,7 @@ this.setTimeout(() =&gt; this.base.removeChild(ding.id), 500);</code></pre>
             <ol>
                 <li>Hit <strong>Publish</strong> on a saved version (verified account required).</li>
                 <li>Automated checks run the game briefly in a sandbox. It has to load, run, and not crash, and it can only use the squish library and its own files — no network calls, no filesystem, no <code>eval</code>.</li>
-                <li>Once it passes, the game is privately shareable. Request a review to get it publicly listed in the catalog.</li>
+                <li>Once it passes, the game is publicly listed in the catalog. Featured games are hand-picked by a human — there's no review step just to get listed.</li>
             </ol>
             <p>A published game gets a page on homegames.io with:</p>
             <ul>
@@ -807,17 +871,95 @@ this.setTimeout(() =&gt; this.base.removeChild(ding.id), 500);</code></pre>
                 <li><a href="/authoring-guide.md" target="_blank" rel="noopener"><strong>Full technical reference</strong></a> — the complete contract: every node option, scrolling worlds and per-player cameras (<code>ViewableGame</code>), spritesheets, live typing, bot AI. It's also written to work as LLM context — the Studio's <em>Guide</em> button copies it for pasting into an AI assistant.</li>
                 <li><strong>Snippets</strong> — the <em>Snippets</em> button in the Studio has copy-paste blocks for buttons, sounds, glow, per-player visibility, and more.</li>
                 <li><strong>Read real games</strong> — every first-party game is open source in the <a href="https://github.com/homegamesio" target="_blank" rel="noopener">homegamesio GitHub org</a>.</li>
+                <li><strong>How the platform works</strong> — the end-to-end system view (sessions, squish, publishing, homegames.link) is at <a href="/how_it_works.html">how it works</a>.</li>
                 <li><strong>Self-hosting</strong> — the whole platform can run on your own machine; see <a href="/self-hosting.html">self-hosting</a>.</li>
             </ul>
 
             <p style="margin-top:48px;color:var(--text-muted);">
-                Something wrong or confusing on this page? Use the contact form on the
-                <a href="/">homepage</a> or open an issue on <a href="https://github.com/prosif/homegamesio" target="_blank" rel="noopener">GitHub</a>.
+                Something wrong or confusing on this page? Email <a href="mailto:joseph@homegames.io">joseph@homegames.io</a>
+                or open an issue on <a href="https://github.com/prosif/homegamesio" target="_blank" rel="noopener">GitHub</a>.
             </p>
         </main>
     </div>
 
     <script>
+        // --- Ask-something box -------------------------------------------------
+        (() => {
+            const API_URL = 'https://api.homegames.io';
+            const POLL_INTERVAL_MS = 2500;
+            const POLL_TIMEOUT_MS = 120 * 1000;
+
+            const form = document.getElementById('ask-form');
+            const input = document.getElementById('ask-input');
+            const submit = document.getElementById('ask-submit');
+            const statusEl = document.getElementById('ask-status');
+            const answerEl = document.getElementById('ask-answer');
+
+            let busy = false;
+
+            const setStatus = (text) => { statusEl.textContent = text || ''; };
+            const showAnswer = (text, isError) => {
+                answerEl.textContent = text;
+                answerEl.classList.toggle('error', !!isError);
+                answerEl.style.display = 'block';
+            };
+            const finish = () => { busy = false; submit.disabled = false; };
+
+            const poll = (requestId, startedAt) => {
+                if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+                    setStatus('');
+                    showAnswer('The assistant took too long to answer. Try again in a few minutes.', true);
+                    finish();
+                    return;
+                }
+                fetch(`${API_URL}/docs/ask/${requestId}`).then(r => r.json()).then(data => {
+                    if (data.status === 'COMPLETED' && data.answer) {
+                        setStatus('');
+                        showAnswer(data.answer, false);
+                        finish();
+                    } else if (data.status === 'FAILED') {
+                        setStatus('');
+                        showAnswer('Something went wrong answering that. Try again in a few minutes.', true);
+                        finish();
+                    } else {
+                        setTimeout(() => poll(requestId, startedAt), POLL_INTERVAL_MS);
+                    }
+                }).catch(() => {
+                    setTimeout(() => poll(requestId, startedAt), POLL_INTERVAL_MS);
+                });
+            };
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (busy) return;
+                const question = input.value.trim();
+                if (question.length < 3) return;
+
+                busy = true;
+                submit.disabled = true;
+                answerEl.style.display = 'none';
+                setStatus('Thinking… (answers come from a home server, so give it a minute)');
+
+                fetch(`${API_URL}/docs/ask`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question })
+                }).then(r => r.json().then(data => ({ ok: r.ok, data }))).then(({ ok, data }) => {
+                    if (!ok || !data.requestId) {
+                        setStatus('');
+                        showAnswer(data.error || 'The assistant is unavailable right now.', true);
+                        finish();
+                        return;
+                    }
+                    poll(data.requestId, Date.now());
+                }).catch(() => {
+                    setStatus('');
+                    showAnswer('The assistant is unavailable right now.', true);
+                    finish();
+                });
+            });
+        })();
+
         (() => {
             const btn = document.getElementById('theme-toggle');
             const apply = (light) => {

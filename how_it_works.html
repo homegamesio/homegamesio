@@ -1,0 +1,389 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Homegames — How it works</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <style>
+        @font-face { font-family: 'amateur'; src: url('/amateur.ttf'); }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-deep: #0a0a1a;
+            --bg-hover: #1a1a3e;
+            --border: #333;
+            --border-light: #444;
+            --text-primary: #eee;
+            --text-secondary: #aaa;
+            --text-muted: #888;
+            --accent-green: #A0EB5D;
+            --accent-blue: rgba(148, 210, 229, 255);
+            --accent-red: rgba(241, 112, 111, 255);
+            --accent-yellow: rgba(255, 247, 142, 255);
+            --logo-color: rgba(241, 112, 111, 255);
+            --code-bg: #0a0a1a;
+        }
+
+        body.light {
+            --bg-primary: #fbfff2;
+            --bg-secondary: #f0f4e8;
+            --bg-deep: #e8ecdf;
+            --bg-hover: #eef2e5;
+            --border: #ccc;
+            --border-light: #bbb;
+            --text-primary: #333;
+            --text-secondary: #555;
+            --text-muted: #777;
+            --accent-green: #4a9e2f;
+            --accent-blue: rgba(100, 170, 200, 255);
+            --accent-red: rgba(220, 90, 90, 255);
+            --accent-yellow: rgba(160, 150, 40, 255);
+            --logo-color: rgba(220, 90, 90, 255);
+            --code-bg: #f4f7ec;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.65;
+        }
+
+        #docs-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 20px; height: 48px;
+            background: var(--bg-secondary); border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; z-index: 10;
+        }
+        #docs-header .logo { font-family: 'amateur', monospace; font-size: 1.15em; color: var(--logo-color); text-decoration: none; }
+        #docs-header nav { display: flex; align-items: center; gap: 18px; font-size: 0.9em; }
+        #docs-header nav a { color: var(--accent-blue); text-decoration: none; }
+        #docs-header nav a:hover { text-decoration: underline; }
+        #theme-toggle { cursor: pointer; color: var(--text-muted); background: none; border: none; font-size: 0.9em; font-family: inherit; }
+
+        #layout { display: flex; max-width: 1200px; margin: 0 auto; align-items: flex-start; }
+
+        #sidebar {
+            width: 250px; flex-shrink: 0;
+            position: sticky; top: 48px;
+            max-height: calc(100vh - 48px); overflow-y: auto;
+            padding: 28px 8px 40px 20px;
+            font-size: 0.88em;
+        }
+        #sidebar .toc-group { color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; font-size: 0.78em; margin: 18px 0 6px; }
+        #sidebar a { display: block; color: var(--text-secondary); text-decoration: none; padding: 3px 8px; border-radius: 4px; }
+        #sidebar a:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+        main {
+            flex: 1; min-width: 0;
+            padding: 32px 40px 120px;
+        }
+
+        main h1 { font-family: 'amateur', monospace; font-size: 2.2em; color: var(--logo-color); margin-bottom: 4px; line-height: 1.2; }
+        main .subtitle { color: var(--text-secondary); margin-bottom: 36px; font-size: 1.05em; }
+        main h2 {
+            font-family: 'amateur', monospace; font-size: 1.6em; color: var(--accent-green);
+            margin: 56px 0 14px; padding-top: 14px; border-top: 1px solid var(--border);
+        }
+        main h3 { font-size: 1.12em; color: var(--text-primary); margin: 30px 0 10px; }
+        main p { margin: 12px 0; color: var(--text-primary); max-width: 76ch; }
+        main ul, main ol { margin: 12px 0 12px 26px; max-width: 74ch; }
+        main li { margin: 6px 0; }
+        main a { color: var(--accent-blue); }
+        main strong { color: var(--text-primary); }
+
+        code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.88em;
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1px 5px;
+        }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+            overflow-x: auto;
+            margin: 14px 0;
+            max-width: 860px;
+        }
+        pre code { background: none; border: none; padding: 0; font-size: 0.85em; line-height: 1.55; }
+
+        .callout {
+            border-left: 4px solid var(--accent-yellow);
+            background: var(--bg-secondary);
+            border-radius: 0 8px 8px 0;
+            padding: 12px 16px;
+            margin: 16px 0;
+            max-width: 820px;
+        }
+        .callout.tip { border-left-color: var(--accent-green); }
+        .callout p { margin: 6px 0; }
+
+        table { border-collapse: collapse; margin: 14px 0; font-size: 0.92em; }
+        th, td { border: 1px solid var(--border); padding: 7px 12px; text-align: left; vertical-align: top; }
+        th { background: var(--bg-secondary); }
+
+        @media (max-width: 820px) {
+            #sidebar { display: none; }
+            main { padding: 24px 16px 100px; }
+            #docs-header nav { gap: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="docs-header">
+        <a class="logo" href="/">Homegames</a>
+        <nav>
+            <a href="/docs.html">Make games</a>
+            <a href="/self-hosting.html">Self-hosting</a>
+            <a href="/studio.html">Developer Studio</a>
+            <button id="theme-toggle">Light</button>
+        </nav>
+    </div>
+
+    <div id="layout">
+        <aside id="sidebar">
+            <div class="toc-group">Overview</div>
+            <a href="#what">What is Homegames?</a>
+            <a href="#playing">Playing games</a>
+            <div class="toc-group">Under the hood</div>
+            <a href="#scene-tree">Games are scene trees</a>
+            <a href="#squish">Squish: the wire format</a>
+            <a href="#sessions">Where games run</a>
+            <div class="toc-group">The platform</div>
+            <a href="#pieces">The pieces</a>
+            <a href="#publishing">Publishing &amp; safety</a>
+            <a href="#your-network">Homegames on your network</a>
+            <a href="#open-source">Open source map</a>
+        </aside>
+
+        <main>
+            <h1>How Homegames works</h1>
+            <p class="subtitle">
+                What Homegames is, and how the whole system fits together — from a tap on a phone to the
+                code running your game. For making games, see <a href="/docs.html">the docs</a>; for running
+                it on your own machine, see <a href="/self-hosting.html">self-hosting</a>.
+            </p>
+
+            <h2 id="what">What is Homegames?</h2>
+            <p>
+                Homegames is a platform for making, sharing, and playing simple multiplayer games in the
+                browser. There's nothing to install for players: games run in any browser, on any device, and
+                phones work as first-class controllers and screens. Games are small JavaScript programs —
+                usually a single file — and everything on the platform, including every published game, is
+                open source under GPLv3.
+            </p>
+            <p>There are two ways to use it:</p>
+            <ul>
+                <li><strong>The website</strong> — browse the <a href="/catalog.html">catalog</a> and play
+                    published games directly, or build your own in the <a href="/studio.html">Developer
+                    Studio</a> without leaving the browser.</li>
+                <li><strong>Your own server</strong> — run Homegames on a machine at home, and everyone on
+                    your network gets a game dashboard by typing <code>homegames.link</code> into a browser.
+                    See <a href="/self-hosting.html">self-hosting</a>.</li>
+            </ul>
+
+            <h2 id="playing">Playing games</h2>
+            <p>Clicking Play on a game page starts one of two kinds of session:</p>
+            <ul>
+                <li><strong>Local session (single-player)</strong> — the game's code, the runtime, and its
+                    assets are fetched and run entirely in your browser tab. Nothing server-side is involved
+                    after the initial download. This is also how the <strong>Download</strong> button works:
+                    it packages the game, runtime, and assets into one HTML file that runs offline.</li>
+                <li><strong>Hosted session (multiplayer)</strong> — for games that declare the
+                    <code>multiplayer</code> service, the platform spins up a real game server for that
+                    session. The creator gets a shareable link; anyone who opens it joins the same game from
+                    their own device.</li>
+            </ul>
+            <p>
+                Either way, the game code is identical — the same class runs in a browser tab or on a hosted
+                server, and it can't tell the difference.
+            </p>
+
+            <h2 id="scene-tree">Games are scene trees, not canvases</h2>
+            <p>
+                A Homegames game never draws pixels, touches a canvas, or opens a socket. It maintains a
+                <strong>tree of nodes</strong> — shapes, text, and assets (images/sounds) — positioned on a
+                100×100 coordinate grid. The game mutates that tree (move this square, change that label) and
+                signals "something changed." That's its entire interface with the world.
+            </p>
+            <p>
+                Everything else is the platform's job: rendering the tree to an actual screen, delivering
+                taps and key presses back to the game (tagged with the acting player's id), and keeping every
+                connected player in sync. Because the game is just a description of what exists, one game
+                instance can serve many players at once — and nodes can be scoped to specific players, which
+                is how a shared card game keeps each hand secret.
+            </p>
+
+            <h2 id="squish">Squish: the wire format</h2>
+            <p>
+                The scene tree travels between game and screen as a compact binary format called
+                <strong>squish</strong> (the library is <code>squishjs</code>). Think protobufs, but
+                purpose-built for game scenes: each node serializes to a few dozen bytes — positions, colors,
+                text, asset references — and the client deserializes ("unsquishes") and renders them. Input
+                travels the other way as small JSON messages.
+            </p>
+            <p>
+                Squish is versioned, and every game pins the version it was written against (that's the
+                <code>squishVersion: '142'</code> in game metadata). The platform keeps old versions around,
+                so games written years ago keep working as the platform moves forward.
+            </p>
+            <p>
+                The browser side is a small rendering engine (<code>homegames-client</code>) that connects
+                over WebSocket, unsquishes frames onto a canvas, and forwards input. It's the same engine
+                everywhere: the website's player, hosted multiplayer sessions, self-hosted dashboards, and
+                offline downloads.
+            </p>
+
+            <h2 id="sessions">Where games run</h2>
+            <h3>In your browser (local sessions)</h3>
+            <p>
+                For single-player play, the client engine runs the whole loop in-tab: it instantiates the
+                game class, runs the squish serializer locally, and renders the frames — a complete
+                client and server in one browser tab. No account, no latency, no server cost.
+            </p>
+            <h3>On a session server (hosted sessions)</h3>
+            <p>
+                Multiplayer sessions run on the platform's session infrastructure. Each session is an
+                isolated process (a locked-down container where available) running just that game, on its own
+                port, with resource limits. A small management API — <em>Homenames</em> — creates sessions,
+                tracks players, and tears sessions down when everyone leaves. Players' browsers connect
+                directly to the session over WebSocket.
+            </p>
+            <p>
+                The game is <strong>server-authoritative</strong>: all logic runs in one place, and clients
+                are thin. That's why there's no netcode to write and no way for a modified client to cheat
+                beyond sending inputs.
+            </p>
+
+            <h2 id="pieces">The pieces</h2>
+            <p>End to end, the platform is a handful of cooperating services:</p>
+            <table>
+                <tr><th>Piece</th><th>What it does</th></tr>
+                <tr>
+                    <td><strong>homegames.io</strong> (this site)</td>
+                    <td>The catalog, game pages, in-browser player, and the Developer Studio — a browser IDE
+                        with templates, version history, asset tools, live preview, and publishing.</td>
+                </tr>
+                <tr>
+                    <td><strong>The API</strong> (api.homegames.io)</td>
+                    <td>The backend for everything: accounts, the game catalog, asset storage, comments, and
+                        the Studio. Game source lives in a Git server behind the API, so every save is a real
+                        commit with history you can restore.</td>
+                </tr>
+                <tr>
+                    <td><strong>Session servers</strong></td>
+                    <td>Run hosted multiplayer sessions (see above).</td>
+                </tr>
+                <tr>
+                    <td><strong>The worker</strong></td>
+                    <td>A background job runner. It validates publish submissions, issues TLS certificates
+                        for self-hosted servers, and powers the Studio's "Ask AI to edit" feature — a local
+                        LLM that rewrites your game from a plain-English prompt and commits the result as a
+                        new version.</td>
+                </tr>
+                <tr>
+                    <td><strong>homegames.link</strong></td>
+                    <td>The front door for self-hosted servers: it notices which Homegames server is on your
+                        network and redirects your browser to it. Details below.</td>
+                </tr>
+            </table>
+
+            <h2 id="publishing">Publishing &amp; safety</h2>
+            <p>
+                Anyone with a verified account can publish. Because published games are code that the
+                platform will run — in hosted sessions and in players' browsers — every submission goes
+                through automated validation before it can go live:
+            </p>
+            <ol>
+                <li><strong>Static analysis.</strong> The game's source is scanned at the syntax-tree level.
+                    Games may only use the squish library and their own files — no Node built-ins, no
+                    network, no filesystem, no <code>eval</code>, no dynamic <code>require</code>. Anything
+                    else is rejected outright.</li>
+                <li><strong>Sandbox run.</strong> The game is actually executed for a few seconds inside a
+                    container with no network access, to confirm it loads, renders, and doesn't crash.</li>
+                <li><strong>License check.</strong> Every published game must be GPLv3, and its source is
+                    publicly browsable from its game page.</li>
+                <li><strong>Listing.</strong> A passing game is publicly listed in the catalog. Featured
+                    games are hand-picked by a human. Uploaded images are also automatically
+                    screened.</li>
+            </ol>
+
+            <h2 id="your-network">Homegames on your network</h2>
+            <p>
+                The self-hosted experience is the original heart of Homegames: one machine in your house runs
+                the server, and everyone on the wifi plays together by visiting
+                <code>homegames.link</code> — no app, no setup on anyone else's device. Two small pieces of
+                platform machinery make that URL magic work:
+            </p>
+            <ul>
+                <li><strong>Discovery.</strong> Your server keeps a lightweight connection to the
+                    homegames.link service and tells it "I'm at this address on my local network." When any
+                    browser on the same network visits homegames.link, the service recognizes the network and
+                    redirects the browser straight to your server. Traffic never leaves your LAN — it's just
+                    a redirect.</li>
+                <li><strong>Real HTTPS on a LAN.</strong> Browsers increasingly require HTTPS, but you can't
+                    normally get a certificate for a private address. Homegames solves this by assigning each
+                    network its own subdomain of homegames.link, pointing that subdomain at your server's
+                    local address, and issuing it a real certificate. Your server generates its key locally
+                    and sends only a signing request — the private key never leaves your machine.</li>
+            </ul>
+            <p>
+                The result: any device on your network gets a secure connection to a server in your own
+                house, with zero configuration. The full setup guide is at
+                <a href="/self-hosting.html">self-hosting</a>.
+            </p>
+
+            <h2 id="open-source">Open source map</h2>
+            <p>
+                Everything is on GitHub under
+                <a href="https://github.com/homegamesio" target="_blank" rel="noopener">github.com/homegamesio</a>.
+                The main repos:
+            </p>
+            <table>
+                <tr><th>Repo</th><th>What it is</th></tr>
+                <tr><td><code>squish</code></td><td>The game object model + binary serialization (<code>squishjs</code> on npm)</td></tr>
+                <tr><td><code>homegames-core</code></td><td>The game session server: dashboard, session management, built-in games</td></tr>
+                <tr><td><code>homegames-client</code></td><td>The browser rendering/input engine</td></tr>
+                <tr><td><code>homegames-web</code></td><td>The small web server that serves the client to players</td></tr>
+                <tr><td><code>homegames</code></td><td>The self-host launcher: cert provisioning + core + web in one process</td></tr>
+                <tr><td><code>homegames-common</code></td><td>Shared library: sessions, config, squish version management</td></tr>
+                <tr><td><code>homegames-api</code></td><td>The platform backend</td></tr>
+                <tr><td><code>homegames.link</code></td><td>The LAN discovery/redirect service</td></tr>
+                <tr><td><code>worker</code></td><td>Background jobs: cert issuance, AI game editing</td></tr>
+                <tr><td><code>homegamesio</code></td><td>This website</td></tr>
+            </table>
+
+            <p style="margin-top:48px;color:var(--text-muted);">
+                Something wrong or confusing on this page? Email <a href="mailto:joseph@homegames.io">joseph@homegames.io</a>
+                or open an issue on <a href="https://github.com/homegamesio" target="_blank" rel="noopener">GitHub</a>.
+            </p>
+        </main>
+    </div>
+
+    <script>
+        (() => {
+            const btn = document.getElementById('theme-toggle');
+            const apply = (light) => {
+                document.body.classList.toggle('light', light);
+                btn.textContent = light ? 'Dark' : 'Light';
+            };
+            let light = false;
+            try { light = localStorage.getItem('hg-studio-theme') === 'light'; } catch (e) {}
+            apply(light);
+            btn.onclick = () => {
+                light = !light;
+                apply(light);
+                try { localStorage.setItem('hg-studio-theme', light ? 'light' : 'dark'); } catch (e) {}
+            };
+        })();
+    </script>
+</body>
+</html>

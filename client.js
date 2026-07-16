@@ -1600,6 +1600,84 @@ const playGameInline = (game, btnEl) => {
 };
 window.playGameInline = playGameInline;
 
+// Front-page "Active Sessions" — the top few live hosted sessions by player
+// count, each with a join link. Only published-game sessions are shown
+// (studio/dev preview sessions have no gameId). The section element stays
+// hidden unless there's at least one session, so an empty platform doesn't
+// advertise itself.
+const loadActiveSessions = (sectionEl, listEl, limit = 3) => {
+    makeGet(`${window.HOMENAMES_URL}/sessions`).then(_data => {
+        const data = JSON.parse(_data);
+        const sessions = (data.sessions || [])
+            .filter(s => s.gameId && s.wsUrl)
+            .sort((a, b) => (b.playerCount || 0) - (a.playerCount || 0))
+            .slice(0, limit);
+
+        if (!sessions.length) return;
+
+        // Resolve game names — one request per unique game, falling back to
+        // a generic label if the lookup fails.
+        const uniqueIds = Array.from(new Set(sessions.map(s => s.gameId)));
+        Promise.all(uniqueIds.map(id =>
+            makeGet(`${API_URL}/games/${id}`)
+                .then(_details => [id, JSON.parse(_details)?.game || null])
+                .catch(() => [id, null])
+        )).then(pairs => {
+            const gamesById = Object.fromEntries(pairs);
+
+            listEl.innerHTML = '';
+            sessions.forEach(s => {
+                const game = gamesById[s.gameId];
+
+                const row = document.createElement('div');
+                row.className = 'active-session-row';
+
+                const thumb = document.createElement('div');
+                thumb.className = 'session-thumb';
+                if (game && game.thumbnail) {
+                    const img = document.createElement('img');
+                    img.src = `${API_URL}/assets/${game.thumbnail}`;
+                    img.alt = game.name || 'game thumbnail';
+                    thumb.appendChild(img);
+                } else {
+                    thumb.textContent = '🎮';
+                }
+                row.appendChild(thumb);
+
+                const info = document.createElement('div');
+                info.className = 'session-info';
+                const name = document.createElement('a');
+                name.className = 'session-name';
+                name.textContent = (game && game.name) || 'Mystery game';
+                name.href = `/game.html?id=${encodeURIComponent(s.gameId)}`;
+                info.appendChild(name);
+                const count = s.playerCount || 0;
+                const players = document.createElement('div');
+                players.className = 'session-players';
+                players.textContent = `${count} ${count === 1 ? 'player' : 'players'}`;
+                info.appendChild(players);
+                row.appendChild(info);
+
+                const join = document.createElement('a');
+                join.className = 'session-join';
+                join.textContent = 'Join';
+                join.target = '_blank';
+                join.href = sessionPlayUrl({ wsUrl: s.wsUrl });
+                row.appendChild(join);
+
+                listEl.appendChild(row);
+            });
+
+            sectionEl.removeAttribute('hidden');
+        });
+    }).catch(err => {
+        // Leave the section hidden — a broken sessions endpoint shouldn't
+        // break the landing page.
+        console.error(err);
+    });
+};
+window.loadActiveSessions = loadActiveSessions;
+
 window.loadMap = () => {
     const southWest = L.latLng(-85, -180);
     const northEast = L.latLng(85, 180);

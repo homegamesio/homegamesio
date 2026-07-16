@@ -9,7 +9,9 @@ const HOMENAMES_URL = 'https://core.homegames.io:7400';//'https://api.homegames.
 // Gates the AI entry points (dashboard "AI Edit" button, "Generate with AI"
 // template option). The full pipeline (modal, polling, API, worker) is always
 // present — this flag only controls whether the UI exposes it.
-const AI_FEATURES_ENABLED = true;
+// Disabled for now: locally-hosted models aren't good/fast enough for
+// full game edits yet. The API endpoint is gated off too (AI_EDITS_ENABLED).
+const AI_FEATURES_ENABLED = false;
 
 // ---------------------------------------------------------------------------
 // State
@@ -2887,18 +2889,14 @@ const stopLocalLogCapture = () => {
 const stopPreview = () => {
     stopLocalLogCapture();
 
+    // Disconnecting the only client empties the session, which then self-kills
+    // (child_game_server checkPulse). No explicit DELETE — that endpoint is now
+    // gated to internal/admin callers, and teardown-on-empty makes it redundant.
     if (previewClient) {
         previewClient.stop();
         previewClient = null;
     }
-
-    // Tell Homenames to kill the session
-    if (previewSessionId) {
-        const xhr = new XMLHttpRequest();
-        xhr.open('DELETE', `${HOMENAMES_URL}/sessions/${previewSessionId}`, true);
-        xhr.send();
-        previewSessionId = null;
-    }
+    previewSessionId = null;
 
     setPreviewStatus('');
     clearPreviewShareLink();
