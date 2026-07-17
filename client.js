@@ -7,7 +7,7 @@ window.HOMENAMES_URL = 'https://core.homegames.io:7400';//api.homegames.io/homen
 
 
 
-const ASSET_API_ENDPOINT = '/assets';
+const ASSET_API_ENDPOINT = 'assets';
 
 const API_URL = window.API_URL;
 
