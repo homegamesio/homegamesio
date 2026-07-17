@@ -81,29 +81,9 @@
             .hero-cta.github { background: #FFF78E; }
             .hero-cta.github:hover { background: #f7ec6b; }
 
-            /* Featured games + active sessions side by side. Wider than the
-               860px content column so the grid keeps room next to the bar. */
-            .featured-row {
-                max-width: 1080px;
-                margin: 0 auto;
-                padding: 0 24px;
-                display: flex;
-                gap: 28px;
-                align-items: flex-start;
-            }
-            .featured-row .featured-section {
-                flex: 1;
-                min-width: 0;
-            }
-
-            /* Active sessions — vertical bar to the right of featured games */
+            /* Active sessions */
             .active-sessions-section {
-                width: 280px;
-                flex-shrink: 0;
                 padding: 40px 0 0;
-            }
-            .active-sessions-section .session-join {
-                padding: 8px 14px;
             }
             .active-sessions-section h2 {
                 font-weight: lighter;
@@ -304,10 +284,6 @@
                 margin-top: 12px;
             }
 
-            @media (max-width: 900px) {
-                .featured-row { flex-direction: column; }
-                .active-sessions-section { width: 100%; order: -1; }
-            }
             @media (max-width: 640px) {
                 .hero h1 { font-size: 1.6em; }
                 .section-cta { gap: 12px; }
@@ -338,22 +314,20 @@
                         <p>Play, make and share games for free</p>
                     </div>
 
-                    <!-- Games + active sessions bar -->
-                    <div class="featured-row">
-                        <div class="featured-section amateur">
-                            <h2>Featured Games</h2>
-                            <div class="featured-grid" id="featured-grid">
-                                <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 24px;">Loading...</div>
-                            </div>
-                            <div class="section-cta"><a href="/catalog.html" class="hero-cta games">See All Games</a></div>
-                        </div>
+                    <!-- Active sessions — hidden until at least one live
+                         session loads, so an empty list never shows. -->
+                    <div class="landing-section active-sessions-section amateur" id="active-sessions" hidden>
+                        <h2>Active Multiplayer Sessions</h2>
+                        <div id="active-sessions-list"></div>
+                    </div>
 
-                        <!-- Hidden until at least one live session loads, so
-                             an empty bar never shows. -->
-                        <div class="active-sessions-section amateur" id="active-sessions" hidden>
-                            <h2>Active Multiplayer Sessions</h2>
-                            <div id="active-sessions-list"></div>
+                    <!-- Games -->
+                    <div class="landing-section featured-section amateur">
+                        <h2>Featured Games</h2>
+                        <div class="featured-grid" id="featured-grid">
+                            <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 24px;">Loading...</div>
                         </div>
+                        <div class="section-cta"><a href="/catalog.html" class="hero-cta games">See All Games</a></div>
                     </div>
 
                     <!-- Developer Studio -->
