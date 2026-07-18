@@ -446,12 +446,23 @@ const renderGamePage = (gameId, gameDetails) => {
     createBtn.className = 'clickable amateur';
     createBtn.style = 'background: #A0EB5D; color: #333; padding: 12px 24px; border-radius: 8px; margin: 12px auto 0; width: fit-content; font-size: 1.1em; cursor: pointer;';
 
+    // Private (unlisted) opt-in — the session won't show up in the session
+    // lists on this page or the front page; players get in via the link.
+    const privateLabel = document.createElement('label');
+    privateLabel.style = 'display: block; margin-top: 10px; font-size: 0.9em; color: #888; text-align: center; cursor: pointer;';
+    const privateCheck = document.createElement('input');
+    privateCheck.type = 'checkbox';
+    privateCheck.style = 'margin-right: 6px; cursor: pointer; vertical-align: middle;';
+    privateLabel.appendChild(privateCheck);
+    privateLabel.appendChild(document.createTextNode('Private game — not listed publicly, invite friends with a link'));
+
     const statusMsg = document.createElement('div');
     statusMsg.style = 'margin-top: 8px; font-size: 0.9em; color: #888; text-align: center;';
 
     sessionSection.appendChild(sessionHeader);
     sessionSection.appendChild(sessionList);
     sessionSection.appendChild(createBtn);
+    sessionSection.appendChild(privateLabel);
     sessionSection.appendChild(statusMsg);
 
     // Play controls — full-width row between the columns and the comments,
@@ -591,18 +602,25 @@ const renderGamePage = (gameId, gameDetails) => {
         createBtn.style.display = 'none';
         statusMsg.innerHTML = 'Starting your game...';
 
-        makePost(`${API_URL}/sessions`, { gameId, commitSha }).then(sessionData => {
+        const isPrivate = privateCheck.checked;
+
+        makePost(`${API_URL}/sessions`, { gameId, commitSha, private: isPrivate }).then(sessionData => {
             statusMsg.innerHTML = '';
             createBtn.style.display = '';
-            // Refresh session list (and reveal it — a session now exists)
+            // Refresh session list (and reveal it — a session now exists).
+            // A private session won't appear in it — that's the point.
             sessionSection.style.display = '';
             loadGameSessions(gameId, sessionList);
             // Connect to the new session
             connectToSession(sessionData, tab, true);
+            const url = sessionPlayUrl(sessionData, true);
             // Popup blocked even at gesture time — leave a manual way in
             if (!tab || tab.closed) {
-                const url = sessionPlayUrl(sessionData, true);
                 if (url) statusMsg.innerHTML = `<a href="${url}" target="_blank">Your game is ready — click here to join</a>`;
+            } else if (isPrivate && url) {
+                // The list won't ever show this session, so the link in the
+                // status line is the only way back in from this page.
+                statusMsg.innerHTML = `Private game started — <a href="${url}" target="_blank">share this link</a> to invite players`;
             }
         }).catch(err => {
             if (tab && !tab.closed) tab.close();

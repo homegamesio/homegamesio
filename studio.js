@@ -2624,7 +2624,34 @@ const showOnlinePreviewOffer = () => {
         startPreview();
     };
     shareEl.appendChild(onlineBtn);
+
+    const fullscreenBtn = document.createElement('button');
+    fullscreenBtn.textContent = 'Full screen';
+    fullscreenBtn.className = 'preview-share-copy';
+    fullscreenBtn.onclick = enterPreviewFullscreen;
+    shareEl.appendChild(fullscreenBtn);
 };
+
+// Fullscreen the running preview — everything stays local to this tab, so a
+// private game never touches a server. Esc exits, as usual.
+const enterPreviewFullscreen = () => {
+    const container = $('preview-container');
+    if (!container) return;
+    const request = container.requestFullscreen || container.webkitRequestFullscreen;
+    if (!request) {
+        setPreviewStatus('Full screen is not supported in this browser');
+        return;
+    }
+    Promise.resolve(request.call(container)).catch(() => {
+        setPreviewStatus('Could not enter full screen');
+    });
+};
+
+// The client re-fits its canvas on window resize; entering/leaving element
+// fullscreen doesn't always fire one, so nudge it on fullscreenchange.
+['fullscreenchange', 'webkitfullscreenchange'].forEach(evt => {
+    document.addEventListener(evt, () => window.dispatchEvent(new Event('resize')));
+});
 
 const _doStartPreview = (files) => {
     // Online sessions require an account (frontend gate; local preview does not)

@@ -26,8 +26,12 @@
             #view-tab { padding: 4px 12px; background: #16213e; border-bottom: 1px solid #333; font-size: 0.8em; color: #eee; height: 32px; line-height: 24px; flex-shrink: 0; }
             #view-code-wrap { flex: 1; position: relative; overflow: hidden; }
             #view-gutter { position: absolute; top: 0; left: 0; bottom: 0; width: 48px; margin: 0; padding: 12px 8px; box-sizing: border-box; overflow: hidden; text-align: right; background: #0a0a1a; border-right: 1px solid #333; color: #666; font-family: monospace; font-size: 14px; line-height: 1.6; white-space: pre; user-select: none; pointer-events: none; }
-            #view-highlight { position: absolute; top: 0; left: 48px; right: 0; bottom: 0; padding: 12px; margin: 0; background: #0a0a1a; color: #eee; font-family: monospace; font-size: 14px; line-height: 1.6; tab-size: 2; overflow: auto; white-space: pre; }
+            #view-highlight { position: absolute; top: 0; left: 48px; right: 0; bottom: 0; padding: 12px; margin: 0; background: #0a0a1a; color: #eee; font-family: monospace; font-size: 14px; line-height: 1.6; tab-size: 2; overflow: auto; white-space: pre; pointer-events: none; }
             #view-highlight code { font-family: inherit; font-size: inherit; }
+            /* Transparent textarea overlaid on the highlight — same trick as the
+               Studio editor. The textarea owns input and scrolling; the pre under
+               it just paints colors. Their font metrics must stay identical. */
+            #view-textarea { position: absolute; top: 0; left: 48px; right: 0; height: 100%; padding: 12px; background: transparent; color: transparent; caret-color: #eee; border: none; resize: none; font-family: monospace; font-size: 14px; line-height: 1.6; tab-size: 2; outline: none; white-space: pre; overflow: auto; z-index: 1; }
             #view-placeholder { flex: 1; display: flex; align-items: center; justify-content: center; color: #555; font-size: 1em; background: #0a0a1a; }
 
             .hl-keyword { color: #c678dd; }
@@ -39,12 +43,37 @@
             .hl-regex { color: #e06c75; }
 
             #view-status { padding: 4px 16px; background: #16213e; border-top: 1px solid #333; font-size: 0.78em; color: #666; flex-shrink: 0; height: 28px; }
+
+            /* Preview panel — same shape as the Studio's, single-player local only */
+            #view-play-toggle { font-size: 0.8em; padding: 3px 12px; border-radius: 10px; background: #333; color: #ccc; cursor: pointer; border: none; font-family: inherit; }
+            #view-play-toggle:hover { background: #444; color: #fff; }
+            #view-play-toggle.active { background: rgba(148, 210, 229, 255); color: #16213e; }
+            #view-preview-panel { width: 0; background: #1a1a2e; border-left: 1px solid #333; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: width 0.2s ease; }
+            #view-preview-panel.open { width: 420px; }
+            #view-preview-header { padding: 6px 10px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+            #view-preview-header span { color: #666; font-size: 0.75em; text-transform: uppercase; letter-spacing: 1px; }
+            #view-preview-controls { display: flex; gap: 6px; align-items: center; }
+            #view-preview-controls button { font-size: 0.78em; padding: 3px 10px; border-radius: 4px; border: 1px solid #444; cursor: pointer; font-family: inherit; background: #16213e; color: #ccc; }
+            #view-preview-controls button:hover { background: #1f2b4d; color: #fff; }
+            #view-preview-controls button.stop-btn { background: rgba(241, 112, 111, 255); color: #fff; border-color: rgba(241, 112, 111, 255); }
+            #view-preview-container { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #000; }
+            #view-preview-status { padding: 4px 10px; border-top: 1px solid #333; font-size: 0.78em; color: #666; flex-shrink: 0; min-height: 24px; }
+            #view-preview-actions { padding: 4px 10px; display: flex; gap: 4px; flex-shrink: 0; }
+            #view-preview-actions button { padding: 3px 10px; background: #A0EB5D; color: #16213e; border: none; border-radius: 3px; cursor: pointer; font-weight: bold; font-size: 0.75em; font-family: inherit; }
+            #view-preview-actions button:hover { background: #8fd94c; }
+
+            @media (max-width: 700px) {
+                #view-preview-panel.open { position: fixed; top: 44px; left: 0; right: 0; bottom: 28px; width: 100%; z-index: 30; }
+            }
         </style>
     </head>
     <body>
         <div id="view-header">
             <a href="/" class="logo">⌂ Homegames</a>
-            <div class="game-info" id="game-info"></div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button id="view-play-toggle">▶ Play</button>
+                <div class="game-info" id="game-info"></div>
+            </div>
         </div>
         <div id="view-body">
             <div id="view-file-tree">
@@ -56,12 +85,26 @@
                 <div id="view-code-wrap" style="display:none;">
                     <pre id="view-gutter"></pre>
                     <pre id="view-highlight"><code id="view-highlight-code"></code></pre>
+                    <textarea id="view-textarea" spellcheck="false" wrap="off"></textarea>
                 </div>
                 <div id="view-placeholder">Select a file to view</div>
+            </div>
+            <div id="view-preview-panel">
+                <div id="view-preview-header">
+                    <span>Preview</span>
+                    <div id="view-preview-controls">
+                        <button id="view-preview-play">Run</button>
+                        <button id="view-preview-stop" class="stop-btn" style="display:none;">Stop</button>
+                    </div>
+                </div>
+                <div id="view-preview-container"></div>
+                <div id="view-preview-status"></div>
+                <div id="view-preview-actions"></div>
             </div>
         </div>
         <div id="view-status" id="view-status"></div>
     </body>
+    <script src="homegames-client.js"></script>
     <script>
         const API_URL = 'https://api.homegames.io';
 
@@ -108,6 +151,10 @@
             return tokens.join('');
         };
 
+        // atob() yields one char per byte (latin1) — decode as UTF-8 so
+        // non-ASCII characters don't mojibake. Keep in sync with studio.js.
+        const b64ToUtf8 = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
+
         // --- API helper ---
         const apiGet = (path) => new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
@@ -140,6 +187,7 @@
             apiGet(`/games/${gameId}/source-tree?ref=${commitSha}`).then(data => {
                 const files = (data.tree || []).filter(e => e.type === 'blob');
                 files.sort((a, b) => a.path.localeCompare(b.path));
+                sourceFiles = files;
 
                 const fileList = $('view-file-list');
                 fileList.innerHTML = '';
@@ -164,41 +212,291 @@
 
                 // Open the game's entry point by default.
                 if (indexEl) indexEl.onclick();
+
+                // Land with the preview open and the game running — waiting for
+                // the tree means the file list is ready before the first Run.
+                if (indexEl && !previewOpen) togglePreviewPanel();
             }).catch(err => {
                 $('view-placeholder').textContent = 'Failed to load file tree';
             });
         }
 
+        // -------------------------------------------------------------------
+        // Ephemeral editor — files are editable in place, edits live only in
+        // this tab's memory and feed the preview. Nothing is ever saved.
+        // -------------------------------------------------------------------
+
+        let currentPath = null;
+        const fileCache = {}; // path -> { content, original }
+
+        const hasEdits = () => Object.values(fileCache).some(f => f.content !== f.original);
+
+        const updateTabLabel = () => {
+            const f = currentPath && fileCache[currentPath];
+            const edited = f && f.content !== f.original;
+            $('view-tab').textContent = currentPath + (edited ? ' — edited (playground only, not saved)' : '');
+        };
+
+        const updateHighlight = () => {
+            const textarea = $('view-textarea');
+            const code = $('view-highlight-code');
+            const text = textarea.value;
+            const isJS = currentPath && (currentPath.endsWith('.js') || currentPath.endsWith('.mjs'));
+            code.innerHTML = isJS ? highlightJS(text) : text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            // Ensure trailing newline so scroll heights match
+            if (!code.innerHTML.endsWith('\n')) code.innerHTML += '\n';
+
+            const gutter = $('view-gutter');
+            const count = text.split('\n').length;
+            if (+gutter.dataset.count !== count) {
+                gutter.dataset.count = count;
+                gutter.textContent = Array.from({ length: count }, (_, i) => i + 1).join('\n');
+                // Widen the gutter for files beyond 3-digit line counts
+                const width = Math.max(48, 21 + String(count).length * 9);
+                gutter.style.width = width + 'px';
+                textarea.style.left = width + 'px';
+                $('view-highlight').style.left = width + 'px';
+            }
+            gutter.scrollTop = textarea.scrollTop;
+        };
+
+        const renderCurrentFile = () => {
+            const textarea = $('view-textarea');
+            textarea.value = fileCache[currentPath].content;
+            textarea.scrollTop = 0;
+            textarea.scrollLeft = 0;
+            updateTabLabel();
+            updateHighlight();
+            $('view-status').textContent = currentPath;
+        };
+
         const loadFile = (gameId, filePath, ref) => {
-            $('view-tab').textContent = filePath;
+            currentPath = filePath;
             $('view-placeholder').style.display = 'none';
             $('view-code-wrap').style.display = '';
-            $('view-highlight-code').textContent = 'Loading...';
 
-            // atob() yields one char per byte (latin1) — decode as UTF-8 so
-            // non-ASCII characters don't mojibake. Keep in sync with studio.js.
-            const b64ToUtf8 = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
+            if (fileCache[filePath]) { renderCurrentFile(); return; }
+
+            $('view-tab').textContent = filePath;
+            $('view-highlight-code').textContent = 'Loading...';
             apiGet(`/games/${gameId}/source?path=${encodeURIComponent(filePath)}&ref=${ref}`).then(data => {
                 const content = data.content ? b64ToUtf8(data.content) : '';
-                const isJS = filePath.endsWith('.js') || filePath.endsWith('.mjs');
-                const codeEl = $('view-highlight-code');
-                codeEl.innerHTML = isJS ? highlightJS(content) : content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                if (!codeEl.innerHTML.endsWith('\n')) codeEl.innerHTML += '\n';
-                const lineCount = content.split('\n').length;
-                $('view-gutter').textContent = Array.from({ length: lineCount }, (_, i) => i + 1).join('\n');
-                const gutterWidth = Math.max(48, 21 + String(lineCount).length * 9);
-                $('view-gutter').style.width = gutterWidth + 'px';
-                $('view-highlight').style.left = gutterWidth + 'px';
-                $('view-highlight').scrollTop = 0;
-                $('view-highlight').scrollLeft = 0;
-                $('view-status').textContent = filePath;
+                fileCache[filePath] = { content, original: content };
+                // Only render if the user hasn't clicked away while this loaded
+                if (currentPath === filePath) renderCurrentFile();
             }).catch(err => {
-                $('view-highlight-code').textContent = 'Failed to load file';
+                if (currentPath === filePath) $('view-highlight-code').textContent = 'Failed to load file';
             });
         };
 
-        $('view-highlight').addEventListener('scroll', () => {
-            $('view-gutter').scrollTop = $('view-highlight').scrollTop;
+        $('view-textarea').addEventListener('input', () => {
+            if (!currentPath || !fileCache[currentPath]) return;
+            fileCache[currentPath].content = $('view-textarea').value;
+            updateTabLabel();
+            updateHighlight();
+            debouncedRestartPreview();
         });
+
+        $('view-textarea').addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const ta = e.target;
+                const s = ta.selectionStart, end = ta.selectionEnd;
+                ta.value = ta.value.substring(0, s) + '  ' + ta.value.substring(end);
+                ta.selectionStart = ta.selectionEnd = s + 2;
+                ta.dispatchEvent(new Event('input'));
+            }
+            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                e.preventDefault();
+                $('view-status').textContent = 'Edits here are ephemeral — they run in the preview but are never saved';
+            }
+        });
+
+        $('view-textarea').addEventListener('scroll', () => {
+            const textarea = $('view-textarea');
+            $('view-highlight').scrollTop = textarea.scrollTop;
+            $('view-highlight').scrollLeft = textarea.scrollLeft;
+            $('view-gutter').scrollTop = textarea.scrollTop;
+        });
+
+        // Clicking into the editor while a preview runs ends the game and hands
+        // focus back to the code — the running game listens for keys on the
+        // whole document, so typing would otherwise fight it for input.
+        $('view-textarea').addEventListener('mousedown', () => {
+            if (previewClient) {
+                stopPreview();
+                setPreviewStatus('Stopped — hit Run to play again');
+            }
+        });
+
+        // Ephemeral by design, but guard against losing playground work to an
+        // accidental tab close.
+        window.addEventListener('beforeunload', (e) => {
+            if (hasEdits()) { e.preventDefault(); e.returnValue = ''; }
+        });
+
+        // -------------------------------------------------------------------
+        // Single-player preview — the game runs in this tab via LocalSession,
+        // same as the Studio's local preview. No server session is created.
+        // -------------------------------------------------------------------
+
+        let sourceFiles = [];
+        let previewClient = null;
+        let previewOpen = false;
+
+        const setPreviewStatus = (msg) => { $('view-preview-status').textContent = msg || ''; };
+
+        // Pulls { key, id, type } for every `key: new Asset({ id, type })` declared
+        // in the entry source. Keep in sync with studio.js.
+        const extractDeclaredAssets = (source) => {
+            const byKey = {};
+            const re = /['"]?([\w][\w-]*)['"]?\s*:\s*new\s+Asset\s*\(\s*\{([^}]*)\}/g;
+            let m;
+            while ((m = re.exec(source))) {
+                const body = m[2];
+                const idMatch = body.match(/['"]?id['"]?\s*:\s*['"]([^'"]+)['"]/);
+                const typeMatch = body.match(/['"]?type['"]?\s*:\s*['"]([^'"]+)['"]/);
+                if (idMatch) {
+                    byKey[m[1]] = { key: m[1], id: idMatch[1], type: typeMatch ? typeMatch[1] : 'image' };
+                }
+            }
+            return Object.values(byKey);
+        };
+
+        const fetchPreviewAssetBundle = (files) => {
+            const declared = extractDeclaredAssets(files['index.js'] || '');
+            if (!declared.length) return Promise.resolve(null);
+
+            setPreviewStatus(`Loading ${declared.length} asset${declared.length === 1 ? '' : 's'}...`);
+            return Promise.all(declared.map(a =>
+                fetch(`${API_URL}/assets/${a.id}`)
+                    .then(r => {
+                        if (!r.ok) throw new Error(`Asset ${a.key} failed: ${r.status}`);
+                        return r.arrayBuffer();
+                    })
+                    .then(ab => ({ key: a.key, type: a.type, data: new Uint8Array(ab) }))
+            )).then(entries => HomegamesClient.packAssetBundle(entries));
+        };
+
+        // Ephemeral edits win: use in-memory content where the user has touched
+        // a file (or we already fetched it), fetch the rest at the viewed ref.
+        const fetchAllFilesForPreview = () => {
+            if (!sourceFiles.find(f => f.path === 'index.js')) {
+                return Promise.reject('No index.js found');
+            }
+            return Promise.all(sourceFiles.map(f => {
+                if (fileCache[f.path]) return [f.path, fileCache[f.path].content];
+                return apiGet(`/games/${gameId}/source?path=${encodeURIComponent(f.path)}&ref=${commitSha}`)
+                    .then(data => {
+                        const content = data.content ? b64ToUtf8(data.content) : '';
+                        fileCache[f.path] = { content, original: content };
+                        return [f.path, content];
+                    });
+            })).then(entries => Object.fromEntries(entries));
+        };
+
+        // Hot-reload: edits restart the running preview after a quiet second.
+        let previewDebounceTimer = null;
+        const debouncedRestartPreview = () => {
+            if (!previewClient) return;
+            clearTimeout(previewDebounceTimer);
+            previewDebounceTimer = setTimeout(() => { if (previewClient) startPreview(); }, 1000);
+        };
+
+        const startPreview = () => {
+            stopPreview();
+            const playBtn = $('view-preview-play');
+            playBtn.disabled = true;
+            setPreviewStatus('Loading files...');
+
+            fetchAllFilesForPreview()
+                .then(files => fetchPreviewAssetBundle(files).then(assetBundle => {
+                    setPreviewStatus('Starting...');
+                    previewClient = new HomegamesClient.LocalSession({
+                        containerId: 'view-preview-container',
+                        files,
+                        entryPoint: 'index.js',
+                        assetBundle,
+                        onReady: () => {
+                            setPreviewStatus('Running locally — click the code to edit');
+                            playBtn.textContent = 'Restart';
+                            playBtn.disabled = false;
+                            $('view-preview-stop').style.display = '';
+                            showPreviewActions();
+                        },
+                        onError: (err) => {
+                            setPreviewStatus('Error: ' + ((err && err.message) || err));
+                            resetPreviewButtons();
+                        },
+                    });
+                    previewClient.start();
+                }))
+                .catch(err => {
+                    setPreviewStatus((err && err.message) || err || 'Failed to load files');
+                    playBtn.disabled = false;
+                });
+        };
+
+        const stopPreview = () => {
+            if (previewClient) {
+                previewClient.stop();
+                previewClient = null;
+            }
+            setPreviewStatus('');
+            $('view-preview-actions').innerHTML = '';
+            resetPreviewButtons();
+        };
+
+        const resetPreviewButtons = () => {
+            const playBtn = $('view-preview-play');
+            playBtn.textContent = 'Run';
+            playBtn.disabled = false;
+            $('view-preview-stop').style.display = 'none';
+        };
+
+        const showPreviewActions = () => {
+            const actionsEl = $('view-preview-actions');
+            actionsEl.innerHTML = '';
+            const fullscreenBtn = document.createElement('button');
+            fullscreenBtn.textContent = 'Full screen';
+            fullscreenBtn.onclick = enterPreviewFullscreen;
+            actionsEl.appendChild(fullscreenBtn);
+        };
+
+        // Fullscreen the running preview. Esc exits, as usual.
+        const enterPreviewFullscreen = () => {
+            const container = $('view-preview-container');
+            const request = container.requestFullscreen || container.webkitRequestFullscreen;
+            if (!request) {
+                setPreviewStatus('Full screen is not supported in this browser');
+                return;
+            }
+            Promise.resolve(request.call(container)).catch(() => {
+                setPreviewStatus('Could not enter full screen');
+            });
+        };
+
+        // The client re-fits its canvas on window resize; entering/leaving element
+        // fullscreen doesn't always fire one, so nudge it on fullscreenchange.
+        ['fullscreenchange', 'webkitfullscreenchange'].forEach(evt => {
+            document.addEventListener(evt, () => window.dispatchEvent(new Event('resize')));
+        });
+
+        const togglePreviewPanel = () => {
+            previewOpen = !previewOpen;
+            $('view-preview-panel').classList.toggle('open', previewOpen);
+            $('view-play-toggle').classList.toggle('active', previewOpen);
+            if (previewOpen) {
+                // Land with the game already running — the whole point of the panel
+                // is playing, and the canvas needs the panel's final width to size
+                // itself, so wait for the open transition to settle.
+                setTimeout(startPreview, 220);
+            } else {
+                stopPreview();
+            }
+        };
+        $('view-play-toggle').onclick = togglePreviewPanel;
+        $('view-preview-play').onclick = startPreview;
+        $('view-preview-stop').onclick = stopPreview;
     </script>
 </html>
