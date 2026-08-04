@@ -184,7 +184,12 @@
             .file-item.active { background: var(--bg-primary); color: var(--accent-green); }
             .file-item.dirty::after { content: ' ●'; color: var(--accent-yellow); }
             .file-item.folder { color: var(--logo-color); font-family: inherit; }
+            .file-item.drag-over, #file-list.drag-over { background: var(--bg-secondary); outline: 1px dashed var(--accent-green); outline-offset: -1px; }
             .file-tree-empty { padding: 12px; color: var(--text-faint); font-size: 0.82em; text-align: center; }
+            .new-file-type { display: flex; gap: 16px; margin-bottom: 6px; color: var(--text-secondary); font-size: 0.9em; }
+            .new-file-type label { cursor: pointer; display: flex; align-items: center; gap: 6px; }
+            .modal-box .new-file-type input { width: auto; margin: 0; }
+            .modal-hint { color: var(--text-faint); font-size: 0.8em; min-height: 16px; margin-top: 2px; }
 
             /* Editor */
             #editor-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; }
@@ -817,6 +822,17 @@
                 <label style="color:var(--text-dim);font-size:0.8em;margin-top:4px;">BTC Address</label>
                 <input type="text" id="btc-address-input" placeholder="Your Bitcoin address" />
 
+                <label style="color:var(--text-dim);font-size:0.8em;margin-top:8px;">Password</label>
+                <div id="pw-change-start">
+                    <button type="button" class="modal-btn secondary" id="pw-change-btn" style="width:100%;">Change password</button>
+                </div>
+                <div id="pw-change-form" style="display:none;">
+                    <input type="text" id="pw-change-code" placeholder="Code from email" autocomplete="one-time-code" />
+                    <input type="password" id="pw-change-new" placeholder="New password (min 8 characters)" autocomplete="new-password" />
+                    <button type="button" class="modal-btn primary" id="pw-change-submit" style="width:100%;margin-top:5px;">Set new password</button>
+                </div>
+                <div id="pw-change-status" style="font-size:0.75em;color:var(--text-dim);min-height:16px;"></div>
+
                 <div class="modal-error" id="profile-modal-error"></div>
                 <div class="modal-buttons">
                     <button type="button" class="modal-btn secondary" id="profile-modal-cancel">Cancel</button>
@@ -885,8 +901,13 @@
 
         <div class="modal-overlay" id="new-file-modal">
             <div class="modal-box">
-                <h2>New File</h2>
+                <h2>New</h2>
+                <div class="new-file-type">
+                    <label><input type="radio" name="new-file-type" value="file" checked> File</label>
+                    <label><input type="radio" name="new-file-type" value="folder"> Folder</label>
+                </div>
                 <input type="text" id="new-file-name" placeholder="filename.js">
+                <div class="modal-hint" id="new-file-hint"></div>
                 <div class="modal-error" id="new-file-error"></div>
                 <div class="modal-buttons">
                     <button class="modal-btn secondary" id="new-file-cancel">Cancel</button>

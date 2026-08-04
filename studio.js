@@ -24,6 +24,9 @@ let currentGame = null;
 let fileTree = [];
 let currentFile = null;
 let openFiles = {};      // path -> { content, sha, dirty, original }
+let pendingDeletions = []; // [{ path, sha }] staged removals (from moves) — committed on save
+let extraFolders = new Set(); // client-side empty folders (git only tracks files)
+let dragSrcPath = null;  // file path being dragged in the file tree
 let versions = [];
 let versionPage = 1;
 let viewingVersion = null; // null = HEAD, or { sha, message, date }
@@ -94,7 +97,7 @@ const api = (method, path, body, opts = {}) => new Promise((resolve, reject) => 
 });
 
 const setStatus = (msg) => { const el = $('status-msg'); if (el) el.innerHTML = msg; };
-const hasUnsavedChanges = () => Object.values(openFiles).some(f => f.dirty);
+const hasUnsavedChanges = () => pendingDeletions.length > 0 || Object.values(openFiles).some(f => f.dirty);
 
 // The API serves file content base64-encoded. atob() alone yields one char
 // per BYTE (latin1), so multi-byte UTF-8 characters mojibake on load — and
@@ -424,6 +427,8 @@ const startGuestGame = (template, draft) => {
             versions = [];
             publishStatuses = {};
             openFiles = {};
+            pendingDeletions = [];
+            extraFolders = new Set();
             llmJob = null; // any open AI job belongs to a server game — stop watching it here
 
             const contents = (draft && draft.files) || templateFiles;
@@ -529,6 +534,8 @@ const selectGame = (game) => {
     currentGame = game;
     currentFile = null;
     openFiles = {};
+    pendingDeletions = [];
+    extraFolders = new Set();
     versions = [];
     versionPage = 1;
     viewingVersion = null;
@@ -568,6 +575,7 @@ const openProfileModal = () => {
     }
     $('profile-image-status').textContent = '';
     $('profile-modal-error').textContent = '';
+    resetPasswordChangeSection();
     // Load current profile
     api('GET', '/profile').then(data => {
         $('btc-address-input').value = data.btcAddress || '';
@@ -638,6 +646,67 @@ $('profile-image-input').onchange = () => {
         }
     };
     xhr.send(form);
+};
+
+// Change password — reuses the email-code reset flow (/auth/forgot + /auth/reset).
+// The code is typed from the email rather than clicked as a link, so email-client
+// prefetching can't consume it. Requires the account email, fetched via /auth/me.
+let pwChangeEmail = null;
+
+const setPwChangeStatus = (msg, kind) => {
+    const el = $('pw-change-status');
+    el.textContent = msg;
+    el.style.color = kind === 'ok' ? '#A0EB5D' : kind === 'err' ? 'rgba(241, 112, 111, 255)' : 'var(--text-dim)';
+};
+
+const resetPasswordChangeSection = () => {
+    pwChangeEmail = null;
+    $('pw-change-start').style.display = '';
+    $('pw-change-form').style.display = 'none';
+    $('pw-change-code').value = '';
+    $('pw-change-new').value = '';
+    $('pw-change-btn').disabled = false;
+    $('pw-change-btn').textContent = 'Change password';
+    setPwChangeStatus('', '');
+};
+
+$('pw-change-btn').onclick = () => {
+    const btn = $('pw-change-btn');
+    btn.disabled = true;
+    btn.textContent = 'Sending code...';
+    api('GET', '/auth/me', null, { silent: true }).then((me) => {
+        if (!me.email) return Promise.reject({ error: 'No email on file for this account' });
+        pwChangeEmail = me.email;
+        return api('POST', '/auth/forgot', { email: pwChangeEmail }, { silent: true });
+    }).then(() => {
+        $('pw-change-start').style.display = 'none';
+        $('pw-change-form').style.display = '';
+        setPwChangeStatus(`We emailed a code to ${pwChangeEmail}. Enter it below with your new password.`, '');
+        $('pw-change-code').focus();
+    }).catch((err) => {
+        btn.disabled = false;
+        btn.textContent = 'Change password';
+        setPwChangeStatus(apiErrorMessage(err), 'err');
+    });
+};
+
+$('pw-change-submit').onclick = () => {
+    const code = $('pw-change-code').value.trim();
+    const newPassword = $('pw-change-new').value;
+    if (!code) { setPwChangeStatus('Enter the code from the email', 'err'); return; }
+    if (newPassword.length < 8) { setPwChangeStatus('Password must be at least 8 characters', 'err'); return; }
+    const submitBtn = $('pw-change-submit');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving...';
+    api('POST', '/auth/reset', { email: pwChangeEmail, code, newPassword }, { silent: true }).then(() => {
+        resetPasswordChangeSection();
+        setPwChangeStatus('Password updated.', 'ok');
+    }).catch((err) => {
+        setPwChangeStatus(apiErrorMessage(err), 'err');
+    }).finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Set new password';
+    });
 };
 
 $('profile-modal-save').onclick = () => {
@@ -757,6 +826,8 @@ const renderGameView = () => {
     ftDiv.appendChild(ftHeader);
     const fileList = document.createElement('div');
     fileList.id = 'file-list';
+    // Dropping a dragged file on empty space in the tree moves it to the root
+    addDropTarget(fileList, '');
     ftDiv.appendChild(fileList);
     editorArea.appendChild(ftDiv);
 
@@ -1066,45 +1137,134 @@ const loadFiles = () => {
         });
 };
 
+// Make an element accept file drops that move the dragged file into
+// destFolder ('' = repo root). Drops are disabled while viewing a version.
+const addDropTarget = (el, destFolder) => {
+    if (viewingVersion) return;
+    el.ondragover = (e) => {
+        if (dragSrcPath === null) return;
+        e.preventDefault();
+        e.stopPropagation();
+        el.classList.add('drag-over');
+    };
+    el.ondragleave = () => el.classList.remove('drag-over');
+    el.ondrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        el.classList.remove('drag-over');
+        if (dragSrcPath !== null) moveFile(dragSrcPath, destFolder);
+    };
+};
+
 const renderFileTree = () => {
     const list = $('file-list');
     if (!list) return;
     list.innerHTML = '';
-    if (fileTree.length === 0) {
+    if (fileTree.length === 0 && extraFolders.size === 0) {
         list.innerHTML = '<div class="file-tree-empty">No files yet</div>';
         return;
     }
-    // Track which folder paths we've already rendered headers for
-    const renderedFolders = new Set();
-    fileTree.forEach(file => {
-        const parts = file.path.split('/');
-        // Render folder headers for each ancestor directory we haven't shown yet
-        if (parts.length > 1) {
-            for (let i = 1; i < parts.length; i++) {
-                const folderPath = parts.slice(0, i).join('/');
-                if (!renderedFolders.has(folderPath)) {
-                    renderedFolders.add(folderPath);
-                    const folderEl = document.createElement('div');
-                    folderEl.className = 'file-item folder';
-                    const folderDepth = i - 1;
-                    folderEl.style.paddingLeft = (10 + folderDepth * 14) + 'px';
-                    folderEl.textContent = parts[i - 1] + '/';
-                    folderEl.title = folderPath;
-                    list.appendChild(folderEl);
-                }
-            }
+
+    // Build a nested tree from file paths plus client-side empty folders so
+    // each folder's contents render together.
+    const root = { folders: {}, files: [] };
+    const folderNode = (path) => {
+        let node = root;
+        for (const part of path.split('/')) {
+            node = node.folders[part] || (node.folders[part] = { folders: {}, files: [] });
         }
-        const el = document.createElement('div');
-        const isActive = currentFile && currentFile.path === file.path;
-        const isDirty = !viewingVersion && openFiles[file.path]?.dirty;
-        el.className = 'file-item' + (isActive ? ' active' : '') + (isDirty ? ' dirty' : '');
-        const depth = parts.length - 1;
-        el.style.paddingLeft = (10 + depth * 14) + 'px';
-        el.textContent = parts[parts.length - 1];
-        el.title = file.path;
-        el.onclick = () => openFile(file);
-        list.appendChild(el);
+        return node;
+    };
+    extraFolders.forEach(f => folderNode(f));
+    fileTree.forEach(file => {
+        const dir = file.path.split('/').slice(0, -1).join('/');
+        (dir ? folderNode(dir) : root).files.push(file);
     });
+
+    const renderLevel = (node, prefix, depth) => {
+        Object.keys(node.folders).sort((a, b) => a.localeCompare(b)).forEach(name => {
+            const folderPath = prefix ? `${prefix}/${name}` : name;
+            const el = document.createElement('div');
+            el.className = 'file-item folder';
+            el.style.paddingLeft = (10 + depth * 14) + 'px';
+            el.textContent = name + '/';
+            el.title = folderPath;
+            addDropTarget(el, folderPath);
+            list.appendChild(el);
+            renderLevel(node.folders[name], folderPath, depth + 1);
+        });
+        node.files.sort((a, b) => a.path.localeCompare(b.path)).forEach(file => {
+            const el = document.createElement('div');
+            const isActive = currentFile && currentFile.path === file.path;
+            const isDirty = !viewingVersion && openFiles[file.path]?.dirty;
+            el.className = 'file-item' + (isActive ? ' active' : '') + (isDirty ? ' dirty' : '');
+            el.style.paddingLeft = (10 + depth * 14) + 'px';
+            el.textContent = file.path.split('/').pop();
+            el.title = file.path;
+            el.onclick = () => openFile(file);
+            if (!viewingVersion) {
+                el.draggable = true;
+                el.ondragstart = (e) => { dragSrcPath = file.path; e.dataTransfer.effectAllowed = 'move'; };
+                el.ondragend = () => { dragSrcPath = null; };
+                // Dropping onto a file moves into that file's folder
+                addDropTarget(el, prefix);
+            }
+            list.appendChild(el);
+        });
+    };
+    renderLevel(root, '', 0);
+};
+
+// ---------------------------------------------------------------------------
+// Move file (drag & drop). A move is staged like an edit: the file becomes a
+// dirty "create" at the new path and the old path is queued for deletion on
+// the next Save Version.
+// ---------------------------------------------------------------------------
+
+const moveFile = (srcPath, destFolder) => {
+    if (viewingVersion || llmJob) return;
+    const name = srcPath.split('/').pop();
+    const newPath = destFolder ? `${destFolder}/${name}` : name;
+    if (newPath === srcPath) return;
+    if (openFiles[newPath] || fileTree.find(f => f.path === newPath)) {
+        setStatus(`${newPath} already exists`);
+        return;
+    }
+
+    const doMove = (content, committedSha) => {
+        // Moving back onto a path already queued for deletion: cancel the
+        // deletion and reuse its sha so the save commits an update, not a create.
+        const undoIdx = pendingDeletions.findIndex(d => d.path === newPath);
+        const reuseSha = undoIdx >= 0 ? pendingDeletions.splice(undoIdx, 1)[0].sha : null;
+        if (committedSha) pendingDeletions.push({ path: srcPath, sha: committedSha });
+        openFiles[newPath] = { content, sha: reuseSha, dirty: true, original: null };
+        delete openFiles[srcPath];
+        fileTree = fileTree.filter(f => f.path !== srcPath);
+        fileTree.push({ path: newPath, type: 'blob', sha: null });
+        if (currentFile && currentFile.path === srcPath) currentFile = { path: newPath };
+        renderFileTree();
+        renderTabs();
+        updateSaveButton();
+        saveGuestDraft();
+    };
+
+    const open = openFiles[srcPath];
+    if (open) {
+        doMove(open.content, open.sha);
+        return;
+    }
+    const entry = fileTree.find(f => f.path === srcPath);
+    if (!entry) return;
+    setStatus('<span class="spinner"></span>Moving...');
+    api('GET', `/studio/games/${currentGame.id}/file?path=${encodeURIComponent(srcPath)}`)
+        .then(data => {
+            doMove(data.content ? b64ToUtf8(data.content) : '', data.sha || entry.sha);
+            setStatus('');
+        })
+        .catch(err => {
+            console.error('Failed to move file', err);
+            setStatus('Failed to move file');
+        });
 };
 
 // ---------------------------------------------------------------------------
@@ -1211,20 +1371,37 @@ const updateSaveButton = () => {
 };
 
 // ---------------------------------------------------------------------------
-// New file
+// New file / folder
 // ---------------------------------------------------------------------------
+
+const newFileType = () => {
+    const checked = document.querySelector('input[name="new-file-type"]:checked');
+    return checked ? checked.value : 'file';
+};
 
 const createNewFile = () => {
     const input = $('new-file-name');
     const errorEl = $('new-file-error');
-    const name = input.value.trim();
+    const isFolder = newFileType() === 'folder';
+    const name = input.value.trim().replace(/^\/+|\/+$/g, '');
     errorEl.textContent = '';
-    if (!name) { errorEl.textContent = 'File name required'; return; }
+    if (!name) { errorEl.textContent = (isFolder ? 'Folder' : 'File') + ' name required'; return; }
+    if (name.split('/').some(p => !p || p === '.' || p === '..')) {
+        errorEl.textContent = 'Invalid name'; return;
+    }
+    if (isFolder) {
+        if (extraFolders.has(name) || fileTree.find(f => f.path === name || f.path.startsWith(name + '/'))) {
+            errorEl.textContent = 'Folder already exists'; return;
+        }
+        extraFolders.add(name);
+        hideModal('new-file-modal');
+        renderFileTree();
+        return;
+    }
     if (openFiles[name] || fileTree.find(f => f.path === name)) {
         errorEl.textContent = 'File already exists'; return;
     }
     fileTree.push({ path: name, type: 'blob', sha: null });
-    fileTree.sort((a, b) => a.path.localeCompare(b.path));
     openFiles[name] = { content: '', sha: null, dirty: true, original: null };
     hideModal('new-file-modal');
     switchToFile(name);
@@ -1251,18 +1428,19 @@ const saveVersion = () => {
     const dirtyFiles = Object.entries(openFiles)
         .filter(([, data]) => data.dirty)
         .map(([path, data]) => ({ path, content: data.content, sha: data.sha }));
-    if (dirtyFiles.length === 0) return;
+    if (dirtyFiles.length === 0 && pendingDeletions.length === 0) return;
 
     const btn = $('save-btn');
     btn.disabled = true;
     btn.textContent = 'Saving...';
-    setStatus(`Committing ${dirtyFiles.length} file(s)...`);
+    setStatus(`Committing ${dirtyFiles.length + pendingDeletions.length} file(s)...`);
 
     const commitMsgEl = $('commit-msg');
-    const commitMsg = (commitMsgEl && commitMsgEl.value.trim()) || `Update ${dirtyFiles.length} file(s)`;
+    const commitMsg = (commitMsgEl && commitMsgEl.value.trim()) || `Update ${dirtyFiles.length + pendingDeletions.length} file(s)`;
 
     api('POST', `/studio/games/${currentGame.id}/save`, {
         files: dirtyFiles,
+        deletions: pendingDeletions,
         message: commitMsg,
     })
     .then(result => {
@@ -1272,6 +1450,7 @@ const saveVersion = () => {
         for (const [, data] of Object.entries(openFiles)) {
             if (data.dirty) { data.dirty = false; data.original = data.content; }
         }
+        pendingDeletions = [];
         btn.textContent = 'Save Version';
         if (commitMsgEl) commitMsgEl.value = '';
         updateSaveButton();
@@ -1557,6 +1736,8 @@ const viewVersion = (v) => {
     viewingVersion = v;
     currentFile = null;
     openFiles = {};
+    pendingDeletions = [];
+    extraFolders = new Set();
     updateVersionBadge();
     renderVersionList();
     const filesLoaded = loadFiles();
@@ -1595,6 +1776,7 @@ const switchToHead = () => {
     viewingVersion = null;
     currentFile = null;
     openFiles = {};
+    pendingDeletions = [];
     updateVersionBadge();
     renderVersionList();
     loadFiles();
@@ -1640,6 +1822,8 @@ const restoreVersion = (v) => {
             viewingVersion = null;
             currentFile = null;
             openFiles = {};
+            pendingDeletions = [];
+            extraFolders = new Set();
             updateVersionBadge();
             loadFiles();
             loadVersions();
@@ -1745,6 +1929,13 @@ $('new-game-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $
 $('new-file-cancel').onclick = () => hideModal('new-file-modal');
 $('new-file-create').onclick = createNewFile;
 $('new-file-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createNewFile(); });
+document.querySelectorAll('input[name="new-file-type"]').forEach(radio => {
+    radio.onchange = () => {
+        const isFolder = newFileType() === 'folder';
+        $('new-file-name').placeholder = isFolder ? 'foldername' : 'filename.js';
+        $('new-file-hint').textContent = isFolder ? 'Empty folders live in the editor until you save a file inside them.' : '';
+    };
+});
 
 // ---------------------------------------------------------------------------
 // AI ("Ask AI to edit") modal
@@ -1819,6 +2010,7 @@ const finishLLMJob = (outcome, message) => {
     if (outcome === 'COMPLETED') {
         if (!viewingVersion) {
             openFiles = {};
+            pendingDeletions = [];
             currentFile = null;
             loadFiles();
         }
@@ -2464,6 +2656,8 @@ const renderSettingsContent = (panel) => {
             currentGame = null;
             currentFile = null;
             openFiles = {};
+            pendingDeletions = [];
+            extraFolders = new Set();
             viewingVersion = null;
             editorBladeOpened = false;
             $('main-content').innerHTML = '';
