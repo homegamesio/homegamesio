@@ -27,7 +27,7 @@
     "homegames-common": "file:../homegames-common"
   },
   "devDependencies": {
-    "webpack": "^5.65.0",
+    "webpack": "^5.105.0",
     "webpack-cli": "^4.3.1"
   }
 }
