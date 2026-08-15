@@ -168,6 +168,8 @@
             #ai-banner-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             #ai-banner-cancel { font-size: 0.9em; padding: 3px 12px; border-radius: 3px; background: var(--border); color: var(--text-secondary); border: none; cursor: pointer; font-family: inherit; flex-shrink: 0; }
             #ai-banner-cancel:hover { background: var(--border-light); color: #fff; }
+            #ai-banner-canvas { flex-shrink: 0; }
+            #ai-banner:has(#ai-banner-canvas) { padding-top: 3px; padding-bottom: 3px; }
 
             /* Editor layout */
             #editor-area { display: flex; flex: 1; overflow: hidden; }
@@ -179,10 +181,15 @@
             #new-file-btn { color: var(--accent-green); cursor: pointer; font-size: 0.85em; font-weight: bold; }
             #new-file-btn:hover { color: #8cd94f; }
             #file-list { flex: 1; overflow-y: auto; }
-            .file-item { padding: 5px 10px; cursor: pointer; font-size: 0.82em; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; }
+            .file-item { padding: 5px 10px; cursor: pointer; font-size: 0.82em; color: var(--text-secondary); font-family: monospace; display: flex; align-items: center; gap: 4px; }
             .file-item:hover { background: var(--bg-secondary); color: var(--text-primary); }
             .file-item.active { background: var(--bg-primary); color: var(--accent-green); }
-            .file-item.dirty::after { content: ' ●'; color: var(--accent-yellow); }
+            .file-item-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .file-item.dirty .file-item-name::after { content: ' ●'; color: var(--accent-yellow); }
+            .file-item-actions { display: none; flex-shrink: 0; gap: 2px; }
+            .file-item:hover .file-item-actions { display: flex; }
+            .file-action { color: var(--text-muted); padding: 0 3px; }
+            .file-action:hover { color: var(--text-primary); }
             .file-item.folder { color: var(--logo-color); font-family: inherit; }
             .file-item.drag-over, #file-list.drag-over { background: var(--bg-secondary); outline: 1px dashed var(--accent-green); outline-offset: -1px; }
             .file-tree-empty { padding: 12px; color: var(--text-faint); font-size: 0.82em; text-align: center; }
@@ -203,6 +210,18 @@
             #editor-highlight { position: absolute; top: 0; left: 48px; right: 0; bottom: 0; padding: 12px; margin: 0; background: var(--bg-deep); color: var(--text-primary); font-family: monospace; font-size: 14px; line-height: 1.6; tab-size: 2; overflow: auto; white-space: pre; pointer-events: none; }
             #editor-highlight code { font-family: inherit; font-size: inherit; line-height: inherit; tab-size: inherit; }
             #editor-textarea { position: absolute; top: 0; left: 48px; right: 0; height: 100%; padding: 12px; background: transparent; color: transparent; caret-color: var(--text-primary); border: none; resize: none; font-family: monospace; font-size: 14px; line-height: 1.6; tab-size: 2; outline: none; white-space: pre; overflow: auto; z-index: 1; }
+            #editor-search-layer { position: absolute; top: 0; left: 48px; right: 0; bottom: 0; padding: 12px; margin: 0; background: transparent; color: transparent; font-family: monospace; font-size: 14px; line-height: 1.6; tab-size: 2; overflow: hidden; white-space: pre; pointer-events: none; }
+            #editor-search-layer mark { background: rgba(229, 192, 123, 0.28); color: transparent; border-radius: 2px; }
+            #editor-search-layer mark.current { background: rgba(229, 192, 123, 0.6); outline: 1px solid var(--accent-yellow); }
+            #editor-find-bar { position: absolute; top: 6px; right: 14px; z-index: 2; display: flex; align-items: center; gap: 4px; background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 5px; padding: 4px 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.35); }
+            #editor-find-bar input { width: 160px; padding: 2px 6px; background: var(--bg-deep); border: 1px solid var(--border-light); border-radius: 3px; color: var(--text-primary); font-family: monospace; font-size: 0.8em; outline: none; }
+            #editor-find-bar input:focus { border-color: var(--accent-green); }
+            #find-count { font-size: 0.72em; color: var(--text-faint); font-family: monospace; min-width: 34px; text-align: center; }
+            #editor-find-bar button { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.75em; padding: 2px 4px; font-family: inherit; }
+            #editor-find-bar button:hover { color: var(--text-primary); }
+            #syntax-error-bar { flex-shrink: 0; padding: 4px 12px; background: rgba(241, 112, 111, 0.12); border-top: 1px solid rgba(241, 112, 111, 0.4); color: rgba(241, 112, 111, 1); font-family: monospace; font-size: 0.78em; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            #syntax-error-bar:hover { background: rgba(241, 112, 111, 0.2); }
+            .gutter-error { background: rgba(241, 112, 111, 0.9); color: #fff; border-radius: 2px; padding: 0 3px; margin-right: -3px; }
             #editor-placeholder { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 0.95em; background: var(--bg-deep); }
 
             /* Syntax highlight colors */
@@ -292,6 +311,30 @@
             #preview-controls button.stop-btn { background: rgba(241, 112, 111, 255); color: #fff; border-color: rgba(241, 112, 111, 255); }
             #preview-container { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #000; }
             #preview-status { padding: 4px 10px; border-top: 1px solid var(--border); font-size: 0.78em; color: var(--text-faint); flex-shrink: 0; min-height: 24px; }
+            #preview-inspector { display: flex; flex-direction: column; border-top: 1px solid var(--border); flex-shrink: 0; max-height: 45%; }
+            #inspector-controls { display: flex; gap: 8px; align-items: center; padding: 5px 10px; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; }
+            #inspector-pick-btn { font-size: 0.7em; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--border-light); background: var(--bg-secondary); color: var(--text-secondary); cursor: pointer; font-family: inherit; white-space: nowrap; }
+            #inspector-pick-btn:hover { color: var(--text-primary); }
+            #inspector-pick-btn.active { background: var(--accent-yellow); color: var(--badge-head-text); border-color: var(--accent-yellow); }
+            #inspector-timeline { position: relative; flex: 1; display: flex; align-items: center; min-width: 0; padding-top: 6px; }
+            #inspector-scrubber { width: 100%; accent-color: var(--accent-green); min-width: 0; }
+            #inspector-ticks { position: absolute; left: 8px; right: 8px; top: 0; height: 6px; }
+            .inspector-tick { position: absolute; top: 0; width: 3px; height: 6px; margin-left: -1px; background: rgba(241, 112, 111, 0.9); border-radius: 1px; cursor: pointer; }
+            .inspector-tick.key { background: rgba(148, 210, 229, 0.9); }
+            .inspector-tick:hover { height: 8px; }
+            #preview-container-2 { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #000; border-top: 1px solid var(--border); }
+            #inspector-frame-label { font-size: 0.7em; color: var(--text-faint); font-family: monospace; white-space: nowrap; }
+            #inspector-live-btn { font-size: 0.7em; padding: 2px 8px; border-radius: 3px; border: none; background: var(--accent-green); color: var(--badge-head-text); cursor: pointer; font-family: inherit; font-weight: bold; }
+            #inspector-tree { flex: 1; overflow: auto; font-family: monospace; font-size: 0.75em; min-height: 60px; padding: 4px 0; }
+            .inspector-node { display: flex; align-items: center; gap: 4px; padding: 1px 8px 1px 0; cursor: pointer; color: var(--text-secondary); white-space: nowrap; }
+            .inspector-node:hover { background: var(--bg-secondary); color: var(--text-primary); }
+            .inspector-node.selected { background: var(--bg-primary); color: var(--accent-green); }
+            .inspector-arrow { width: 12px; text-align: center; color: var(--text-muted); flex-shrink: 0; }
+            .inspector-node-id { color: var(--text-faint); }
+            .inspector-badge { color: var(--accent-yellow); }
+            .inspector-layer { padding: 2px 8px; color: var(--text-dim); text-transform: uppercase; font-size: 0.9em; letter-spacing: 1px; }
+            .inspector-empty { padding: 8px 10px; color: var(--text-faint); }
+            #inspector-detail { padding: 4px 10px; font-family: monospace; font-size: 0.72em; color: var(--text-faint); border-top: 1px solid var(--border-subtle); flex-shrink: 0; min-height: 18px; }
             #preview-share { padding: 4px 10px; display: flex; gap: 4px; flex-shrink: 0; }
             .preview-share-input { flex: 1; padding: 3px 6px; background: var(--bg-deep); border: 1px solid var(--border-light); border-radius: 3px; color: var(--text-secondary); font-family: monospace; font-size: 0.75em; }
             .preview-share-copy { padding: 3px 10px; background: var(--accent-green); color: var(--badge-head-text); border: none; border-radius: 3px; cursor: pointer; font-weight: bold; font-size: 0.75em; font-family: inherit; }
@@ -912,6 +955,30 @@
                 <div class="modal-buttons">
                     <button class="modal-btn secondary" id="new-file-cancel">Cancel</button>
                     <button class="modal-btn primary" id="new-file-create">Create</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="rename-file-modal">
+            <div class="modal-box">
+                <h2>Rename</h2>
+                <input type="text" id="rename-file-name" placeholder="path/to/filename.js">
+                <div class="modal-hint">Renaming to a path in another folder moves the file.</div>
+                <div class="modal-error" id="rename-file-error"></div>
+                <div class="modal-buttons">
+                    <button class="modal-btn secondary" id="rename-file-cancel">Cancel</button>
+                    <button class="modal-btn primary" id="rename-file-ok">Rename</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="file-delete-confirm-modal">
+            <div class="modal-box">
+                <h2>Delete file</h2>
+                <p id="file-delete-confirm-text" style="color:var(--text-secondary);font-size:0.9em;line-height:1.5;margin-bottom:6px;"></p>
+                <div class="modal-buttons">
+                    <button type="button" class="modal-btn secondary" id="file-delete-cancel">Cancel</button>
+                    <button type="button" class="modal-btn primary" id="file-delete-ok" style="background:rgba(241,112,111,0.9);color:#fff;">Delete</button>
                 </div>
             </div>
         </div>

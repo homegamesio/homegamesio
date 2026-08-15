@@ -11,7 +11,7 @@ const HOMENAMES_URL = 'https://core.homegames.io:7400';//'https://api.homegames.
 // present — this flag only controls whether the UI exposes it.
 // Disabled for now: locally-hosted models aren't good/fast enough for
 // full game edits yet. The API endpoint is gated off too (AI_EDITS_ENABLED).
-const AI_FEATURES_ENABLED = false;
+const AI_FEATURES_ENABLED = true;
 
 // ---------------------------------------------------------------------------
 // State
@@ -39,6 +39,7 @@ let previewDebounceTimer = null;
 // 'local' = LocalSession in this tab (instant reload, no server session);
 // 'online' = hosted Homenames session (shareable link). Sticky until Stop.
 let previewMode = 'local';
+let previewFrozen = false; // local game ended, view kept for the inspector
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -336,20 +337,78 @@ const loadGuestDraft = () => {
     try { return JSON.parse(localStorage.getItem(GUEST_DRAFT_KEY)); } catch (e) { return null; }
 };
 
-const saveGuestDraft = () => {
-    if (!currentGame || !currentGame.guest) return;
+const clearGuestDraft = () => { try { localStorage.removeItem(GUEST_DRAFT_KEY); } catch (e) {} };
+
+// Logged-in games get a per-game draft too: dirty edits live only in memory
+// until Save Version, so a refresh or crash would eat them otherwise. Only
+// the uncommitted delta is stored — dirty contents plus staged deletion
+// paths — and the key is dropped as soon as the working set is clean.
+const gameDraftKey = (gameId) => 'hg-game-draft-' + gameId;
+
+const clearGameDraft = (gameId) => { try { localStorage.removeItem(gameDraftKey(gameId)); } catch (e) {} };
+
+const saveDraft = () => {
+    if (!currentGame) return;
+    if (currentGame.guest) {
+        const files = {};
+        Object.entries(openFiles).forEach(([path, data]) => { files[path] = data.content; });
+        try {
+            localStorage.setItem(GUEST_DRAFT_KEY, JSON.stringify({
+                templateId: currentGame.templateId,
+                name: currentGame.name,
+                files,
+            }));
+        } catch (e) {}
+        return;
+    }
+    if (viewingVersion) return;
     const files = {};
-    Object.entries(openFiles).forEach(([path, data]) => { files[path] = data.content; });
+    Object.entries(openFiles).forEach(([path, data]) => { if (data.dirty) files[path] = data.content; });
+    const deletions = pendingDeletions.map(d => d.path);
     try {
-        localStorage.setItem(GUEST_DRAFT_KEY, JSON.stringify({
-            templateId: currentGame.templateId,
-            name: currentGame.name,
-            files,
-        }));
+        if (Object.keys(files).length === 0 && deletions.length === 0) {
+            localStorage.removeItem(gameDraftKey(currentGame.id));
+        } else {
+            localStorage.setItem(gameDraftKey(currentGame.id), JSON.stringify({ files, deletions }));
+        }
     } catch (e) {}
 };
 
-const clearGuestDraft = () => { try { localStorage.removeItem(GUEST_DRAFT_KEY); } catch (e) {} };
+// Offer to reapply a draft after a game's file tree loads. Contents overlay
+// as dirty edits; deletion paths re-stage against the freshly loaded shas
+// (a path that no longer exists is just skipped).
+const maybeRestoreGameDraft = () => {
+    if (!currentGame || currentGame.guest || viewingVersion) return;
+    let draft = null;
+    try { draft = JSON.parse(localStorage.getItem(gameDraftKey(currentGame.id))); } catch (e) {}
+    if (!draft) return;
+    const fileCount = Object.keys(draft.files || {}).length;
+    const delCount = (draft.deletions || []).length;
+    if (fileCount === 0 && delCount === 0) return;
+    const what = [
+        fileCount ? `${fileCount} edited file(s)` : '',
+        delCount ? `${delCount} deletion(s)` : '',
+    ].filter(Boolean).join(' and ');
+    if (!confirm(`You have unsaved edits to this game from a previous session (${what}). Restore them?`)) {
+        clearGameDraft(currentGame.id);
+        return;
+    }
+    Object.entries(draft.files || {}).forEach(([path, content]) => {
+        const entry = fileTree.find(f => f.path === path);
+        openFiles[path] = { content, sha: entry ? entry.sha : null, dirty: true, original: null };
+        if (!entry) fileTree.push({ path, type: 'blob', sha: null });
+    });
+    (draft.deletions || []).forEach(path => {
+        const entry = fileTree.find(f => f.path === path);
+        if (!entry || openFiles[path]) return;
+        pendingDeletions.push({ path, sha: entry.sha });
+        fileTree = fileTree.filter(f => f.path !== path);
+    });
+    renderFileTree();
+    renderTabs();
+    updateSaveButton();
+    setStatus('Restored unsaved edits from your last session');
+};
 
 const enterGuestStudio = () => {
     isGuest = true;
@@ -469,7 +528,7 @@ const startGuestGame = (template, draft) => {
 // the signup form with a contextual message; the header Sign in button opens
 // it on the login form.
 const openAuthOverlay = (message, mode) => {
-    saveGuestDraft();
+    saveDraft();
     const msgEl = $('signup-gate-msg');
     msgEl.textContent = message || '';
     msgEl.style.display = message ? '' : 'none';
@@ -545,7 +604,7 @@ const selectGame = (game) => {
     renderGameList();
     renderGameBlade();
     renderGameView();
-    loadFiles();
+    loadFiles().then(maybeRestoreGameDraft);
     loadVersions();
     loadPublishStatuses();
     checkLLMJob();
@@ -854,6 +913,13 @@ const renderGameView = () => {
     highlightPre.appendChild(highlightCode);
     editorWrap.appendChild(highlightPre);
 
+    // Search-match layer: mirrors the textarea's text with <mark> around
+    // matches. Sits above the (opaque) highlight layer, below the textarea;
+    // its text is transparent so only the mark backgrounds show.
+    const searchLayer = document.createElement('pre');
+    searchLayer.id = 'editor-search-layer';
+    editorWrap.appendChild(searchLayer);
+
     const textarea = document.createElement('textarea');
     textarea.id = 'editor-textarea';
     textarea.style.display = 'none';
@@ -861,12 +927,50 @@ const renderGameView = () => {
     textarea.wrap = 'off';
     editorWrap.appendChild(textarea);
 
+    // Find bar (Cmd+F)
+    const findBar = document.createElement('div');
+    findBar.id = 'editor-find-bar';
+    findBar.style.display = 'none';
+    const findInput = document.createElement('input');
+    findInput.id = 'find-input';
+    findInput.placeholder = 'Find';
+    findInput.addEventListener('input', () => updateFindMatches(true));
+    findInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); findNext(e.shiftKey ? -1 : 1); }
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFindBar(); }
+    });
+    const findCount = document.createElement('span');
+    findCount.id = 'find-count';
+    const findBtn = (label, title, onClick) => {
+        const b = document.createElement('button');
+        b.textContent = label;
+        b.title = title;
+        b.onclick = onClick;
+        return b;
+    };
+    findBar.appendChild(findInput);
+    findBar.appendChild(findCount);
+    findBar.appendChild(findBtn('▲', 'Previous match (Shift+Enter)', () => findNext(-1)));
+    findBar.appendChild(findBtn('▼', 'Next match (Enter)', () => findNext(1)));
+    findBar.appendChild(findBtn('✕', 'Close (Esc)', closeFindBar));
+    editorWrap.appendChild(findBar);
+
     editorPane.appendChild(editorWrap);
+
+    // Syntax error strip — populated by the background parse check
+    const syntaxBar = document.createElement('div');
+    syntaxBar.id = 'syntax-error-bar';
+    syntaxBar.style.display = 'none';
+    syntaxBar.onclick = jumpToSyntaxError;
+    editorPane.appendChild(syntaxBar);
+
     textarea.addEventListener('input', onEditorInput);
     textarea.addEventListener('keydown', onEditorKeydown);
     textarea.addEventListener('scroll', () => {
         highlightPre.scrollTop = textarea.scrollTop;
         highlightPre.scrollLeft = textarea.scrollLeft;
+        searchLayer.scrollTop = textarea.scrollTop;
+        searchLayer.scrollLeft = textarea.scrollLeft;
         gutter.scrollTop = textarea.scrollTop;
     });
     // Clicking into the editor while a local preview runs ends the game and
@@ -874,9 +978,14 @@ const renderGameView = () => {
     // session for keyboard input. Online sessions are left alone (stopping
     // one would kick everyone who joined via the share link).
     textarea.addEventListener('mousedown', () => {
-        if (previewClient && previewMode === 'local') {
-            stopPreview();
-            setPreviewStatus('Stopped — hit Run to play again');
+        // Already frozen for inspection: leave the recording alone
+        if (previewClient && previewMode === 'local' && !previewFrozen) {
+            if (inspectorOn) {
+                freezePreview();
+            } else {
+                stopPreview();
+                setPreviewStatus('Stopped — hit Run to play again');
+            }
             setTimeout(() => textarea.focus(), 0);
         }
     });
@@ -902,10 +1011,28 @@ const renderGameView = () => {
     stopBtn.textContent = 'Stop';
     stopBtn.className = 'stop-btn';
     stopBtn.id = 'preview-stop-btn';
-    stopBtn.onclick = stopPreview;
+    stopBtn.onclick = stopOrFreezePreview;
     stopBtn.style.display = 'none';
 
+    // Tree inspector toggle — only meaningful for local sessions, so it stays
+    // hidden until a local preview is running.
+    const inspectBtn = document.createElement('button');
+    inspectBtn.textContent = 'Inspect';
+    inspectBtn.id = 'preview-inspect-btn';
+    inspectBtn.onclick = toggleInspector;
+    inspectBtn.style.display = 'none';
+
+    // Second simulated player — splits the preview into two views
+    const playerBtn = document.createElement('button');
+    playerBtn.textContent = '+ Player';
+    playerBtn.id = 'preview-player2-btn';
+    playerBtn.title = 'Add a second local player';
+    playerBtn.onclick = toggleSecondPlayer;
+    playerBtn.style.display = 'none';
+
     previewControls.appendChild(playBtn);
+    previewControls.appendChild(inspectBtn);
+    previewControls.appendChild(playerBtn);
     previewControls.appendChild(stopBtn);
     previewHeader.appendChild(previewControls);
     previewPanel.appendChild(previewHeader);
@@ -913,6 +1040,58 @@ const renderGameView = () => {
     const previewContainer = document.createElement('div');
     previewContainer.id = 'preview-container';
     previewPanel.appendChild(previewContainer);
+
+    const previewContainer2 = document.createElement('div');
+    previewContainer2.id = 'preview-container-2';
+    previewContainer2.style.display = 'none';
+    previewPanel.appendChild(previewContainer2);
+
+    // Tree inspector pane (hidden until the Inspect toggle turns it on)
+    const inspectorPane = document.createElement('div');
+    inspectorPane.id = 'preview-inspector';
+    inspectorPane.style.display = 'none';
+    const inspectorControls = document.createElement('div');
+    inspectorControls.id = 'inspector-controls';
+    const pickBtn = document.createElement('button');
+    pickBtn.id = 'inspector-pick-btn';
+    pickBtn.textContent = '⌖ Pick';
+    pickBtn.title = 'Click a thing in the game to select its node';
+    pickBtn.onclick = toggleInspectorPick;
+    // The scrubber sits in a positioned wrapper so input-event tick marks can
+    // overlay the timeline.
+    const timeline = document.createElement('div');
+    timeline.id = 'inspector-timeline';
+    const scrubber = document.createElement('input');
+    scrubber.type = 'range';
+    scrubber.id = 'inspector-scrubber';
+    scrubber.min = 0;
+    scrubber.max = 0;
+    scrubber.value = 0;
+    scrubber.oninput = () => selectInspectorFrame(Number(scrubber.value));
+    const ticks = document.createElement('div');
+    ticks.id = 'inspector-ticks';
+    timeline.appendChild(scrubber);
+    timeline.appendChild(ticks);
+    const frameLabel = document.createElement('span');
+    frameLabel.id = 'inspector-frame-label';
+    frameLabel.textContent = 'recording…';
+    const liveBtn = document.createElement('button');
+    liveBtn.id = 'inspector-live-btn';
+    liveBtn.textContent = 'Live';
+    liveBtn.style.display = 'none';
+    liveBtn.onclick = inspectorGoLive;
+    inspectorControls.appendChild(pickBtn);
+    inspectorControls.appendChild(timeline);
+    inspectorControls.appendChild(frameLabel);
+    inspectorControls.appendChild(liveBtn);
+    inspectorPane.appendChild(inspectorControls);
+    const inspectorTree = document.createElement('div');
+    inspectorTree.id = 'inspector-tree';
+    inspectorPane.appendChild(inspectorTree);
+    const inspectorDetail = document.createElement('div');
+    inspectorDetail.id = 'inspector-detail';
+    inspectorPane.appendChild(inspectorDetail);
+    previewPanel.appendChild(inspectorPane);
 
     const previewStatus = document.createElement('div');
     previewStatus.id = 'preview-status';
@@ -1046,18 +1225,25 @@ const updateHighlight = () => {
     // Ensure trailing newline so scroll heights match
     if (!code.innerHTML.endsWith('\n')) code.innerHTML += '\n';
 
-    // Line-number gutter
+    // Line-number gutter. The error line (from the syntax check) renders as a
+    // marked span, so the gutter re-renders when it changes too.
     const gutter = $('editor-gutter');
     if (gutter) {
         const count = text.split('\n').length;
-        if (+gutter.dataset.count !== count) {
+        const errLine = (syntaxError && currentFile && syntaxError.path === currentFile.path && syntaxError.line) || 0;
+        if (+gutter.dataset.count !== count || +gutter.dataset.errLine !== errLine) {
             gutter.dataset.count = count;
-            gutter.textContent = Array.from({ length: count }, (_, i) => i + 1).join('\n');
+            gutter.dataset.errLine = errLine;
+            const nums = Array.from({ length: count }, (_, i) =>
+                (i + 1 === errLine) ? `<span class="gutter-error">${i + 1}</span>` : String(i + 1));
+            gutter.innerHTML = nums.join('\n');
             // Widen the gutter for files beyond 3-digit line counts
             const width = Math.max(48, 21 + String(count).length * 9);
             gutter.style.width = width + 'px';
             textarea.style.left = width + 'px';
             $('editor-highlight').style.left = width + 'px';
+            const searchLayer = $('editor-search-layer');
+            if (searchLayer) searchLayer.style.left = width + 'px';
         }
         gutter.scrollTop = textarea.scrollTop;
     }
@@ -1074,8 +1260,10 @@ const onEditorInput = () => {
     renderTabs();
     renderFileTree();
     updateHighlight();
+    if (findBarOpen()) updateFindMatches(false);
+    scheduleSyntaxCheck();
     debouncedUpdatePreview();
-    saveGuestDraft();
+    saveDraft();
 };
 
 const onEditorKeydown = (e) => {
@@ -1091,6 +1279,208 @@ const onEditorKeydown = (e) => {
         e.preventDefault();
         if (!$('save-btn').disabled) saveVersion();
     }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        openFindBar();
+    }
+};
+
+// ---------------------------------------------------------------------------
+// Find in file (Cmd+F)
+// ---------------------------------------------------------------------------
+
+let findMatches = [];   // match start offsets in the current file
+let findIndex = -1;
+
+const findBarOpen = () => {
+    const bar = $('editor-find-bar');
+    return bar && bar.style.display !== 'none';
+};
+
+const openFindBar = () => {
+    const bar = $('editor-find-bar');
+    const ta = $('editor-textarea');
+    if (!bar || !ta || !currentFile) return;
+    bar.style.display = 'flex';
+    const input = $('find-input');
+    const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd);
+    if (sel && sel.length <= 100 && !sel.includes('\n')) input.value = sel;
+    input.focus();
+    input.select();
+    updateFindMatches(false);
+};
+
+const closeFindBar = () => {
+    const bar = $('editor-find-bar');
+    if (bar) bar.style.display = 'none';
+    findMatches = [];
+    findIndex = -1;
+    renderFindOverlay();
+    const ta = $('editor-textarea');
+    if (ta && ta.style.display !== 'none') ta.focus();
+};
+
+// Recompute matches (case-insensitive). jump moves the view to the first
+// match at/after the cursor; refreshes on typing pass jump=true so the
+// current match follows the query.
+const updateFindMatches = (jump) => {
+    const ta = $('editor-textarea');
+    const input = $('find-input');
+    if (!ta || !input) return;
+    const q = input.value.toLowerCase();
+    findMatches = [];
+    findIndex = -1;
+    if (q) {
+        const text = ta.value.toLowerCase();
+        let idx = 0;
+        while ((idx = text.indexOf(q, idx)) !== -1 && findMatches.length < 5000) {
+            findMatches.push(idx);
+            idx += q.length;
+        }
+    }
+    if (findMatches.length) {
+        findIndex = findMatches.findIndex(m => m >= ta.selectionStart);
+        if (findIndex === -1) findIndex = 0;
+        if (jump) scrollToFindMatch();
+    }
+    renderFindOverlay();
+    updateFindCount();
+};
+
+const findNext = (dir) => {
+    if (!findMatches.length) return;
+    findIndex = (findIndex + dir + findMatches.length) % findMatches.length;
+    scrollToFindMatch();
+    renderFindOverlay();
+    updateFindCount();
+};
+
+const scrollToFindMatch = () => {
+    const ta = $('editor-textarea');
+    const q = $('find-input').value;
+    if (!ta || findIndex < 0) return;
+    const start = findMatches[findIndex];
+    ta.setSelectionRange(start, start + q.length);
+    const line = ta.value.slice(0, start).split('\n').length - 1;
+    const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || 22;
+    ta.scrollTop = Math.max(0, line * lineHeight - ta.clientHeight / 2);
+    ta.dispatchEvent(new Event('scroll'));
+};
+
+const updateFindCount = () => {
+    const el = $('find-count');
+    if (!el) return;
+    el.textContent = findMatches.length
+        ? `${findIndex + 1}/${findMatches.length}`
+        : ($('find-input').value ? '0/0' : '');
+};
+
+const renderFindOverlay = () => {
+    const layer = $('editor-search-layer');
+    const ta = $('editor-textarea');
+    if (!layer || !ta) return;
+    if (!findMatches.length || !findBarOpen()) { layer.innerHTML = ''; return; }
+    const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const text = ta.value;
+    const qLen = $('find-input').value.length;
+    const parts = [];
+    let last = 0;
+    findMatches.forEach((m, i) => {
+        parts.push(esc(text.slice(last, m)));
+        parts.push(`<mark${i === findIndex ? ' class="current"' : ''}>${esc(text.slice(m, m + qLen))}</mark>`);
+        last = m + qLen;
+    });
+    parts.push(esc(text.slice(last)), '\n');
+    layer.innerHTML = parts.join('');
+    layer.scrollTop = ta.scrollTop;
+    layer.scrollLeft = ta.scrollLeft;
+};
+
+// ---------------------------------------------------------------------------
+// Pre-run syntax check
+//
+// The open file is parse-checked as you type. JS is validated by injecting a
+// never-invoked function-expression <script> — a parse failure fires the
+// window error event synchronously with a real line/col, which new Function()
+// doesn't provide. Nothing executes either way: on success the script only
+// evaluates `void function(){...}`.
+// ---------------------------------------------------------------------------
+
+let syntaxCheckTimer = null;
+let syntaxError = null; // { path, line, message }
+
+const checkJSSyntax = (source) => {
+    let err = null;
+    const handler = (e) => {
+        err = { message: e.message || 'Syntax error', line: e.lineno };
+        e.preventDefault();
+    };
+    window.addEventListener('error', handler);
+    const script = document.createElement('script');
+    // The wrapper adds one line above the user's code — subtracted below.
+    script.textContent = 'void function(){\n' + source + '\n};';
+    document.head.appendChild(script);
+    document.head.removeChild(script);
+    window.removeEventListener('error', handler);
+    if (!err) return null;
+    const lineCount = source.split('\n').length;
+    return {
+        message: err.message.replace(/^Uncaught /, ''),
+        line: Math.min(lineCount, Math.max(1, (err.line || 1) - 1)),
+    };
+};
+
+const runSyntaxCheck = () => {
+    if (!currentFile || viewingVersion) { setSyntaxError(null); return; }
+    const path = currentFile.path;
+    const file = openFiles[path];
+    if (!file) { setSyntaxError(null); return; }
+
+    if (path.endsWith('.json')) {
+        try {
+            JSON.parse(file.content);
+            setSyntaxError(null);
+        } catch (e) {
+            const m = /position (\d+)/.exec(e.message);
+            const line = m ? file.content.slice(0, Number(m[1])).split('\n').length : null;
+            setSyntaxError({ path, line, message: e.message });
+        }
+        return;
+    }
+    if (!path.endsWith('.js') && !path.endsWith('.mjs')) { setSyntaxError(null); return; }
+    const err = checkJSSyntax(file.content);
+    setSyntaxError(err ? { path, line: err.line, message: err.message } : null);
+};
+
+const scheduleSyntaxCheck = () => {
+    clearTimeout(syntaxCheckTimer);
+    syntaxCheckTimer = setTimeout(runSyntaxCheck, 400);
+};
+
+const setSyntaxError = (err) => {
+    syntaxError = err;
+    const bar = $('syntax-error-bar');
+    if (bar) {
+        if (err) {
+            bar.textContent = '⚠ ' + (err.line ? `Line ${err.line}: ` : '') + err.message;
+            bar.style.display = '';
+        } else {
+            bar.style.display = 'none';
+        }
+    }
+    updateHighlight(); // repaints the gutter's error marker
+};
+
+const jumpToSyntaxError = () => {
+    const ta = $('editor-textarea');
+    if (!ta || !syntaxError || !syntaxError.line || !currentFile || currentFile.path !== syntaxError.path) return;
+    const lines = ta.value.split('\n');
+    const offset = lines.slice(0, syntaxError.line - 1).join('\n').length + (syntaxError.line > 1 ? 1 : 0);
+    ta.setSelectionRange(offset, offset + (lines[syntaxError.line - 1] || '').length);
+    const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || 22;
+    ta.scrollTop = Math.max(0, (syntaxError.line - 1) * lineHeight - ta.clientHeight / 2);
+    ta.dispatchEvent(new Event('scroll'));
+    ta.focus();
 };
 
 // ---------------------------------------------------------------------------
@@ -1181,15 +1571,34 @@ const renderFileTree = () => {
         (dir ? folderNode(dir) : root).files.push(file);
     });
 
+    const fileAction = (glyph, title, onClick) => {
+        const btn = document.createElement('span');
+        btn.className = 'file-action';
+        btn.textContent = glyph;
+        btn.title = title;
+        btn.onclick = (e) => { e.stopPropagation(); onClick(); };
+        return btn;
+    };
+
     const renderLevel = (node, prefix, depth) => {
         Object.keys(node.folders).sort((a, b) => a.localeCompare(b)).forEach(name => {
             const folderPath = prefix ? `${prefix}/${name}` : name;
             const el = document.createElement('div');
             el.className = 'file-item folder';
             el.style.paddingLeft = (10 + depth * 14) + 'px';
-            el.textContent = name + '/';
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'file-item-name';
+            nameSpan.textContent = name + '/';
+            el.appendChild(nameSpan);
             el.title = folderPath;
             addDropTarget(el, folderPath);
+            const isEmpty = !fileTree.some(f => f.path.startsWith(folderPath + '/'));
+            if (!viewingVersion && isEmpty) {
+                const actions = document.createElement('span');
+                actions.className = 'file-item-actions';
+                actions.appendChild(fileAction('✕', 'Delete folder', () => deleteEmptyFolder(folderPath)));
+                el.appendChild(actions);
+            }
             list.appendChild(el);
             renderLevel(node.folders[name], folderPath, depth + 1);
         });
@@ -1199,7 +1608,10 @@ const renderFileTree = () => {
             const isDirty = !viewingVersion && openFiles[file.path]?.dirty;
             el.className = 'file-item' + (isActive ? ' active' : '') + (isDirty ? ' dirty' : '');
             el.style.paddingLeft = (10 + depth * 14) + 'px';
-            el.textContent = file.path.split('/').pop();
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'file-item-name';
+            nameSpan.textContent = file.path.split('/').pop();
+            el.appendChild(nameSpan);
             el.title = file.path;
             el.onclick = () => openFile(file);
             if (!viewingVersion) {
@@ -1208,6 +1620,11 @@ const renderFileTree = () => {
                 el.ondragend = () => { dragSrcPath = null; };
                 // Dropping onto a file moves into that file's folder
                 addDropTarget(el, prefix);
+                const actions = document.createElement('span');
+                actions.className = 'file-item-actions';
+                actions.appendChild(fileAction('✎', 'Rename', () => openRenameModal(file.path)));
+                actions.appendChild(fileAction('✕', 'Delete', () => confirmDeleteFile(file.path)));
+                el.appendChild(actions);
             }
             list.appendChild(el);
         });
@@ -1216,15 +1633,18 @@ const renderFileTree = () => {
 };
 
 // ---------------------------------------------------------------------------
-// Move file (drag & drop). A move is staged like an edit: the file becomes a
-// dirty "create" at the new path and the old path is queued for deletion on
+// Move (drag & drop) / rename. Both are staged like an edit: the file becomes
+// a dirty "create" at the new path and the old path is queued for deletion on
 // the next Save Version.
 // ---------------------------------------------------------------------------
 
 const moveFile = (srcPath, destFolder) => {
-    if (viewingVersion || llmJob) return;
     const name = srcPath.split('/').pop();
-    const newPath = destFolder ? `${destFolder}/${name}` : name;
+    relocateFile(srcPath, destFolder ? `${destFolder}/${name}` : name);
+};
+
+const relocateFile = (srcPath, newPath) => {
+    if (viewingVersion || llmJob) return;
     if (newPath === srcPath) return;
     if (openFiles[newPath] || fileTree.find(f => f.path === newPath)) {
         setStatus(`${newPath} already exists`);
@@ -1245,7 +1665,7 @@ const moveFile = (srcPath, destFolder) => {
         renderFileTree();
         renderTabs();
         updateSaveButton();
-        saveGuestDraft();
+        saveDraft();
     };
 
     const open = openFiles[srcPath];
@@ -1298,6 +1718,10 @@ const openFile = (file) => {
                 }
                 if (placeholder) placeholder.style.display = 'none';
                 renderTabs();
+            } else if (openFiles[file.path]) {
+                // A draft restore landed while this fetch was in flight —
+                // the drafted content wins over the committed content.
+                switchToFile(file.path);
             } else {
                 openFiles[file.path] = { content, sha: data.sha, dirty: false, original: content };
                 switchToFile(file.path);
@@ -1329,11 +1753,14 @@ const showEditor = () => {
         if (editorWrap) editorWrap.style.display = '';
         if (placeholder) placeholder.style.display = 'none';
         updateHighlight();
+        if (findBarOpen()) updateFindMatches(false);
+        runSyntaxCheck();
         textarea.focus();
     } else {
         textarea.style.display = 'none';
         if (editorWrap) editorWrap.style.display = 'none';
         if (placeholder) placeholder.style.display = 'flex';
+        setSyntaxError(null);
     }
 };
 
@@ -1407,7 +1834,84 @@ const createNewFile = () => {
     switchToFile(name);
     renderFileTree();
     updateSaveButton();
-    saveGuestDraft();
+    saveDraft();
+};
+
+// ---------------------------------------------------------------------------
+// Rename / delete file
+// ---------------------------------------------------------------------------
+
+let renameSrcPath = null;
+
+const openRenameModal = (path) => {
+    if (viewingVersion) return;
+    if (llmJob) { alert('An AI edit is in progress — wait for it to finish'); return; }
+    renameSrcPath = path;
+    showModal('rename-file-modal', 'rename-file-name');
+    const input = $('rename-file-name');
+    input.value = path;
+    // Preselect the file name so typing replaces it but the folder is kept
+    input.setSelectionRange(path.lastIndexOf('/') + 1, path.length);
+};
+
+const submitRename = () => {
+    if (!renameSrcPath) return;
+    const errorEl = $('rename-file-error');
+    const newPath = $('rename-file-name').value.trim().replace(/^\/+|\/+$/g, '');
+    errorEl.textContent = '';
+    if (!newPath) { errorEl.textContent = 'File name required'; return; }
+    if (newPath.split('/').some(p => !p || p === '.' || p === '..')) {
+        errorEl.textContent = 'Invalid name'; return;
+    }
+    if (newPath !== renameSrcPath) {
+        if (openFiles[newPath] || fileTree.find(f => f.path === newPath)) {
+            errorEl.textContent = 'File already exists'; return;
+        }
+        relocateFile(renameSrcPath, newPath);
+    }
+    renameSrcPath = null;
+    hideModal('rename-file-modal');
+};
+
+let pendingDeleteFile = null;
+
+const confirmDeleteFile = (path) => {
+    if (viewingVersion) return;
+    if (llmJob) { alert('An AI edit is in progress — wait for it to finish'); return; }
+    pendingDeleteFile = path;
+    $('file-delete-confirm-text').textContent = `Delete "${path}"? It will be removed from your game on the next Save Version.`;
+    showModal('file-delete-confirm-modal');
+};
+
+// Deleting is staged like a move: committed files are queued in
+// pendingDeletions for the next Save Version; never-saved files just vanish.
+const deleteFile = (path) => {
+    if (viewingVersion || llmJob) return;
+    const open = openFiles[path];
+    const entry = fileTree.find(f => f.path === path);
+    const committedSha = (open && open.sha) || (entry && entry.sha) || null;
+    if (committedSha) pendingDeletions.push({ path, sha: committedSha });
+    delete openFiles[path];
+    fileTree = fileTree.filter(f => f.path !== path);
+    if (currentFile && currentFile.path === path) {
+        const next = Object.keys(openFiles)[0];
+        currentFile = next ? { path: next } : null;
+    }
+    renderFileTree();
+    renderTabs();
+    showEditor();
+    updateSaveButton();
+    saveDraft();
+};
+
+// Client-side empty folders can be removed outright — git never knew about them.
+const deleteEmptyFolder = (folderPath) => {
+    if (viewingVersion || llmJob) return;
+    if (fileTree.some(f => f.path.startsWith(folderPath + '/'))) return;
+    extraFolders.forEach(f => {
+        if (f === folderPath || f.startsWith(folderPath + '/')) extraFolders.delete(f);
+    });
+    renderFileTree();
 };
 
 // ---------------------------------------------------------------------------
@@ -1451,6 +1955,7 @@ const saveVersion = () => {
             if (data.dirty) { data.dirty = false; data.original = data.content; }
         }
         pendingDeletions = [];
+        saveDraft(); // working set is clean — drops the local draft
         btn.textContent = 'Save Version';
         if (commitMsgEl) commitMsgEl.value = '';
         updateSaveButton();
@@ -1501,8 +2006,13 @@ const claimGuestGame = () => {
                 const dirtyFiles = Object.entries(openFiles)
                     .filter(([, f]) => f.dirty)
                     .map(([path, f]) => ({ path, content: f.content, sha: shaByPath[path] }));
-                if (dirtyFiles.length === 0) return game;
-                return api('POST', `/studio/games/${game.id}/save`, { files: dirtyFiles, message }).then(() => game);
+                // A guest game keeps every file in openFiles, so any template
+                // file missing from it was deleted (or moved away) locally.
+                const deletions = Object.entries(shaByPath)
+                    .filter(([path]) => !openFiles[path])
+                    .map(([path, sha]) => ({ path, sha }));
+                if (dirtyFiles.length === 0 && deletions.length === 0) return game;
+                return api('POST', `/studio/games/${game.id}/save`, { files: dirtyFiles, deletions, message }).then(() => game);
             })
         )
         .then(game => {
@@ -1929,6 +2439,17 @@ $('new-game-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $
 $('new-file-cancel').onclick = () => hideModal('new-file-modal');
 $('new-file-create').onclick = createNewFile;
 $('new-file-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createNewFile(); });
+
+$('rename-file-cancel').onclick = () => { renameSrcPath = null; hideModal('rename-file-modal'); };
+$('rename-file-ok').onclick = submitRename;
+$('rename-file-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') submitRename(); });
+
+$('file-delete-cancel').onclick = () => { pendingDeleteFile = null; hideModal('file-delete-confirm-modal'); };
+$('file-delete-ok').onclick = () => {
+    if (pendingDeleteFile) deleteFile(pendingDeleteFile);
+    pendingDeleteFile = null;
+    hideModal('file-delete-confirm-modal');
+};
 document.querySelectorAll('input[name="new-file-type"]').forEach(radio => {
     radio.onchange = () => {
         const isFolder = newFileType() === 'folder';
@@ -1965,22 +2486,369 @@ const showLLMModal = () => {
     showModal('llm-modal', 'llm-prompt-input');
 };
 
+// Banner scene: the AI edit queue, live. One polygonal robot per queued
+// request waits in line outside the worker's cave — yours marked with a
+// bouncing arrow. The front robot walks in whenever the worker picks up a
+// job (sparks fly while it's busy), new robots wander in from the left as
+// other requests arrive, and when your edit lands your robot walks back home
+// with a gem. Queue counts come from the llm-status poll; falls back to the
+// plain spinner under prefers-reduced-motion.
+const AI_SCENE = { w: 210, h: 40, ground: 36, home: 16, mouth: 174, frontSlot: 146, slotGap: 16, maxShown: 8 };
+let aiAnim = null;
+
+const aiAnimNewRobot = (x, opts) => ({
+    x, target: x, speed: 55,
+    kind: 'line',                    // 'line' | 'enter' | 'leave' | 'return'
+    mine: !!(opts && opts.mine),
+    popIn: !!(opts && opts.popIn),   // materialize standing (was queued before we joined)
+    alpha: opts && opts.popIn ? 0 : 1,
+    cycle: Math.random() * Math.PI * 2,
+    idleT: 0, blink: 0, nextBlink: 1 + Math.random() * 4,
+});
+
+const stopAIAnim = () => {
+    if (!aiAnim) return;
+    cancelAnimationFrame(aiAnim.raf);
+    aiAnim = null;
+};
+
+const aiAnimPoly = (ctx, pts) => {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath();
+    ctx.fill();
+};
+
+const aiAnimRobot = (ctx, c, r, hopY) => {
+    const S = AI_SCENE;
+    // Fade through the last few px of the mouth so robots "enter" the dark
+    const nearMouth = r.x > S.mouth - 10 ? Math.max(0, Math.min(1, (S.mouth + 4 - r.x) / 14)) : 1;
+    const alpha = r.alpha * nearMouth;
+    if (alpha <= 0.01) return;
+    const g = S.ground, x = r.x;
+    const dir = r.kind === 'return' ? -1 : 1;
+    const swing = Math.sin(r.cycle) * 3.5 * Math.max(0, 1 - r.idleT * 6);
+    const bob = Math.sin(r.cycle * 2) * 0.7;
+    ctx.save();
+    ctx.translate(0, hopY || 0);
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = c.body;
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x - 2, g - 7 + bob); ctx.lineTo(x - 2 + swing, g);
+    ctx.moveTo(x + 2, g - 7 + bob); ctx.lineTo(x + 2 - swing, g);
+    ctx.moveTo(x - 5, g - 14 + bob); ctx.lineTo(x - 6 - swing * 0.8, g - 8 + bob);
+    ctx.moveTo(x + 5, g - 14 + bob); ctx.lineTo(x + 6 + swing * 0.8, g - 8 + bob);
+    ctx.stroke();
+    ctx.fillStyle = c.body;
+    aiAnimPoly(ctx, [[x - 5, g - 7 + bob], [x + 5, g - 7 + bob], [x + 4, g - 16 + bob], [x - 4, g - 16 + bob]]);
+    aiAnimPoly(ctx, [[x - 4, g - 17 + bob], [x + 4, g - 17 + bob], [x + 4, g - 24 + bob], [x - 4, g - 24 + bob]]);
+    if (r.blink <= 0) {
+        ctx.fillStyle = c.accent;
+        ctx.fillRect(x + (dir > 0 ? 1 : -3), g - 22 + bob, 2, 2);
+    }
+    ctx.strokeStyle = c.body;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, g - 24 + bob); ctx.lineTo(x, g - 27 + bob); ctx.stroke();
+    ctx.fillStyle = c.accent;
+    ctx.fillRect(x - 1, g - 29 + bob, 2, 2);
+    if (r.kind === 'return') {
+        const gy = g - 33 + bob;
+        aiAnimPoly(ctx, [[x, gy - 3], [x + 3, gy], [x, gy + 3], [x - 3, gy]]);
+    }
+    ctx.restore();
+};
+
+const aiAnimDraw = (now) => {
+    const a = aiAnim, c = a.colors, ctx = a.ctx, S = AI_SCENE;
+    ctx.clearRect(0, 0, S.w, S.h);
+    ctx.strokeStyle = c.cave;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, S.ground + 0.5); ctx.lineTo(S.w, S.ground + 0.5); ctx.stroke();
+    ctx.fillStyle = c.cave;
+    aiAnimPoly(ctx, [[52, S.ground], [55, S.ground - 3], [58, S.ground]]);
+    aiAnimPoly(ctx, [[104, S.ground], [106, S.ground - 2], [108, S.ground]]);
+    aiAnimPoly(ctx, [[140, S.ground], [152, 16], [170, 10], [188, 14], [206, S.ground]]);
+    ctx.fillStyle = c.dark;
+    aiAnimPoly(ctx, [[160, S.ground], [164, 20], [176, 20], [180, S.ground]]);
+    if (a.caveBusy) {
+        ctx.save();
+        ctx.globalAlpha = 0.10 + 0.08 * Math.sin(now / 250);
+        ctx.fillStyle = c.accent;
+        aiAnimPoly(ctx, [[160, S.ground], [164, 20], [176, 20], [180, S.ground]]);
+        ctx.restore();
+        if (a.peek > 0) {
+            ctx.fillStyle = c.accent;
+            ctx.fillRect(167, 26, 2, 2);
+            ctx.fillRect(171, 26, 2, 2);
+        }
+    }
+    for (const s of a.sparks) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, s.life / s.maxLife);
+        ctx.fillStyle = s.green ? c.accent : c.spark;
+        aiAnimPoly(ctx, [[s.x, s.y - 2], [s.x + 2, s.y + 1], [s.x - 2, s.y + 1]]);
+        ctx.restore();
+    }
+    for (const r of a.line) aiAnimRobot(ctx, c, r, 0);
+    for (const r of a.transients) {
+        const hopY = (a.phase === 'hop' && r.kind === 'return')
+            ? -Math.abs(Math.sin(a.hopT * Math.PI / 0.35)) * 5 : 0;
+        aiAnimRobot(ctx, c, r, hopY);
+    }
+    // Bouncing arrow over your robot while it waits its turn
+    if (a.phase === 'queue') {
+        const me = a.line.find(r => r.mine);
+        if (me && me.alpha > 0.5 && me.x > 0) {
+            const tipY = S.ground - 31 - Math.abs(Math.sin(now / 300)) * 1.5;
+            ctx.fillStyle = c.accent;
+            aiAnimPoly(ctx, [[me.x, tipY], [me.x - 2.5, tipY - 3.5], [me.x + 2.5, tipY - 3.5]]);
+        }
+    }
+    // Queue too long to draw: the tail waits off-screen
+    if (a.overflow > 0) {
+        ctx.fillStyle = c.body;
+        ctx.font = '9px amateur, monospace';
+        ctx.fillText(`+${a.overflow}`, 2, S.ground - 2);
+    }
+};
+
+const aiAnimStepRobot = (r, dt) => {
+    const d = r.target - r.x;
+    if (Math.abs(d) > 0.5) {
+        r.x += Math.sign(d) * Math.min(Math.abs(d), r.speed * dt);
+        r.cycle += dt * (r.speed / 6);
+        r.idleT = 0;
+    } else {
+        r.idleT += dt;
+        r.cycle += dt * 1.5; // gentle idle bob
+    }
+    if (r.popIn) { r.alpha = Math.min(1, r.alpha + dt * 3); if (r.alpha >= 1) r.popIn = false; }
+    if (r.kind === 'leave') r.alpha = Math.max(0, r.alpha - dt * 3);
+    r.nextBlink -= dt;
+    if (r.nextBlink <= 0) { r.blink = 0.12; r.nextBlink = 2 + Math.random() * 4; }
+    if (r.blink > 0) r.blink -= dt;
+};
+
+const aiAnimFrame = (now) => {
+    const a = aiAnim;
+    if (!a) return;
+    if (!a.canvas.isConnected) { stopAIAnim(); return; }
+    const dt = a.last ? Math.min((now - a.last) / 1000, 0.05) : 0.016;
+    a.last = now;
+    const S = AI_SCENE;
+
+    for (const r of a.line) aiAnimStepRobot(r, dt);
+    for (const r of a.transients) aiAnimStepRobot(r, dt);
+    a.transients = a.transients.filter(r => {
+        if (r.kind === 'enter') return r.x < r.target - 0.5; // swallowed by the cave
+        if (r.kind === 'leave') return r.alpha > 0;
+        return true;
+    });
+
+    if (a.phase === 'return') {
+        const me = a.transients.find(r => r.kind === 'return');
+        if (me && me.x <= S.home + 0.5) { a.phase = 'hop'; a.hopT = 0; }
+    } else if (a.phase === 'hop') {
+        a.hopT += dt;
+        if (a.hopT >= 0.75 && a.onDone) {
+            const done = a.onDone;
+            a.onDone = null;
+            done();
+            if (!aiAnim) return;
+        }
+    }
+
+    if (a.caveBusy) {
+        a.nextSpark -= dt;
+        if (a.nextSpark <= 0) {
+            a.nextSpark = 0.4 + Math.random() * 0.5;
+            const n = 2 + Math.floor(Math.random() * 2);
+            for (let i = 0; i < n; i++) a.sparks.push({
+                x: 167 + Math.random() * 6, y: 23,
+                vx: (Math.random() - 0.5) * 50, vy: -30 - Math.random() * 45,
+                life: 0.6 + Math.random() * 0.3, maxLife: 0.9,
+                green: Math.random() < 0.35,
+            });
+        }
+        a.nextPeek -= dt;
+        if (a.nextPeek <= 0) { a.peek = 0.5; a.nextPeek = 2.5 + Math.random() * 2.5; }
+        if (a.peek > 0) a.peek -= dt;
+    }
+    for (const s of a.sparks) { s.vy += 150 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt; }
+    a.sparks = a.sparks.filter(s => s.life > 0);
+    aiAnimDraw(now);
+    a.raf = requestAnimationFrame(aiAnimFrame);
+};
+
+const startAIAnim = (canvas) => {
+    stopAIAnim();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = AI_SCENE.w * dpr;
+    canvas.height = AI_SCENE.h * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const style = getComputedStyle(document.body);
+    const col = name => style.getPropertyValue(name).trim();
+    const me = aiAnimNewRobot(AI_SCENE.home, { mine: true });
+    me.target = AI_SCENE.frontSlot; // head for the front until the first queue snapshot
+    aiAnim = {
+        canvas, ctx,
+        colors: { body: col('--text-secondary'), cave: col('--border-light'), dark: col('--bg-deep'), accent: col('--accent-green'), spark: col('--accent-yellow') },
+        phase: 'queue', line: [me], transients: [],
+        caveBusy: false, overflow: 0,
+        sparks: [], nextSpark: 0, peek: 0, nextPeek: 0, hopT: 0, last: 0, onDone: null, raf: 0,
+    };
+    aiAnim.raf = requestAnimationFrame(aiAnimFrame);
+};
+
+// Reconcile the drawn line with a queue snapshot from the llm-status poll.
+// Front robots that disappeared walk into the cave; new arrivals walk in
+// from the left and join the back; robots queued before we started watching
+// materialize in place. Also refreshes the banner label (which works even
+// under reduced motion, where there's no aiAnim).
+const setAIQueue = (status, queue) => {
+    const ahead = queue.ahead || 0;
+    const behind = queue.behind || 0;
+    const busy = status === 'PROCESSING' || (queue.processing || 0) > 0;
+
+    const label = $('ai-banner-label');
+    if (label && llmJob) {
+        const stage = status === 'PROCESSING' ? 'Working on your game edit'
+            : ahead > 0 ? `Waiting in line — ${ahead} edit${ahead === 1 ? '' : 's'} ahead of yours`
+            : busy ? 'Next in line' : 'Waiting for the worker';
+        label.textContent = llmBannerText(stage);
+    }
+
+    const a = aiAnim;
+    if (!a || a.phase === 'return' || a.phase === 'hop') return;
+    a.caveBusy = busy;
+
+    // The worker picked ours up: into the cave. Anything still drawn ahead
+    // of us is stale (already processed) — fade it out rather than parading
+    // the whole front of the line through the mouth at once.
+    if (status === 'PROCESSING') {
+        if (a.phase !== 'work') {
+            a.phase = 'work';
+            const idx = a.line.findIndex(r => r.mine);
+            if (idx !== -1) {
+                const stale = a.line.splice(0, idx);
+                const me = a.line.shift();
+                me.kind = 'enter';
+                me.target = AI_SCENE.mouth + 4;
+                a.transients.push(me);
+                for (const r of stale) { r.kind = 'leave'; a.transients.push(r); }
+            }
+        }
+    } else {
+        let idx = a.line.findIndex(r => r.mine);
+        if (idx === -1) return; // shouldn't happen while queued
+        while (idx > ahead) {
+            // front of the line got its turn
+            const front = a.line.shift();
+            front.kind = 'enter';
+            front.target = AI_SCENE.mouth + 4;
+            a.transients.push(front);
+            idx--;
+        }
+        while (idx < ahead) {
+            a.line.unshift(aiAnimNewRobot(0, { popIn: true }));
+            idx++;
+        }
+        let curBehind = a.line.length - 1 - idx;
+        // New requests walk in from the left; stagger spawns so a batch
+        // arrives as a line, not a stack.
+        let spawnX = -14;
+        for (const r of a.line) spawnX = Math.min(spawnX, r.x - AI_SCENE.slotGap);
+        while (curBehind < behind) {
+            a.line.push(aiAnimNewRobot(spawnX));
+            spawnX -= AI_SCENE.slotGap;
+            curBehind++;
+        }
+        while (curBehind > behind) {
+            const gone = a.line.pop(); // cancelled — fades out where it stood
+            gone.kind = 'leave';
+            a.transients.push(gone);
+            curBehind--;
+        }
+    }
+
+    a.line.forEach((r, i) => {
+        r.target = i < AI_SCENE.maxShown ? AI_SCENE.frontSlot - i * AI_SCENE.slotGap : -14;
+        if (r.popIn && r.x === 0) r.x = r.target;
+    });
+    a.overflow = Math.max(0, a.line.length - AI_SCENE.maxShown);
+};
+
+// Send your robot home with the goods; onDone fires after it hops in
+// celebration. Returns false when there's no animation to play (reduced
+// motion / no canvas).
+const aiAnimReturn = (onDone) => {
+    if (!aiAnim || aiAnim.onDone) return false;
+    const a = aiAnim;
+    const idx = a.line.findIndex(r => r.mine);
+    // If completion beat the PROCESSING poll, it still went through the cave
+    // — we just missed it. Emerge from the mouth either way.
+    const me = idx !== -1 ? a.line.splice(idx, 1)[0] : aiAnimNewRobot(0, { mine: true });
+    me.kind = 'return';
+    me.x = AI_SCENE.mouth + 4;
+    me.target = AI_SCENE.home;
+    me.speed = 75;
+    me.alpha = 1;
+    me.popIn = false;
+    a.transients.push(me);
+    a.phase = 'return';
+    a.caveBusy = false;
+    a.onDone = onDone;
+    return true;
+};
+
+const llmBannerText = (stage) => {
+    const prompt = (llmJob && llmJob.prompt) || '';
+    const shortPrompt = prompt.length > 120 ? prompt.substring(0, 117) + '…' : prompt;
+    return `${stage}${shortPrompt ? ` — “${shortPrompt}”` : ''}. The editor is read-only until it finishes.`;
+};
+
+const hideLLMBanner = (banner) => {
+    stopAIAnim();
+    banner.innerHTML = '';
+    banner.style.display = 'none';
+    delete banner.dataset.jobId;
+};
+
 const updateLLMBanner = () => {
     const banner = $('ai-banner');
     if (!banner) return;
+    if (!llmJob) {
+        // A completed job keeps the banner up until the robot makes it home.
+        if (aiAnim && aiAnim.onDone) return;
+        hideLLMBanner(banner);
+        return;
+    }
+    if (banner.dataset.jobId === llmJob.requestId) return; // already showing this job
+    banner.dataset.jobId = llmJob.requestId;
     banner.innerHTML = '';
-    if (!llmJob) { banner.style.display = 'none'; return; }
     banner.style.display = 'flex';
 
-    const spin = document.createElement('span');
-    spin.className = 'spinner';
-    banner.appendChild(spin);
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        stopAIAnim();
+        const spin = document.createElement('span');
+        spin.className = 'spinner';
+        banner.appendChild(spin);
+    } else {
+        const canvas = document.createElement('canvas');
+        canvas.id = 'ai-banner-canvas';
+        canvas.style.width = AI_SCENE.w + 'px';
+        canvas.style.height = AI_SCENE.h + 'px';
+        banner.appendChild(canvas);
+        startAIAnim(canvas);
+    }
 
     const label = document.createElement('span');
     label.id = 'ai-banner-label';
-    const prompt = llmJob.prompt || '';
-    const shortPrompt = prompt.length > 120 ? prompt.substring(0, 117) + '…' : prompt;
-    label.textContent = `Working on your game edit${shortPrompt ? ` — “${shortPrompt}”` : ''}. The editor is read-only until it finishes.`;
+    label.textContent = llmBannerText('In line for the AI worker');
     banner.appendChild(label);
 
     const cancelBtn = document.createElement('button');
@@ -2005,6 +2873,16 @@ const setEditorLock = () => {
 // so drop them and let loadFiles reopen index.js fresh.
 const finishLLMJob = (outcome, message) => {
     llmJob = null;
+    // On success, let the robot walk back out of the cave before the banner
+    // goes away (updateLLMBanner leaves it up while onDone is pending); the
+    // editor unlocks immediately regardless.
+    const banner = $('ai-banner');
+    if (outcome === 'COMPLETED' && banner && aiAnimReturn(() => hideLLMBanner(banner))) {
+        const label = $('ai-banner-label');
+        if (label) label.textContent = message || 'Done!';
+        const cancelBtn = $('ai-banner-cancel');
+        if (cancelBtn) cancelBtn.remove();
+    }
     setEditorLock();
     if (message) setStatus(message);
     if (outcome === 'COMPLETED') {
@@ -2047,7 +2925,11 @@ const pollLLMStatus = (gameId, requestId) => {
         api('GET', `/studio/games/${gameId}/llm-status?id=${encodeURIComponent(requestId)}`, null, { silent: true })
             .then(data => {
                 const r = data.request;
-                if (!r || r.status === 'PENDING' || r.status === 'PROCESSING') { setTimeout(poll, 5000); return; }
+                if (!r || r.status === 'PENDING' || r.status === 'PROCESSING') {
+                    if (r) setAIQueue(r.status, r.queue || {});
+                    setTimeout(poll, 5000);
+                    return;
+                }
                 if (r.status === 'COMPLETED') {
                     finishLLMJob('COMPLETED', 'AI edit saved as a new version — your prompt is the commit message.');
                 } else if (r.status === 'CANCELLED') {
@@ -2066,7 +2948,9 @@ const pollLLMStatus = (gameId, requestId) => {
                 setTimeout(poll, 8000);
             });
     };
-    setTimeout(poll, 3000);
+    // First poll comes quickly so the queue line materializes before your
+    // robot finishes its walk to the front.
+    setTimeout(poll, 1200);
 };
 
 const cancelLLMJob = () => {
@@ -2131,8 +3015,27 @@ $('llm-modal-submit').onclick = () => {
         });
 };
 
+// Refresh/close protection: the draft makes this recoverable, but private
+// browsing (or a full localStorage) can't persist it — warn either way.
+window.addEventListener('beforeunload', (e) => {
+    if (currentGame && !currentGame.guest && hasUnsavedChanges()) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { hideModal('new-game-modal'); hideModal('new-file-modal'); hideModal('guide-modal'); hideModal('snippets-modal'); hideModal('llm-modal'); closeAssetModal(); hideModal('asset-delete-confirm-modal'); hideModal('profile-modal'); }
+    // Cmd+F targets the in-editor find whenever a file is open — browser
+    // page-find fights the highlight overlay and finds nothing useful.
+    if ((e.metaKey || e.ctrlKey) && e.key === 'f' && currentFile) {
+        const t = e.target;
+        const inOtherField = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')
+            && t.id !== 'editor-textarea' && t.id !== 'find-input';
+        const overlayUp = ['draw-overlay', 'record-overlay', 'keyboard-overlay']
+            .some((id) => $(id).classList.contains('visible'));
+        if (!inOtherField && !overlayUp) { e.preventDefault(); openFindBar(); }
+    }
+    if (e.key === 'Escape') { if (findBarOpen()) closeFindBar(); hideModal('new-game-modal'); hideModal('new-file-modal'); hideModal('rename-file-modal'); hideModal('file-delete-confirm-modal'); hideModal('guide-modal'); hideModal('snippets-modal'); hideModal('llm-modal'); closeAssetModal(); hideModal('asset-delete-confirm-modal'); hideModal('profile-modal'); }
 });
 
 // ---------------------------------------------------------------------------
@@ -2765,6 +3668,8 @@ const fetchPreviewAssetBundle = (files) => {
 // session, so restarts are instant and cost nothing. The hosted path
 // (_doStartPreview) remains for shareable multi-device previews.
 const _doStartLocalPreview = (files) => {
+    // Keep the inspector across restarts — it records the new session afresh
+    const wasInspecting = inspectorOn;
     stopPreview();
 
     const playBtn = $('preview-play-btn');
@@ -2784,6 +3689,11 @@ const _doStartLocalPreview = (files) => {
                 setPreviewStatus('Running locally — click the code to edit');
                 if (playBtn) { playBtn.textContent = 'Restart'; playBtn.disabled = false; }
                 if (stopBtn) stopBtn.style.display = '';
+                const inspectBtn = $('preview-inspect-btn');
+                if (inspectBtn) inspectBtn.style.display = '';
+                const playerBtn = $('preview-player2-btn');
+                if (playerBtn) playerBtn.style.display = '';
+                if (wasInspecting && !inspectorOn) toggleInspector();
                 showOnlinePreviewOffer();
             },
             onError: (err) => {
@@ -3118,6 +4028,7 @@ const stopPreview = () => {
         previewClient = null;
     }
     previewSessionId = null;
+    previewFrozen = false;
 
     setPreviewStatus('');
     clearPreviewShareLink();
@@ -3125,21 +4036,484 @@ const stopPreview = () => {
     resetPreviewButtons();
 };
 
+// Stop with the inspector open: end the simulation but keep the session's
+// view (and every recorded frame) around, so nothing new overwrites what's
+// being inspected. Scrubbing, the tree, halos, and pick all keep working
+// against the frozen recording; Run tears it down and starts fresh.
+const freezePreview = () => {
+    if (!previewClient || !previewClient.freeze) { stopPreview(); return; }
+    previewClient.freeze();
+    previewFrozen = true;
+    stopLocalLogCapture();
+    setPreviewStatus('Stopped — inspecting the recording. Hit Run to play again.');
+    const playBtn = $('preview-play-btn');
+    if (playBtn) { playBtn.textContent = 'Run'; playBtn.disabled = false; }
+    const stopBtn = $('preview-stop-btn');
+    if (stopBtn) stopBtn.style.display = 'none';
+    const playerBtn = $('preview-player2-btn');
+    if (playerBtn) playerBtn.style.display = 'none';
+    resetSecondPlayer();
+    window.dispatchEvent(new Event('resize')); // primary view reclaims the split
+    updateInspectorScrubber();
+};
+
+// The Stop button freezes instead of tearing down while the inspector is
+// recording — stopping is exactly when you want the frames to stay put.
+const stopOrFreezePreview = () => {
+    if (inspectorOn && previewMode === 'local' && !previewFrozen) freezePreview();
+    else stopPreview();
+};
+
 const resetPreviewButtons = () => {
     const playBtn = $('preview-play-btn');
     const stopBtn = $('preview-stop-btn');
     if (playBtn) { playBtn.textContent = 'Run'; playBtn.disabled = false; }
     if (stopBtn) stopBtn.style.display = 'none';
+    const inspectBtn = $('preview-inspect-btn');
+    if (inspectBtn) inspectBtn.style.display = 'none';
+    const playerBtn = $('preview-player2-btn');
+    if (playerBtn) playerBtn.style.display = 'none';
+    resetInspector();
+    resetSecondPlayer();
+};
+
+// ---------------------------------------------------------------------------
+// Tree inspector (local preview only)
+//
+// While enabled, LocalSession emits a snapshot per squisher flush:
+// { time, buf, tree } — buf is the squished frame (re-renderable on the game
+// canvas), tree a JSON walk of the game's node tree at that moment. Snapshots
+// land in a ring buffer; the scrubber picks a frame (pinning it to the game
+// canvas, inputs detached), and clicking a tree node draws a halo around it
+// in the game view. While following live, the halo tracks the node.
+// ---------------------------------------------------------------------------
+
+const INSPECTOR_MAX_FRAMES = 600;
+const INSPECTOR_MAX_INPUTS = 500;
+let inspectorOn = false;
+let inspectorFrames = [];
+let inspectorFrameIndex = -1;       // -1 = follow live
+let inspectorSelectedNodeId = null;
+let inspectorCollapsedIds = new Set();
+let inspectorLastTreeAt = 0;
+let inspectorInputs = [];           // { time, type, key? } while recording
+let inspectorLastTicksAt = 0;
+let inspectorPickActive = false;
+
+const toggleInspector = () => {
+    if (inspectorOn) { resetInspector(); return; }
+    if (!previewClient || previewMode !== 'local' || !previewClient.enableInspector) return;
+    inspectorOn = true;
+    inspectorFrames = [];
+    inspectorInputs = [];
+    inspectorFrameIndex = -1;
+    inspectorSelectedNodeId = null;
+    inspectorCollapsedIds = new Set();
+    const pane = $('preview-inspector');
+    if (pane) pane.style.display = '';
+    const btn = $('preview-inspect-btn');
+    if (btn) btn.classList.add('active');
+    previewClient.enableInspector(onInspectorSnapshot, onInspectorInput);
+    renderInspector();
+    updateInspectorScrubber();
+};
+
+const resetInspector = () => {
+    if (previewClient && previewClient.disableInspector) previewClient.disableInspector();
+    inspectorOn = false;
+    inspectorFrames = [];
+    inspectorInputs = [];
+    inspectorFrameIndex = -1;
+    inspectorSelectedNodeId = null;
+    setInspectorPickActive(false);
+    const pane = $('preview-inspector');
+    if (pane) pane.style.display = 'none';
+    const btn = $('preview-inspect-btn');
+    if (btn) btn.classList.remove('active');
+    const treeEl = $('inspector-tree');
+    if (treeEl) treeEl.innerHTML = '';
+    const detailEl = $('inspector-detail');
+    if (detailEl) detailEl.textContent = '';
+    const ticksEl = $('inspector-ticks');
+    if (ticksEl) ticksEl.innerHTML = '';
+};
+
+const onInspectorSnapshot = (snap) => {
+    if (!inspectorOn) return;
+    inspectorFrames.push(snap);
+    const overflow = inspectorFrames.length - INSPECTOR_MAX_FRAMES;
+    if (overflow > 0) {
+        inspectorFrames.splice(0, overflow);
+        // Keep a paused scrubber pointing at the same frame as it slides
+        if (inspectorFrameIndex >= 0) inspectorFrameIndex = Math.max(0, inspectorFrameIndex - overflow);
+        // Drop input events that fell off the recorded window
+        const t0 = inspectorFrames[0].time;
+        inspectorInputs = inspectorInputs.filter(evt => evt.time >= t0);
+    }
+    updateInspectorScrubber();
+    const now = Date.now();
+    // The time axis stretches with every snapshot, so tick positions drift —
+    // re-render on a throttle whether live or paused.
+    if (now - inspectorLastTicksAt > 200) {
+        inspectorLastTicksAt = now;
+        renderInspectorTicks();
+    }
+    // Following live: refresh the tree (throttled — a busy game flushes at
+    // tick rate) so the view and the selected node's halo track the game.
+    if (inspectorFrameIndex === -1 && now - inspectorLastTreeAt > 200) {
+        inspectorLastTreeAt = now;
+        renderInspector();
+    }
+};
+
+const onInspectorInput = (evt) => {
+    if (!inspectorOn) return;
+    inspectorInputs.push(evt);
+    if (inspectorInputs.length > INSPECTOR_MAX_INPUTS) {
+        inspectorInputs.splice(0, inspectorInputs.length - INSPECTOR_MAX_INPUTS);
+    }
+};
+
+// Input-event tick marks over the scrubber; clicking one jumps to the first
+// frame at/after the event.
+const renderInspectorTicks = () => {
+    const layer = $('inspector-ticks');
+    if (!layer) return;
+    layer.innerHTML = '';
+    if (inspectorFrames.length < 2 || !inspectorInputs.length) return;
+    const t0 = inspectorFrames[0].time;
+    const t1 = inspectorFrames[inspectorFrames.length - 1].time;
+    const span = Math.max(1, t1 - t0);
+    inspectorInputs.forEach(evt => {
+        if (evt.time < t0 || evt.time > t1) return;
+        const tick = document.createElement('div');
+        tick.className = 'inspector-tick' + (evt.type.indexOf('key') === 0 ? ' key' : '');
+        tick.style.left = (((evt.time - t0) / span) * 100) + '%';
+        tick.title = evt.type + (evt.key ? ' ' + evt.key : '');
+        tick.onclick = () => {
+            let idx = inspectorFrames.findIndex(f => f.time >= evt.time);
+            if (idx === -1) idx = inspectorFrames.length - 1;
+            selectInspectorFrame(idx);
+        };
+        layer.appendChild(tick);
+    });
+};
+
+const currentInspectorFrame = () => {
+    if (!inspectorFrames.length) return null;
+    return inspectorFrameIndex === -1
+        ? inspectorFrames[inspectorFrames.length - 1]
+        : inspectorFrames[inspectorFrameIndex];
+};
+
+const selectInspectorFrame = (idx) => {
+    if (!inspectorFrames.length || !previewClient) return;
+    inspectorFrameIndex = Math.max(0, Math.min(idx, inspectorFrames.length - 1));
+    previewClient.showFrame(inspectorFrames[inspectorFrameIndex].buf);
+    renderInspector();
+    updateInspectorScrubber();
+};
+
+const inspectorGoLive = () => {
+    inspectorFrameIndex = -1;
+    if (previewClient && previewClient.resumeLive) previewClient.resumeLive();
+    renderInspector();
+    updateInspectorScrubber();
+};
+
+const updateInspectorScrubber = () => {
+    const scrub = $('inspector-scrubber');
+    const label = $('inspector-frame-label');
+    const liveBtn = $('inspector-live-btn');
+    if (!scrub) return;
+    const live = inspectorFrameIndex === -1;
+    scrub.max = Math.max(0, inspectorFrames.length - 1);
+    if (live) scrub.value = scrub.max;
+    if (label) {
+        if (!inspectorFrames.length) {
+            label.textContent = 'recording…';
+        } else {
+            const idx = live ? inspectorFrames.length - 1 : inspectorFrameIndex;
+            const secs = ((inspectorFrames[idx].time - inspectorFrames[0].time) / 1000).toFixed(2);
+            label.textContent = `${idx + 1}/${inspectorFrames.length} · ${secs}s${live ? (previewFrozen ? ' · end' : ' · live') : ''}`;
+        }
+    }
+    if (liveBtn) {
+        liveBtn.style.display = live ? 'none' : '';
+        liveBtn.textContent = previewFrozen ? 'End' : 'Live';
+    }
+};
+
+const findInspectorNode = (nodes, id) => {
+    for (const node of nodes) {
+        if (node.id === id) return node;
+        const found = findInspectorNode(node.children || [], id);
+        if (found) return found;
+    }
+    return null;
+};
+
+// Halo polygon for a node, in the 0-100 space the client expects. Text has no
+// exact box in the snapshot (measurement lives in the renderer), so its halo
+// is a character-count approximation.
+const inspectorNodeBounds = (node) => {
+    if (node.coordinates2d && node.coordinates2d.length) return node.coordinates2d;
+    if (node.asset && node.asset.pos && node.asset.size) {
+        const { pos, size } = node.asset;
+        return [[pos.x, pos.y], [pos.x + size.x, pos.y], [pos.x + size.x, pos.y + size.y], [pos.x, pos.y + size.y]];
+    }
+    if (node.text) {
+        const w = Math.max(2, (node.text.text || '').length * node.text.size * 0.5);
+        const h = node.text.size * 1.8;
+        let x = node.text.x;
+        if (node.text.align === 'center') x -= w / 2;
+        else if (node.text.align === 'right') x -= w;
+        return [[x, node.text.y], [x + w, node.text.y], [x + w, node.text.y + h], [x, node.text.y + h]];
+    }
+    return null;
+};
+
+const inspectorNodeLabel = (node) => {
+    if (node.text) {
+        const t = node.text.text || '';
+        return '"' + (t.length > 24 ? t.slice(0, 24) + '…' : t) + '"';
+    }
+    if (node.asset) return '[' + node.asset.key + ']';
+    if (node.coordinates2d) return 'shape';
+    return 'node';
+};
+
+const selectInspectorNode = (id) => {
+    inspectorSelectedNodeId = inspectorSelectedNodeId === id ? null : id;
+    renderInspector();
+};
+
+const renderInspectorNode = (node, container, depth) => {
+    const row = document.createElement('div');
+    row.className = 'inspector-node' + (node.id === inspectorSelectedNodeId ? ' selected' : '');
+    row.style.paddingLeft = (4 + depth * 12) + 'px';
+
+    const hasKids = node.children && node.children.length > 0;
+    const collapsed = inspectorCollapsedIds.has(node.id);
+    const arrow = document.createElement('span');
+    arrow.className = 'inspector-arrow';
+    arrow.textContent = hasKids ? (collapsed ? '▸' : '▾') : '·';
+    if (hasKids) {
+        arrow.onclick = (e) => {
+            e.stopPropagation();
+            if (collapsed) inspectorCollapsedIds.delete(node.id);
+            else inspectorCollapsedIds.add(node.id);
+            renderInspector();
+        };
+    }
+    row.appendChild(arrow);
+
+    const label = document.createElement('span');
+    label.textContent = inspectorNodeLabel(node);
+    row.appendChild(label);
+
+    const idSpan = document.createElement('span');
+    idSpan.className = 'inspector-node-id';
+    idSpan.textContent = '#' + node.id;
+    row.appendChild(idSpan);
+
+    let badges = '';
+    if (node.clickable) badges += ' ⊙';
+    if (node.input) badges += ' ⌨';
+    if (node.playerIds) badges += ' p:' + node.playerIds.join(',');
+    if (badges) {
+        const badgeSpan = document.createElement('span');
+        badgeSpan.className = 'inspector-badge';
+        badgeSpan.textContent = badges;
+        row.appendChild(badgeSpan);
+    }
+
+    row.onclick = () => selectInspectorNode(node.id);
+    container.appendChild(row);
+
+    if (hasKids && !collapsed) {
+        node.children.forEach(child => renderInspectorNode(child, container, depth + 1));
+    }
+};
+
+const updateInspectorDetail = (frame) => {
+    const el = $('inspector-detail');
+    if (!el) return;
+    const node = (inspectorSelectedNodeId !== null && frame && frame.tree)
+        ? findInspectorNode(frame.tree, inspectorSelectedNodeId)
+        : null;
+    if (!node) {
+        el.textContent = inspectorSelectedNodeId !== null
+            ? 'Node #' + inspectorSelectedNodeId + ' is not in this frame'
+            : 'Click a node to highlight it in the game view';
+        return;
+    }
+    const parts = ['#' + node.id];
+    if (node.coordinates2d && node.coordinates2d.length) {
+        const xs = node.coordinates2d.map(p => p[0]);
+        const ys = node.coordinates2d.map(p => p[1]);
+        const fmt = (n) => Math.round(n * 10) / 10;
+        parts.push(`x ${fmt(Math.min(...xs))}–${fmt(Math.max(...xs))} · y ${fmt(Math.min(...ys))}–${fmt(Math.max(...ys))}`);
+    }
+    if (node.fill) parts.push('fill rgba(' + node.fill.join(',') + ')');
+    if (node.text) parts.push(`text "${node.text.text}" size ${node.text.size}`);
+    if (node.asset) parts.push('asset ' + node.asset.key);
+    if (node.playerIds) parts.push('players ' + node.playerIds.join(','));
+    if (node.clickable) parts.push('clickable');
+    if (node.input) parts.push('input:' + node.input);
+    parts.push(node.children.length + ' child' + (node.children.length === 1 ? '' : 'ren'));
+    el.textContent = parts.join('  ·  ');
+};
+
+const renderInspector = () => {
+    const treeEl = $('inspector-tree');
+    if (!treeEl || !inspectorOn) return;
+    const frame = currentInspectorFrame();
+    treeEl.innerHTML = '';
+    if (!frame || !frame.tree) {
+        treeEl.innerHTML = '<div class="inspector-empty">Waiting for frames…</div>';
+        return;
+    }
+    frame.tree.forEach((root, i) => {
+        if (frame.tree.length > 1) {
+            const layerHeader = document.createElement('div');
+            layerHeader.className = 'inspector-layer';
+            layerHeader.textContent = 'layer ' + i;
+            treeEl.appendChild(layerHeader);
+        }
+        renderInspectorNode(root, treeEl, 0);
+    });
+    updateInspectorDetail(frame);
+    if (previewClient && previewClient.setHighlight && !inspectorPickActive) {
+        const node = inspectorSelectedNodeId !== null ? findInspectorNode(frame.tree, inspectorSelectedNodeId) : null;
+        previewClient.setHighlight(node ? inspectorNodeBounds(node) : null);
+    }
+};
+
+// --- Pick mode: click a thing in the game view to select its node ---
+
+const pointInPolygon = (x, y, vs) => {
+    let inside = false;
+    for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+        if ((vs[i][1] > y) !== (vs[j][1] > y) &&
+            x < (vs[j][0] - vs[i][0]) * (y - vs[i][1]) / (vs[j][1] - vs[i][1]) + vs[i][0]) {
+            inside = !inside;
+        }
+    }
+    return inside;
+};
+
+// Topmost node containing the point, honoring the primary player's scoping —
+// same contract as the dispatcher's click resolution, but over the snapshot
+// tree so it works on pinned frames too.
+const inspectorHitTest = (roots, x, y) => {
+    const pid = previewClient ? previewClient.playerId : 1;
+    let hit = null;
+    const visit = (node) => {
+        if (node.playerIds && !node.playerIds.some(p => Number(p) === Number(pid))) return;
+        if (node.coordinates2d && node.coordinates2d.length && pointInPolygon(x, y, node.coordinates2d)) hit = node;
+        (node.children || []).forEach(visit);
+    };
+    roots.forEach(visit);
+    return hit;
+};
+
+const expandInspectorAncestors = (roots, id) => {
+    const dfs = (node) => {
+        if (node.id === id) return true;
+        for (const child of node.children || []) {
+            if (dfs(child)) { inspectorCollapsedIds.delete(node.id); return true; }
+        }
+        return false;
+    };
+    roots.forEach(dfs);
+};
+
+const setInspectorPickActive = (on) => {
+    inspectorPickActive = on;
+    const btn = $('inspector-pick-btn');
+    if (btn) btn.classList.toggle('active', on);
+};
+
+const toggleInspectorPick = () => {
+    if (!previewClient || !previewClient.enablePick) return;
+    if (inspectorPickActive) {
+        previewClient.disablePick();
+        setInspectorPickActive(false);
+        renderInspector(); // restore the selected node's halo
+        return;
+    }
+    if (!inspectorOn) return;
+    setInspectorPickActive(true);
+    previewClient.enablePick({
+        onMove: (x, y) => {
+            const frame = currentInspectorFrame();
+            if (x === null || !frame || !frame.tree) { previewClient.setHighlight(null); return; }
+            const hover = inspectorHitTest(frame.tree, x, y);
+            previewClient.setHighlight(hover ? inspectorNodeBounds(hover) : null);
+        },
+        onPick: (x, y) => {
+            setInspectorPickActive(false);
+            const frame = currentInspectorFrame();
+            const hit = (frame && frame.tree) ? inspectorHitTest(frame.tree, x, y) : null;
+            if (hit) {
+                inspectorSelectedNodeId = hit.id;
+                expandInspectorAncestors(frame.tree, hit.id);
+            }
+            renderInspector();
+            const row = document.querySelector('#inspector-tree .inspector-node.selected');
+            if (row) row.scrollIntoView({ block: 'nearest' });
+        },
+    });
+};
+
+// --- Second simulated player ---
+
+let secondPlayerId = null;
+
+const toggleSecondPlayer = () => {
+    if (!previewClient || previewMode !== 'local' || !previewClient.addPlayer) return;
+    const btn = $('preview-player2-btn');
+    const container = $('preview-container-2');
+    if (secondPlayerId !== null) {
+        previewClient.removePlayer(secondPlayerId);
+        secondPlayerId = null;
+        if (container) container.style.display = 'none';
+        if (btn) { btn.textContent = '+ Player'; btn.classList.remove('active'); }
+        window.dispatchEvent(new Event('resize')); // primary view reclaims the space
+        return;
+    }
+    if (container) container.style.display = '';
+    // Both containers must be laid out before the canvases are sized
+    window.dispatchEvent(new Event('resize'));
+    secondPlayerId = previewClient.addPlayer('preview-container-2');
+    if (secondPlayerId === null) {
+        if (container) container.style.display = 'none';
+        window.dispatchEvent(new Event('resize'));
+        return;
+    }
+    if (btn) { btn.textContent = '− Player'; btn.classList.add('active'); }
+};
+
+const resetSecondPlayer = () => {
+    // The session (and its extra players) is already gone — just the UI resets
+    secondPlayerId = null;
+    const container = $('preview-container-2');
+    if (container) container.style.display = 'none';
+    const btn = $('preview-player2-btn');
+    if (btn) { btn.textContent = '+ Player'; btn.classList.remove('active'); }
 };
 
 const updatePreview = () => {
-    // Hot-reload: stop the old session and start a new one with updated code
-    if (!previewClient) return;
+    // Hot-reload: stop the old session and start a new one with updated code.
+    // A frozen session is being inspected — editing code must not blow the
+    // recording away; the next explicit Run picks the edits up.
+    if (!previewClient || previewFrozen) return;
     startPreview();
 };
 
 const debouncedUpdatePreview = () => {
-    if (!previewClient) return;
+    if (!previewClient || previewFrozen) return;
     clearTimeout(previewDebounceTimer);
     previewDebounceTimer = setTimeout(updatePreview, 1000);
 };
@@ -4043,6 +5417,19 @@ let recStartTime = null;
 let recPausedDuration = 0;
 let recPauseStart = null;
 let recBlob = null;
+let recPreviewUrl = null;
+
+// Safari's MediaRecorder can't produce webm — pick the first container the
+// browser actually supports. null means no MediaRecorder at all.
+const AUDIO_REC_MIME = (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported)
+    ? (['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find(m => MediaRecorder.isTypeSupported(m)) || '')
+    : null;
+
+const makeAudioRecorder = (stream) => AUDIO_REC_MIME
+    ? new MediaRecorder(stream, { mimeType: AUDIO_REC_MIME })
+    : new MediaRecorder(stream);
+
+const audioRecExt = (mime) => (mime && mime.includes('mp4')) ? '.m4a' : '.webm';
 
 const formatRecTime = (ms) => {
     const secs = Math.floor(ms / 1000);
@@ -4081,6 +5468,7 @@ const openRecordOverlay = () => {
 
 const closeRecordOverlay = () => {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.onstop = null; // closing — nothing to preview
         mediaRecorder.stop();
     }
     if (recordingStream) {
@@ -4088,29 +5476,41 @@ const closeRecordOverlay = () => {
         recordingStream = null;
     }
     if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
+    if (recPreviewUrl) { URL.revokeObjectURL(recPreviewUrl); recPreviewUrl = null; }
     mediaRecorder = null;
     recBlob = null;
     $('record-overlay').classList.remove('visible');
 };
 
 const startRecording = () => {
+    if (AUDIO_REC_MIME === null) {
+        setStatus('Recording is not supported in this browser');
+        return;
+    }
     navigator.mediaDevices.getUserMedia({ audio: true })
         .then(stream => {
+            // The overlay may have been dismissed while the permission prompt
+            // was up — don't leave the mic running with no UI showing.
+            if (!$('record-overlay').classList.contains('visible')) {
+                stream.getTracks().forEach(t => t.stop());
+                return;
+            }
             recordingStream = stream;
             recordedChunks = [];
             recBlob = null;
 
-            mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-            mediaRecorder.ondataavailable = (e) => {
+            const recorder = makeAudioRecorder(stream);
+            mediaRecorder = recorder;
+            recorder.ondataavailable = (e) => {
                 if (e.data.size > 0) recordedChunks.push(e.data);
             };
-            mediaRecorder.onstop = () => {
-                recBlob = new Blob(recordedChunks, { type: 'audio/webm' });
+            recorder.onstop = () => {
+                recBlob = new Blob(recordedChunks, { type: recorder.mimeType || 'audio/webm' });
                 if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
                 showRecordingPreview();
             };
 
-            mediaRecorder.start(100); // collect in 100ms chunks
+            recorder.start(100); // collect in 100ms chunks
             recStartTime = Date.now();
             recPausedDuration = 0;
             recPauseStart = null;
@@ -4123,8 +5523,10 @@ const startRecording = () => {
             $('rec-stop').style.display = '';
         })
         .catch(err => {
-            console.error('Microphone access denied', err);
-            setStatus('Microphone access denied');
+            console.error('Recording failed', err);
+            setStatus((err && err.name === 'NotAllowedError')
+                ? 'Microphone access denied'
+                : 'Could not start recording');
         });
 };
 
@@ -4158,12 +5560,13 @@ const stopRecording = () => {
 
 const showRecordingPreview = () => {
     if (!recBlob) return;
-    const url = URL.createObjectURL(recBlob);
+    if (recPreviewUrl) URL.revokeObjectURL(recPreviewUrl);
+    recPreviewUrl = URL.createObjectURL(recBlob);
     const preview = $('rec-preview');
     preview.innerHTML = '';
     const audio = document.createElement('audio');
     audio.controls = true;
-    audio.src = url;
+    audio.src = recPreviewUrl;
     preview.appendChild(audio);
     preview.style.display = '';
     $('rec-name').style.display = '';
@@ -4173,7 +5576,7 @@ const showRecordingPreview = () => {
 const saveRecording = () => {
     if (!recBlob) return;
     const name = $('rec-name').value.trim() || ('recording-' + Date.now());
-    const file = new File([recBlob], name + '.webm', { type: 'audio/webm' });
+    const file = new File([recBlob], name + audioRecExt(recBlob.type), { type: recBlob.type || 'audio/webm' });
     setStatus('Saving recording...');
     $('rec-save').disabled = true;
     apiUpload(file, name)
@@ -4205,17 +5608,35 @@ $('record-overlay').onclick = (e) => { if (e.target === $('record-overlay')) clo
 let audioCtx = null;
 let synthMaster = null;       // master gain -> speakers + recorder
 let synthRecordDest = null;   // MediaStreamDestination for recording
+let synthBus = null;          // note mix -> filter -> drive -> master
+let synthFilter = null;
+let synthShaper = null;
+let synthDelay = null;
+let synthDelayFeedback = null;
+let synthDelayWet = null;
+let synthLfo = null;
+let synthLfoGain = null;      // vibrato depth in cents; each osc.detune taps it
 let synthRecorder = null;
 let synthChunks = [];
 let synthBlob = null;
+let kbdPreviewUrl = null;
 let synthTimerInterval = null;
 let synthStartTime = null;
 
 let synthOctave = 0;
 let synthWave = 'triangle';
 let synthVolume = 0.4;
+let synthAttack = 0.01;       // seconds
+let synthRelease = 0.05;      // seconds
+let synthDetune = 0;          // cents each oscillator is pushed off-pitch (+/-)
+let synthVibRate = 5;         // Hz
+let synthVibDepth = 0;        // cents
+let synthCutoff = 16000;      // Hz
+let synthResonance = 0.5;     // filter Q
+let synthDrive = 0;           // 0..1
+let synthEcho = 0;            // 0..1
 
-const activeOsc = {};                 // midi -> { osc, g }
+const activeOsc = {};                 // midi -> { oscs, g }
 const mouseHeldNotes = new Set();     // notes currently held by pointer
 
 // computer keyboard -> midi note (classic tracker layout, C4 row)
@@ -4226,14 +5647,66 @@ const KBD_KEYMAP = {
 
 const midiToFreq = (m) => 440 * Math.pow(2, (m - 69) / 12);
 
+// tanh soft-clip; amount 0 leaves the signal (nearly) untouched
+const makeDriveCurve = (amount) => {
+    const k = 0.01 + amount * 30;
+    const n = 512;
+    const curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+        const x = (i / (n - 1)) * 2 - 1;
+        curve[i] = Math.tanh(k * x) / Math.tanh(k);
+    }
+    return curve;
+};
+
+// push every slider value into the live audio graph (close zeroes the echo,
+// so reopening has to restore it)
+const syncSynthNodes = () => {
+    if (!audioCtx) return;
+    synthMaster.gain.value = synthVolume;
+    synthFilter.frequency.value = synthCutoff;
+    synthFilter.Q.value = synthResonance;
+    synthShaper.curve = makeDriveCurve(synthDrive);
+    synthDelayFeedback.gain.value = synthEcho * 0.7;
+    synthDelayWet.gain.value = synthEcho * 0.6;
+    synthLfo.frequency.value = synthVibRate;
+    synthLfoGain.gain.value = synthVibDepth;
+};
+
 const ensureAudioCtx = () => {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         synthMaster = audioCtx.createGain();
-        synthMaster.gain.value = synthVolume;
         synthRecordDest = audioCtx.createMediaStreamDestination();
         synthMaster.connect(audioCtx.destination);
         synthMaster.connect(synthRecordDest);
+
+        // notes -> bus -> lowpass -> soft clip -> master, with an echo send
+        synthBus = audioCtx.createGain();
+        synthFilter = audioCtx.createBiquadFilter();
+        synthFilter.type = 'lowpass';
+        synthShaper = audioCtx.createWaveShaper();
+        synthBus.connect(synthFilter);
+        synthFilter.connect(synthShaper);
+        synthShaper.connect(synthMaster);
+
+        synthDelay = audioCtx.createDelay(1);
+        synthDelay.delayTime.value = 0.3;
+        synthDelayFeedback = audioCtx.createGain();
+        synthDelayWet = audioCtx.createGain();
+        synthShaper.connect(synthDelay);
+        synthDelay.connect(synthDelayFeedback);
+        synthDelayFeedback.connect(synthDelay);
+        synthDelay.connect(synthDelayWet);
+        synthDelayWet.connect(synthMaster);
+
+        // one shared vibrato LFO; each oscillator's detune taps synthLfoGain
+        synthLfo = audioCtx.createOscillator();
+        synthLfoGain = audioCtx.createGain();
+        synthLfo.connect(synthLfoGain);
+        synthLfo.start();
+
+        syncSynthNodes();
     }
     if (audioCtx.state === 'suspended') audioCtx.resume();
 };
@@ -4249,33 +5722,44 @@ const playNote = (midi) => {
     ensureAudioCtx();
     if (activeOsc[midi]) return; // already held
     const freq = midiToFreq(midi + synthOctave * 12);
-    const osc = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    osc.type = synthWave;
-    osc.frequency.value = freq;
     const now = audioCtx.currentTime;
+    const g = audioCtx.createGain();
     g.gain.setValueAtTime(0, now);
-    g.gain.linearRampToValueAtTime(1, now + 0.01); // quick attack, avoids clicks
-    osc.connect(g).connect(synthMaster);
-    osc.start();
-    activeOsc[midi] = { osc, g };
+    g.gain.linearRampToValueAtTime(1, now + Math.max(0.005, synthAttack)); // ramp avoids clicks
+    g.connect(synthBus);
+    // two oscillators pushed apart by the detune spread (identical when 0);
+    // 0.5 gain each keeps the summed level equal to a single oscillator
+    const oscs = [-1, 1].map((dir) => {
+        const osc = audioCtx.createOscillator();
+        osc.type = synthWave;
+        osc.frequency.value = freq;
+        osc.detune.value = dir * synthDetune;
+        synthLfoGain.connect(osc.detune);
+        const og = audioCtx.createGain();
+        og.gain.value = 0.5;
+        osc.connect(og).connect(g);
+        osc.start();
+        return osc;
+    });
+    activeOsc[midi] = { oscs, g };
     setKeyActive(midi, true);
 };
 
-const stopNote = (midi) => {
+const stopNote = (midi, fast) => {
     const node = activeOsc[midi];
     if (!node) return;
     const now = audioCtx.currentTime;
+    const release = fast ? 0.05 : Math.max(0.02, synthRelease);
     node.g.gain.cancelScheduledValues(now);
     node.g.gain.setValueAtTime(node.g.gain.value, now);
-    node.g.gain.linearRampToValueAtTime(0, now + 0.05); // short release
-    node.osc.stop(now + 0.06);
+    node.g.gain.linearRampToValueAtTime(0, now + release);
+    node.oscs.forEach((osc) => osc.stop(now + release + 0.01));
     delete activeOsc[midi];
     setKeyActive(midi, false);
 };
 
-const stopAllNotes = () => {
-    Object.keys(activeOsc).forEach((m) => stopNote(Number(m)));
+const stopAllNotes = (fast) => {
+    Object.keys(activeOsc).forEach((m) => stopNote(Number(m), fast));
     mouseHeldNotes.clear();
 };
 
@@ -4311,15 +5795,21 @@ const renderPiano = () => {
     piano.style.width = (WHITE.length * 44) + 'px';
 };
 
-// release pointer-held notes anywhere the pointer is lifted
-document.addEventListener('pointerup', () => {
+// release pointer-held notes anywhere the pointer is lifted or cancelled
+const releasePointerNotes = () => {
     if (mouseHeldNotes.size === 0) return;
     mouseHeldNotes.forEach((m) => stopNote(m));
     mouseHeldNotes.clear();
-});
+};
+document.addEventListener('pointerup', releasePointerNotes);
+document.addEventListener('pointercancel', releasePointerNotes);
+// keyup/pointerup never arrive if focus leaves mid-press (Cmd+Tab, system
+// gestures) — release everything rather than droning forever
+window.addEventListener('blur', () => stopAllNotes());
 
 const onSynthKeyDown = (e) => {
     if (!$('keyboard-overlay').classList.contains('visible') || e.repeat) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return; // leave shortcuts alone
     const tag = (document.activeElement && document.activeElement.tagName) || '';
     if (tag === 'INPUT' || tag === 'TEXTAREA') return; // don't hijack the name field
     const midi = KBD_KEYMAP[e.key.toLowerCase()];
