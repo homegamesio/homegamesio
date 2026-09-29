@@ -73,7 +73,8 @@
             /* Login */
             /* The auth screen is an overlay over the always-visible studio; hidden until
                the user hits Sign in or a gated action (save, online session, assets). */
-            #studio-login { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 200; background: var(--bg-primary); flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+            /* z-index 250: signup gates can open from inside the tool overlays (200) */
+            #studio-login { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 250; background: var(--bg-primary); flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
             #studio-login h1 { font-size: 2em; margin-bottom: 16px; color: var(--logo-color); }
             #studio-login input { width: 280px; padding: 10px; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary); font-size: 16px; font-family: inherit; }
             #studio-login .login-btn { background: var(--accent-green); color: var(--badge-head-text); border: none; cursor: pointer; font-weight: bold; }
@@ -120,7 +121,19 @@
             #games-pane-header { color: var(--text-dim); font-size: 0.8em; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
             #new-game-btn { padding: 12px 16px; cursor: pointer; color: var(--accent-green); font-weight: bold; font-size: 0.95em; border: 2px dashed var(--border-light); border-radius: 8px; text-align: center; margin-bottom: 14px; }
             #new-game-btn:hover { background: var(--bg-hover); border-color: var(--accent-green); }
+            #game-list-controls { display: flex; gap: 8px; margin-bottom: 12px; }
+            #game-search { flex: 1; min-width: 0; padding: 8px 12px; background: var(--bg-deep); border: 1px solid var(--border-light); border-radius: 6px; color: var(--text-primary); font-family: inherit; font-size: 0.9em; }
+            #game-filter-tabs { display: flex; gap: 6px; flex-shrink: 0; }
+            .game-filter-btn { padding: 8px 12px; cursor: pointer; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); font-family: inherit; font-size: 0.82em; }
+            .game-filter-btn:hover { background: var(--bg-hover); }
+            .game-filter-btn.active { background: var(--bg-active); border-color: var(--accent-blue); color: var(--text-primary); }
             #game-list { display: flex; flex-direction: column; gap: 8px; }
+            #game-list-empty { color: var(--text-faint); font-size: 0.85em; text-align: center; padding: 18px 0; }
+            #game-list-pager { display: none; align-items: center; justify-content: center; gap: 12px; margin-top: 14px; }
+            #game-list-pager button { padding: 6px 12px; cursor: pointer; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); font-family: inherit; font-size: 0.82em; }
+            #game-list-pager button:hover:not(:disabled) { background: var(--bg-hover); }
+            #game-list-pager button:disabled { opacity: 0.4; cursor: default; }
+            #game-page-info { color: var(--text-dim); font-size: 0.82em; }
             .game-item { padding: 12px 16px; cursor: pointer; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); transition: border-color 0.1s, background 0.1s; }
             .game-item:hover { background: var(--bg-hover); border-color: var(--accent-blue); }
             .game-item.active { background: var(--bg-active); border-color: var(--accent-blue); }
@@ -165,7 +178,20 @@
 
             /* AI-edit banner — shown while an LLM job is open; editor is read-only */
             #ai-banner { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); font-size: 0.85em; color: var(--text-secondary); flex-shrink: 0; }
-            #ai-banner-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            #ai-banner-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+            #ai-banner-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            #ai-banner-note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9em; color: var(--text-dim); }
+            #ai-banner-note a { color: var(--accent-blue); text-decoration: underline; }
+            .ai-image-attach { margin-top: 6px; font-size: 0.8em; color: var(--text-dim); }
+            .ai-image-thumbs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+            .ai-image-thumbs:empty { display: none; }
+            .ai-image-thumb { position: relative; }
+            .ai-image-thumb img { width: 56px; height: 56px; object-fit: cover; border: 1px solid var(--border); border-radius: 4px; display: block; }
+            .ai-image-thumb button { position: absolute; top: -6px; right: -6px; width: 16px; height: 16px; line-height: 14px; padding: 0; border-radius: 50%; border: none; background: var(--border); color: var(--text-primary); cursor: pointer; font-size: 10px; }
+            .ai-image-thumb button:hover { background: var(--accent-red); color: #fff; }
+            .ai-image-add { font-size: 1em; padding: 2px 8px; border-radius: 3px; background: var(--border); color: var(--text-secondary); border: none; cursor: pointer; font-family: inherit; }
+            .ai-image-add:hover { background: var(--border-light); }
+            .ai-image-hint { margin-left: 6px; }
             #ai-banner-cancel { font-size: 0.9em; padding: 3px 12px; border-radius: 3px; background: var(--border); color: var(--text-secondary); border: none; cursor: pointer; font-family: inherit; flex-shrink: 0; }
             #ai-banner-cancel:hover { background: var(--border-light); color: #fff; }
             #ai-banner-canvas { flex-shrink: 0; }
@@ -443,14 +469,21 @@
             /* Draw overlay */
             .draw-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: center; justify-content: center; }
             .draw-overlay.visible { display: flex; }
-            .draw-box { background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+            .draw-box { background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 94vw; max-height: 92vh; overflow-y: auto; }
             .draw-box h2 { color: var(--logo-color); font-size: 1.1em; margin: 0; }
-            .draw-canvas-wrapper { border: 1px solid var(--border-light); background: #fff; cursor: crosshair; }
-            .draw-palette { display: flex; gap: 6px; align-items: center; }
+            .draw-toolbar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; }
+            .draw-size-label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-secondary); font-weight: bold; }
+            .draw-size-label input { width: 56px; padding: 5px 6px; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-deep); color: var(--text-primary); font-family: inherit; font-size: 12px; }
+            .draw-tool, #draw-undo { padding: 6px 10px; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-deep); color: var(--text-secondary); cursor: pointer; font-family: inherit; font-size: 12px; font-weight: bold; }
+            .draw-tool.active { background: var(--accent-green); color: var(--badge-head-text); border-color: var(--accent-green); }
+            #draw-undo:disabled { opacity: 0.4; cursor: not-allowed; }
+            /* backing store's longer edge is 640; CSS only ever shrinks it (pointer math compensates) */
+            .draw-canvas-wrapper { border: 1px solid var(--border-light); background: #fff; cursor: crosshair; touch-action: none; max-width: min(640px, 88vw); max-height: min(640px, 60vh); }
+            .draw-palette-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+            .draw-palette { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; }
             .draw-color { width: 28px; height: 28px; border-radius: 4px; cursor: pointer; border: 2px solid transparent; }
             .draw-color.active { border-color: var(--accent-green); }
-            .draw-color.eraser { background: #fff; position: relative; }
-            .draw-color.eraser::after { content: '✕'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #999; font-size: 14px; }
+            #draw-color-input { width: 34px; height: 32px; padding: 2px; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-deep); cursor: pointer; }
             .draw-name-input { width: 260px; padding: 8px; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-deep); color: var(--text-primary); font-size: 14px; font-family: inherit; }
             .draw-buttons { display: flex; gap: 8px; }
             .draw-buttons button { padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: inherit; font-size: 13px; }
@@ -491,12 +524,12 @@
             /* Keyboard / synth overlay */
             .keyboard-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: center; justify-content: center; }
             .keyboard-overlay.visible { display: flex; }
-            .keyboard-box { background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 8px; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 16px; width: 560px; max-width: 94vw; }
+            .keyboard-box { background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 8px; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 14px; width: 640px; max-width: 94vw; max-height: 92vh; overflow-y: auto; }
             .keyboard-box h2 { color: var(--logo-color); font-size: 1.1em; margin: 0; }
-            .synth-controls { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; justify-content: center; width: 100%; }
+            .synth-controls { display: flex; gap: 10px 16px; align-items: center; flex-wrap: wrap; justify-content: center; width: 100%; }
             .synth-control { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-secondary); }
             .synth-control label { font-weight: bold; }
-            .synth-control input[type=range] { width: 150px; }
+            .synth-control input[type=range] { width: 104px; }
             .synth-control select { padding: 5px 8px; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-deep); color: var(--text-primary); font-family: inherit; font-size: 13px; }
             .synth-octave-val { color: var(--text-primary); }
             /* Piano */
@@ -511,8 +544,6 @@
             .keyboard-controls { display: flex; gap: 8px; }
             .keyboard-controls button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: inherit; font-size: 13px; }
             .kbd-hint { font-size: 11px; color: var(--text-dim); }
-            .keyboard-preview { width: 100%; }
-            .keyboard-preview audio { width: 100%; }
             .keyboard-name-input { width: 100%; padding: 8px; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-deep); color: var(--text-primary); font-size: 14px; font-family: inherit; }
             .keyboard-save-row { display: flex; gap: 8px; width: 100%; }
             .keyboard-save-row button { flex: 1; padding: 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: inherit; font-size: 13px; }
@@ -524,13 +555,31 @@
             .kbd-btn-save:disabled { background: var(--border); color: var(--text-dim); cursor: not-allowed; }
             .kbd-btn-cancel { background: var(--border); color: var(--text-secondary); }
             .kbd-btn-cancel:hover { background: var(--border-light); }
+            .kbd-btn-play { background: var(--bg-deep); color: var(--text-primary); border: 1px solid var(--border-light) !important; }
+            .kbd-btn-play:hover { background: var(--border); }
+            /* Asset picker — pull an existing audio asset in as a layer */
+            .kbd-asset-picker { width: 100%; max-height: 130px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+            .kbd-asset-picker button { text-align: left; padding: 6px 10px; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-deep); color: var(--text-primary); cursor: pointer; font-family: inherit; font-size: 12px; }
+            .kbd-asset-picker button:hover { background: var(--border); }
+            .kbd-asset-picker button:disabled { opacity: 0.5; cursor: wait; }
+            .kbd-asset-picker-note { font-size: 12px; color: var(--text-dim); padding: 4px 0; }
+            /* Layers — each recorded take, savable on its own or mixed into a song */
+            .kbd-layers { width: 100%; display: flex; flex-direction: column; gap: 6px; max-height: 150px; overflow-y: auto; }
+            .kbd-layer-row { display: flex; align-items: center; gap: 6px; width: 100%; }
+            .kbd-layer-row.muted { opacity: 0.45; }
+            .kbd-layer-row input[type=text] { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-deep); color: var(--text-primary); font-size: 12px; font-family: inherit; }
+            .kbd-layer-dur { font-size: 11px; color: var(--text-dim); font-family: monospace; white-space: nowrap; }
+            .kbd-layer-row button { padding: 5px 9px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: inherit; font-size: 11px; background: var(--border); color: var(--text-secondary); white-space: nowrap; }
+            .kbd-layer-row button:hover { background: var(--border-light); }
+            .kbd-layer-row button.kbd-layer-save { background: var(--accent-green); color: var(--badge-head-text); }
+            .kbd-layer-row button.kbd-layer-save:disabled { background: var(--border); color: var(--text-dim); cursor: not-allowed; }
 
             /* Loading spinner */
             .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #444; border-top-color: var(--accent-green); border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
             @keyframes spin { to { transform: rotate(360deg); } }
 
-            /* Mobile tab bar — hidden on desktop */
-            #mobile-tab-bar { display: none; }
+            /* Mobile bar + menu — hidden on desktop */
+            #mobile-bar, #mobile-menu { display: none; }
 
             /* ============================================================= */
             /* Mobile layout (<768px)                                        */
@@ -544,7 +593,8 @@
                 #studio-header .user-info { font-size: 0.75em; }
                 #studio-header .mode-btn { padding: 5px 12px; font-size: 0.8em; letter-spacing: 0.5px; }
                 #studio-header > div { gap: 8px; }
-                #docs-link, #guide-btn, #snippets-btn, #studio-header a[href="/"] { display: none; }
+                /* Assets moves into the mobile menu grid, so the header button goes too */
+                #docs-link, #guide-btn, #snippets-btn, #header-asset-btn, #studio-header a[href="/"] { display: none; }
 
                 /* Blades: no strips on mobile — the active blade fills the screen,
                    the mobile tab bar switches between them */
@@ -555,11 +605,11 @@
 
                 #main-content { flex: 1; min-height: 0; }
 
-                /* Keep blade content clear of the fixed 48px tab bar */
-                #studio-body { margin-bottom: 48px; }
+                /* Keep blade content clear of the fixed 56px action bar */
+                #studio-body { margin-bottom: 56px; }
 
                 /* File tree */
-                #file-tree { display: none; position: fixed; top: 40px; left: 0; right: 0; bottom: 48px; width: 100% !important; z-index: 30; }
+                #file-tree { display: none; position: fixed; top: 40px; left: 0; right: 0; bottom: 56px; width: 100% !important; z-index: 30; }
                 #file-tree.mobile-visible { display: flex; }
 
                 /* Editor */
@@ -572,41 +622,96 @@
                 .game-desc { display: none; }
 
                 /* Preview panel — full screen on mobile */
-                #preview-panel { display: none; position: fixed; top: 40px; left: 0; right: 0; bottom: 48px; width: 100% !important; z-index: 30; }
+                #preview-panel { display: none; position: fixed; top: 40px; left: 0; right: 0; bottom: 56px; width: 100% !important; z-index: 30; }
                 #preview-panel.open { width: 100% !important; }
                 #preview-panel.mobile-visible { display: flex; }
 
-                /* Bottom bar — hide save bar, use mobile tab bar instead */
+                /* Bottom bar — hide save bar, use the mobile action bar instead */
                 #bottom-bar { display: none; }
 
-                /* Mobile tab bar */
-                #mobile-tab-bar {
+                /* Mobile action bar — one big contextual button + the Menu button */
+                #mobile-bar {
                     display: flex;
                     position: fixed;
                     bottom: 0; left: 0; right: 0;
-                    height: 48px;
+                    height: 56px;
+                    gap: 8px;
+                    padding: 7px 8px;
                     background: var(--bg-secondary);
                     border-top: 1px solid var(--border);
-                    z-index: 40;
-                    justify-content: space-around;
-                    align-items: center;
+                    z-index: 60;
+                    align-items: stretch;
                 }
-                #mobile-tab-bar .mtab {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    color: var(--text-dim);
-                    font-size: 0.8em;
-                    font-weight: bold;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
+                #mobile-action-btn {
+                    flex: 1; min-width: 0;
+                    font-family: inherit; font-size: 1em; font-weight: bold;
+                    text-transform: uppercase; letter-spacing: 1px;
+                    color: var(--badge-head-text);
+                    background: var(--accent-green);
+                    border: 2px solid var(--accent-green); border-radius: 7px;
+                    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.35), 0 2px 0 rgba(0,0,0,0.2);
                     cursor: pointer;
-                    padding: 4px 0;
+                    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
                     -webkit-tap-highlight-color: transparent;
+                    transition: transform .05s;
                 }
-                #mobile-tab-bar .mtab.active { color: var(--accent-green); }
+                #mobile-action-btn:active { transform: translateY(2px); box-shadow: inset 0 2px 5px rgba(0,0,0,0.4); }
+                #mobile-action-btn.hidden { display: none; }
+                #mobile-menu-btn {
+                    width: 104px; flex-shrink: 0;
+                    font-family: inherit; font-size: 1em; font-weight: bold;
+                    text-transform: uppercase; letter-spacing: 1px;
+                    color: var(--text-secondary);
+                    background: var(--bg-deep);
+                    border: 2px solid var(--border-light); border-radius: 7px;
+                    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.35), 0 2px 0 rgba(0,0,0,0.2);
+                    cursor: pointer;
+                    -webkit-tap-highlight-color: transparent;
+                    transition: transform .05s, color .1s, border-color .1s;
+                }
+                #mobile-menu-btn:active { transform: translateY(2px); box-shadow: inset 0 2px 5px rgba(0,0,0,0.4); }
+                #mobile-menu-btn.open { color: var(--accent-green); border-color: var(--accent-green); }
+
+                /* Mobile menu — a grid of big physical page buttons that
+                   expands up from the bar; the dimmed area above closes it */
+                #mobile-menu {
+                    position: fixed;
+                    top: 0; left: 0; right: 0; bottom: 56px;
+                    z-index: 55;
+                    background: rgba(0,0,0,0.55);
+                    flex-direction: column;
+                    justify-content: flex-end;
+                }
+                #mobile-menu.open { display: flex; }
+                #mobile-menu-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 10px;
+                    padding: 14px 10px;
+                    background: var(--bg-primary);
+                    border-top: 1px solid var(--border);
+                }
+                .mmenu-tile {
+                    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+                    min-height: 68px; padding: 8px;
+                    font-family: inherit; font-size: 1em; font-weight: bold;
+                    text-transform: uppercase; letter-spacing: 1px;
+                    color: var(--text-secondary);
+                    background: var(--bg-deep);
+                    border: 2px solid var(--border-light); border-radius: 8px;
+                    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3), 0 2px 0 rgba(0,0,0,0.2);
+                    cursor: pointer;
+                    -webkit-tap-highlight-color: transparent;
+                    transition: transform .05s;
+                }
+                .mmenu-tile:active { transform: translateY(2px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.35); }
+                .mmenu-tile.active { color: var(--accent-green); border-color: var(--accent-green); }
+                .mmenu-tile:disabled { opacity: 0.35; cursor: default; }
+                .mmenu-tile .mmenu-sub {
+                    font-size: 0.62em; font-weight: normal;
+                    text-transform: none; letter-spacing: 0;
+                    color: var(--text-dim);
+                }
 
                 /* Modals */
                 .modal-box { width: calc(100vw - 32px); max-width: 380px; }
@@ -758,7 +863,19 @@
                         <div id="games-pane">
                             <div id="games-pane-header">My Games</div>
                             <div id="new-game-btn">+ New Game</div>
+                            <div id="game-list-controls">
+                                <input type="text" id="game-search" placeholder="Search games...">
+                                <div id="game-filter-tabs">
+                                    <button type="button" class="game-filter-btn active" id="game-filter-active">Active</button>
+                                    <button type="button" class="game-filter-btn" id="game-filter-archived">Archived</button>
+                                </div>
+                            </div>
                             <div id="game-list"></div>
+                            <div id="game-list-pager">
+                                <button type="button" id="game-page-prev">&lsaquo; Prev</button>
+                                <span id="game-page-info"></span>
+                                <button type="button" id="game-page-next">Next &rsaquo;</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -786,13 +903,19 @@
                     <div class="blade-content" id="main-content"></div>
                 </div>
             </div>
-            <div id="mobile-tab-bar">
-                <div class="mtab" data-tab="games">Games</div>
-                <div class="mtab" data-tab="versions">Versions</div>
-                <div class="mtab active" data-tab="code">Code</div>
-                <div class="mtab" data-tab="files">Files</div>
-                <div class="mtab" data-tab="preview">Preview</div>
-                <div class="mtab" data-tab="save">Save</div>
+            <div id="mobile-bar">
+                <button type="button" id="mobile-action-btn" class="hidden"></button>
+                <button type="button" id="mobile-menu-btn">Menu</button>
+            </div>
+            <div id="mobile-menu">
+                <div id="mobile-menu-grid">
+                    <button type="button" class="mmenu-tile" data-page="games"><span>Games</span><span class="mmenu-sub">Pick or create a game</span></button>
+                    <button type="button" class="mmenu-tile" data-page="versions"><span>Versions</span><span class="mmenu-sub">History &amp; settings</span></button>
+                    <button type="button" class="mmenu-tile" data-page="code"><span>Code</span><span class="mmenu-sub">Edit the game</span></button>
+                    <button type="button" class="mmenu-tile" data-page="files"><span>Files</span><span class="mmenu-sub">Browse &amp; add files</span></button>
+                    <button type="button" class="mmenu-tile" data-page="preview"><span>Preview</span><span class="mmenu-sub">Play your game</span></button>
+                    <button type="button" class="mmenu-tile" data-page="assets"><span>Assets</span><span class="mmenu-sub">Images &amp; sounds</span></button>
+                </div>
             </div>
         </div>
 
@@ -834,7 +957,16 @@
                 <div id="new-game-ai-prompt-wrap" style="display:none;">
                     <label style="color:#888;font-size:0.8em;margin-top:8px;display:block;">Describe your game</label>
                     <textarea id="new-game-ai-prompt" placeholder="e.g. A two-player game where potatoes race across a field, dodging falling rocks" style="width:100%;min-height:90px;resize:vertical;font-family:inherit;font-size:0.9em;padding:8px;background:var(--bg-deep);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);"></textarea>
-                    <p style="margin:4px 0 0;font-size:0.75em;color:var(--text-dim);">The AI writes the first version of your game. It can take a few minutes — you'll review the code before saving.</p>
+                    <p style="margin:4px 0 0;font-size:0.75em;color:var(--text-dim);">The AI writes the first version of your game. It can take up to an hour — you'll review the code before saving.</p>
+                    <div class="ai-image-attach">
+                        <div class="ai-image-thumbs" id="new-game-image-thumbs"></div>
+                        <button type="button" class="ai-image-add" id="new-game-image-add">+ Attach image</button>
+                        <span class="ai-image-hint">Optional — a sketch of what the game should look like (up to 3).</span>
+                        <input type="file" id="new-game-image-input" accept="image/*" multiple style="display:none;">
+                    </div>
+                    <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:0.85em;color:var(--text-secondary);cursor:pointer;">
+                        <input type="checkbox" id="new-game-email-notify" style="margin:0;"> Email me when it's done
+                    </label>
                 </div>
                 <div class="modal-error" id="new-game-error"></div>
                 <div class="modal-buttons">
@@ -931,8 +1063,17 @@
         <div class="modal-overlay" id="llm-modal">
             <div class="modal-box" style="width:520px;max-width:calc(100vw - 32px);">
                 <h2 id="llm-modal-title">Ask AI to edit your game</h2>
-                <p style="margin:0 0 8px;font-size:0.85em;color:var(--text-secondary);">Describe the change you want. The AI rewrites <code>index.js</code> — review the result and save it as a version when you're happy.</p>
+                <p style="margin:0 0 8px;font-size:0.85em;color:var(--text-secondary);">Describe the change you want. The AI rewrites <code>index.js</code> — review the result and save it as a version when you're happy. Generation can take up to an hour.</p>
                 <textarea id="llm-prompt-input" placeholder="e.g. Make the potato explode faster and turn the background red" style="width:100%;min-height:90px;resize:vertical;font-family:inherit;font-size:0.9em;padding:8px;background:var(--bg-deep);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);"></textarea>
+                <div class="ai-image-attach">
+                    <div class="ai-image-thumbs" id="llm-image-thumbs"></div>
+                    <button type="button" class="ai-image-add" id="llm-image-add">+ Attach image</button>
+                    <span class="ai-image-hint">Optional — a sketch of what it should look like, or a screenshot of the bug (up to 3).</span>
+                    <input type="file" id="llm-image-input" accept="image/*" multiple style="display:none;">
+                </div>
+                <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:0.85em;color:var(--text-secondary);cursor:pointer;">
+                    <input type="checkbox" id="llm-email-notify" style="margin:0;"> Email me when it's done
+                </label>
                 <div class="modal-error" id="llm-modal-error"></div>
                 <div id="llm-modal-status" style="font-size:0.85em;color:var(--text-secondary);min-height:1.2em;"></div>
                 <div class="modal-buttons">
@@ -1026,12 +1167,27 @@
         <div class="draw-overlay" id="draw-overlay">
             <div class="draw-box">
                 <h2>Draw Image</h2>
-                <canvas class="draw-canvas-wrapper" id="draw-canvas" width="512" height="512"></canvas>
-                <div class="draw-palette" id="draw-palette"></div>
+                <div class="draw-toolbar">
+                    <label class="draw-size-label">W <input type="number" id="draw-size-w" min="1" max="640" step="1" value="32"></label>
+                    <label class="draw-size-label">H <input type="number" id="draw-size-h" min="1" max="640" step="1" value="32"></label>
+                    <button class="draw-tool active" data-tool="pencil">Pencil</button>
+                    <button class="draw-tool" data-tool="eraser">Eraser</button>
+                    <button class="draw-tool" data-tool="fill">Fill</button>
+                    <button class="draw-tool" data-tool="line">Line</button>
+                    <button class="draw-tool" data-tool="rect">Rect</button>
+                    <button class="draw-tool" data-tool="ellipse">Circle</button>
+                    <button id="draw-undo" disabled>Undo</button>
+                </div>
+                <canvas class="draw-canvas-wrapper" id="draw-canvas" width="640" height="640"></canvas>
+                <div class="draw-palette-row">
+                    <div class="draw-palette" id="draw-palette"></div>
+                    <input type="color" id="draw-color-input" value="#1a1a2e" title="Custom color">
+                </div>
                 <input type="text" class="draw-name-input" id="draw-name" placeholder="Asset name">
                 <div class="draw-buttons">
                     <button class="draw-btn-clear" id="draw-clear">Clear</button>
                     <button class="draw-btn-cancel" id="draw-cancel">Cancel</button>
+                    <button class="draw-btn-cancel" id="draw-download">Download</button>
                     <button class="draw-btn-save" id="draw-save">Save</button>
                 </div>
             </div>
@@ -1057,6 +1213,7 @@
                 <input type="text" class="record-name-input" id="rec-name" placeholder="Asset name" style="display:none">
                 <div class="record-save-row" id="rec-save-row" style="display:none">
                     <button class="rec-btn-cancel" id="rec-cancel">Cancel</button>
+                    <button class="rec-btn-cancel" id="rec-download">Download</button>
                     <button class="rec-btn-save" id="rec-save">Save</button>
                 </div>
             </div>
@@ -1087,22 +1244,62 @@
                         <label>Volume</label>
                         <input type="range" id="synth-volume" min="0" max="100" step="1" value="40">
                     </div>
+                    <div class="synth-control">
+                        <label>Attack</label>
+                        <input type="range" id="synth-attack" min="0" max="100" step="1" value="8">
+                    </div>
+                    <div class="synth-control">
+                        <label>Release</label>
+                        <input type="range" id="synth-release" min="0" max="100" step="1" value="10">
+                    </div>
+                    <div class="synth-control">
+                        <label>Detune</label>
+                        <input type="range" id="synth-detune" min="0" max="100" step="1" value="0">
+                    </div>
+                    <div class="synth-control">
+                        <label>Wobble</label>
+                        <input type="range" id="synth-vib-depth" min="0" max="100" step="1" value="0">
+                    </div>
+                    <div class="synth-control">
+                        <label>Wobble speed</label>
+                        <input type="range" id="synth-vib-rate" min="0" max="100" step="1" value="55">
+                    </div>
+                    <div class="synth-control">
+                        <label>Filter</label>
+                        <input type="range" id="synth-cutoff" min="0" max="100" step="1" value="100">
+                    </div>
+                    <div class="synth-control">
+                        <label>Resonance</label>
+                        <input type="range" id="synth-resonance" min="0" max="100" step="1" value="0">
+                    </div>
+                    <div class="synth-control">
+                        <label>Drive</label>
+                        <input type="range" id="synth-drive" min="0" max="100" step="1" value="0">
+                    </div>
+                    <div class="synth-control">
+                        <label>Echo</label>
+                        <input type="range" id="synth-echo" min="0" max="100" step="1" value="0">
+                    </div>
                 </div>
                 <div class="piano" id="synth-piano"></div>
-                <div class="kbd-hint">Click the keys or use your computer keyboard (A&ndash;K row) to play.</div>
+                <div class="kbd-hint">Click the keys or use your computer keyboard (A&ndash;K row) to play. Each recording becomes a layer &mdash; you'll hear the other layers while you record.</div>
                 <div>
                     <span class="record-indicator stopped" id="kbd-indicator"></span>
                     <span class="record-timer" id="kbd-timer" style="font-size:1.6em;">0:00</span>
                 </div>
                 <div class="keyboard-controls" id="kbd-controls">
-                    <button class="kbd-btn-record" id="kbd-record">Record</button>
+                    <button class="kbd-btn-record" id="kbd-record">Record layer</button>
                     <button class="kbd-btn-stop" id="kbd-stop" style="display:none">Stop</button>
+                    <button class="kbd-btn-play" id="kbd-play" style="display:none">Play all</button>
+                    <button class="kbd-btn-play" id="kbd-from-asset">From asset</button>
                 </div>
-                <div class="keyboard-preview" id="kbd-preview" style="display:none"></div>
-                <input type="text" class="keyboard-name-input" id="kbd-name" placeholder="Asset name" style="display:none">
+                <div class="kbd-asset-picker" id="kbd-asset-picker" style="display:none"></div>
+                <div class="kbd-layers" id="kbd-layers" style="display:none"></div>
+                <input type="text" class="keyboard-name-input" id="kbd-name" placeholder="Song name" style="display:none">
                 <div class="keyboard-save-row" id="kbd-save-row" style="display:none">
-                    <button class="kbd-btn-cancel" id="kbd-cancel">Cancel</button>
-                    <button class="kbd-btn-save" id="kbd-save">Save</button>
+                    <button class="kbd-btn-cancel" id="kbd-cancel">Close</button>
+                    <button class="kbd-btn-cancel" id="kbd-download">Download</button>
+                    <button class="kbd-btn-save" id="kbd-save">Save song</button>
                 </div>
             </div>
         </div>

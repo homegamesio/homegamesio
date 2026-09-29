@@ -261,6 +261,14 @@
             }
             .feature-list li { margin-bottom: 10px; }
             .feature-list strong { color: #333; }
+            .host-note {
+                max-width: 640px;
+                margin: 0 auto;
+                text-align: center;
+                color: #555;
+                line-height: 1.7;
+                font-size: 0.95em;
+            }
             .oss-note {
                 text-align: center;
                 color: #888;
@@ -344,6 +352,16 @@
                         <div class="section-cta"><a href="/studio.html" class="hero-cta studio">Open the Studio</a> <a href="/docs.html" class="hero-cta games">Read the Docs</a></div>
                     </div>
 
+                    <!-- Host it yourself -->
+                    <div class="landing-section dev-section amateur">
+                        <h2>Host It Yourself</h2>
+                        <p class="host-note">Run Homegames on a machine in your house — one download with nothing to install, for Windows, macOS, and Linux. Everyone on your network plays in their browser.</p>
+                        <div class="section-cta">
+                            <a href="/builds/homegames.zip" class="hero-cta games" id="host-download-btn">⤓ Download the Latest</a>
+                            <a href="/self-hosting.html#old-builds" class="hero-cta github">Previous Versions</a>
+                        </div>
+                    </div>
+
                     <!-- Open source -->
                     <div class="landing-section dev-section amateur">
                         <h2>Open Source</h2>
@@ -380,6 +398,23 @@
         </div>
         <script src="bundle.js"></script>
         <script>
+            // Version the download button from the manifest release.sh maintains.
+            // If it isn't reachable, the static latest-alias link stands as-is.
+            (async () => {
+                let manifest;
+                try {
+                    const res = await fetch('/builds/manifest.json');
+                    if (!res.ok) return;
+                    manifest = await res.json();
+                } catch (e) { return; }
+                if (!manifest || !Array.isArray(manifest.builds) || !manifest.builds.length) return;
+
+                const latest = manifest.builds.find(b => b.version === manifest.latest) || manifest.builds[0];
+                const btn = document.getElementById('host-download-btn');
+                btn.href = `/builds/homegames-${encodeURIComponent(latest.version)}.zip`;
+                btn.textContent = `⤓ Download v${latest.version}`;
+            })();
+
             loadActiveSessions(
                 document.getElementById('active-sessions'),
                 document.getElementById('active-sessions-list'),

@@ -107,35 +107,23 @@
             showStatus('Loading game...');
 
             const manifestUrl = `${API_URL}/games/${encodeURIComponent(localGameId)}/local-manifest?ref=${encodeURIComponent(localRef)}`;
-            fetch(manifestUrl)
-                .then(r => { if (!r.ok) throw new Error('Manifest fetch failed: ' + r.status); return r.json(); })
-                .then(manifest => {
-                    if (!manifest.localPlayable) {
-                        throw new Error(manifest.reason || 'This game cannot run locally');
-                    }
-                    document.title = `${manifest.name} — Homegames`;
-
-                    const bundlePromise = manifest.assetCount > 0
-                        ? fetch(`${API_URL}${manifest.assetBundleUrl}`)
-                            .then(r => { if (!r.ok) throw new Error('Asset bundle fetch failed: ' + r.status); return r.arrayBuffer(); })
-                            .then(ab => new Uint8ClampedArray(ab))
-                        : Promise.resolve(null);
-
-                    return bundlePromise.then(assetBundle => {
-                        const session = new HomegamesClient.LocalSession({
-                            containerId: 'game-container',
-                            files: manifest.files,
-                            entryPoint: manifest.entryPoint,
-                            assetBundle,
-                            onReady: () => { statusEl.style.display = 'none'; },
-                            onError: (err) => {
-                                console.error(err);
-                                showStatus('Error: ' + ((err && err.message) || err));
-                            },
-                        });
-                        session.start();
-                    });
-                })
+            HomegamesClient.loadLocalGame({
+                manifestUrl,
+                gameKey: `catalog:${localGameId}`,
+                versionId: localRef,
+            }).then(game => {
+                document.title = `${game.name} — Homegames`;
+                const session = new HomegamesClient.LocalSession({
+                    ...game,
+                    containerId: 'game-container',
+                    onReady: () => { statusEl.style.display = 'none'; },
+                    onError: (err) => {
+                        console.error(err);
+                        showStatus('Error: ' + ((err && err.message) || err));
+                    },
+                });
+                session.start();
+            })
                 .catch(err => {
                     console.error(err);
                     showStatus('Error: ' + (err.message || err));

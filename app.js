@@ -209,11 +209,12 @@ const server = http.createServer((req, res) => {
                 const payload = fs.readFileSync(path.join(__dirname, 'docs.html'));
                 res.end(payload);
             } else if (req.url.startsWith('/authoring-guide')) {
-                // squish.js authoring guide — single source of truth in
+                // Homegames master LLM context doc (platform reference +
+                // squish.js authoring contract) — single source of truth in
                 // homegames-common. Served raw so the studio can show/copy it
                 // as LLM context.
                 try {
-                    const docPath = path.join(path.dirname(require.resolve('homegames-common')), 'docs', 'squishjs-game-authoring.md');
+                    const docPath = path.join(path.dirname(require.resolve('homegames-common')), 'docs', 'homegames-context.md');
                     res.statusCode = 200;
                     res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
                     res.end(fs.readFileSync(docPath));

@@ -18,8 +18,16 @@ const AI_FEATURES_ENABLED = true;
 // ---------------------------------------------------------------------------
 
 let userInfo = null;
+// A ChatGPT save links back to this game; authentication stays in memory.
+let linkedGameId = new URLSearchParams(window.location.search).get('game');
+if (!/^[a-f0-9]{32}$/.test(linkedGameId || '')) linkedGameId = null;
 let isGuest = false;     // entered the studio without an account
 let games = [];
+let gamePage = 1;
+let gameTotal = 0;
+let gameSearch = '';
+let gameShowArchived = false;
+const GAMES_PER_PAGE = 20;
 let currentGame = null;
 let fileTree = [];
 let currentFile = null;
@@ -117,6 +125,10 @@ const confirmDiscard = () => confirm('You have unsaved changes. Discard them?');
 
 let editorBladeOpened = false; // blade 3 stays hidden until a version is opened
 
+// Reassigned by the mobile bar module (bottom of this file); navigation and
+// dirty-state changes call it so the contextual action button stays current.
+let syncMobileBar = () => {};
+
 const setActiveBlade = (name) => {
     // Fall back to the deepest reachable blade.
     if (name === 'editor' && !editorBladeOpened) name = 'game';
@@ -133,6 +145,7 @@ const setActiveBlade = (name) => {
         el.classList.remove('expanded', 'strip', 'hidden');
         el.classList.add(!available ? 'hidden' : key === name ? 'expanded' : 'strip');
     });
+    syncMobileBar();
 };
 
 document.querySelectorAll('.blade-strip').forEach(strip => {
@@ -187,7 +200,9 @@ const enterStudio = () => {
     if (userInfo.isAdmin) $('admin-btn').style.display = '';
     updateVerifyBanner();
     loadGames();
+    openLinkedGame();
     startTokenRefresh();
+    syncMobileBar();
     // Arrived via the signup gate with guest work in progress — send them back
     // to their editor; Save Version now claims the game for their account.
     if (currentGame && currentGame.guest) {
@@ -418,6 +433,7 @@ const enterGuestStudio = () => {
     $('profile-settings-btn').style.display = 'none';
     $('header-signin-btn').style.display = '';
     renderGuestTemplateList();
+    syncMobileBar();
 };
 
 // In guest mode the games blade lists templates instead of "My Games".
@@ -556,13 +572,31 @@ $('header-signin-btn').onclick = () => openAuthOverlay('', 'login');
 // ---------------------------------------------------------------------------
 
 const loadGames = () => {
-    api('GET', '/studio/games').then(data => { games = data.games || []; renderGameList(); })
-        .catch(err => console.error('Failed to load games', err));
+    const params = new URLSearchParams({ page: gamePage, limit: GAMES_PER_PAGE });
+    if (gameSearch) params.set('q', gameSearch);
+    if (gameShowArchived) params.set('archived', 'true');
+    api('GET', `/studio/games?${params}`).then(data => {
+        games = data.games || [];
+        gameTotal = data.total || games.length;
+        // A shrinking result set (search, archive) can strand the page past
+        // the end — snap back to the last page that has anything on it.
+        const lastPage = Math.max(1, Math.ceil(gameTotal / GAMES_PER_PAGE));
+        if (gamePage > lastPage) { gamePage = lastPage; loadGames(); return; }
+        renderGameList();
+    }).catch(err => console.error('Failed to load games', err));
 };
 
 const renderGameList = () => {
     const list = $('game-list');
     list.innerHTML = '';
+    if (!games.length) {
+        const empty = document.createElement('div');
+        empty.id = 'game-list-empty';
+        empty.textContent = gameSearch
+            ? 'No games match your search'
+            : (gameShowArchived ? 'No archived games' : 'No games yet');
+        list.appendChild(empty);
+    }
     games.forEach(game => {
         const el = document.createElement('div');
         el.className = 'game-item' + (currentGame && currentGame.id === game.id ? ' active' : '');
@@ -579,11 +613,59 @@ const renderGameList = () => {
         el.onclick = () => selectGame(game);
         list.appendChild(el);
     });
+
+    const pager = $('game-list-pager');
+    const lastPage = Math.max(1, Math.ceil(gameTotal / GAMES_PER_PAGE));
+    if (lastPage > 1) {
+        pager.style.display = 'flex';
+        $('game-page-info').textContent = `Page ${gamePage} of ${lastPage} (${gameTotal} games)`;
+        $('game-page-prev').disabled = gamePage <= 1;
+        $('game-page-next').disabled = gamePage >= lastPage;
+    } else {
+        pager.style.display = 'none';
+    }
 };
+
+$('game-page-prev').onclick = () => { if (gamePage > 1) { gamePage--; loadGames(); } };
+$('game-page-next').onclick = () => { gamePage++; loadGames(); };
+
+let gameSearchTimer = null;
+$('game-search').addEventListener('input', (e) => {
+    clearTimeout(gameSearchTimer);
+    gameSearchTimer = setTimeout(() => {
+        gameSearch = e.target.value.trim();
+        gamePage = 1;
+        loadGames();
+    }, 250);
+});
+
+const setGameFilter = (showArchived) => {
+    if (gameShowArchived === showArchived) return;
+    gameShowArchived = showArchived;
+    gamePage = 1;
+    $('game-filter-active').classList.toggle('active', !showArchived);
+    $('game-filter-archived').classList.toggle('active', showArchived);
+    loadGames();
+};
+$('game-filter-active').onclick = () => setGameFilter(false);
+$('game-filter-archived').onclick = () => setGameFilter(true);
 
 // ---------------------------------------------------------------------------
 // Game selection
 // ---------------------------------------------------------------------------
+
+const openLinkedGame = () => {
+    if (!linkedGameId || !userInfo) return;
+    const gameId = linkedGameId;
+    linkedGameId = null;
+    api('GET', `/games/${gameId}`).then(data => {
+        if (!data.game || data.game.developerId !== userInfo.userId) {
+            setStatus('This game is not available in your Homegames account.');
+            return;
+        }
+        selectGame(data.game);
+    }).catch(() => setStatus('Could not open the linked game. Select it from My Games.'));
+};
 
 const selectGame = (game) => {
     // Re-clicking the already-loaded game just navigates to its blade.
@@ -842,8 +924,17 @@ const renderGameView = () => {
             if (currentGame && currentGame.guest) { alert('Save your game to an account first to use AI edits'); return; }
             if (llmJob) { alert('An AI edit is already in progress for this game'); return; }
             // The AI works from the last saved version; unsaved buffers would
-            // be silently overwritten by its commit.
-            if (hasUnsavedChanges()) { alert('Save or discard your changes first — the AI edits your last saved version.'); return; }
+            // be silently overwritten by its commit — so commit them first.
+            if (hasUnsavedChanges()) {
+                setStatus('Saving your changes...');
+                const save = saveVersion();
+                if (save && save.then) {
+                    // saveVersion swallows failures (dirty flags survive them),
+                    // so only proceed if the working set actually came clean.
+                    save.then(() => { if (!hasUnsavedChanges()) showLLMModal(); });
+                }
+                return;
+            }
             showLLMModal();
         });
     }
@@ -1739,6 +1830,13 @@ const switchToFile = (path) => {
     renderFileTree();
     renderTabs();
     showEditor();
+    // On mobile the file tree is a full-screen page — picking a file means
+    // "edit this", so drop back to the code page.
+    const ft = $('file-tree');
+    if (ft && ft.classList.contains('mobile-visible')) {
+        ft.classList.remove('mobile-visible');
+        syncMobileBar();
+    }
 };
 
 const showEditor = () => {
@@ -1793,8 +1891,9 @@ const updateSaveButton = () => {
     if (!btn) return;
     // Guest games can always "save" — it opens the signup gate, or claims the
     // game once logged in.
-    if (currentGame && currentGame.guest) { btn.disabled = false; return; }
+    if (currentGame && currentGame.guest) { btn.disabled = false; syncMobileBar(); return; }
     btn.disabled = !!viewingVersion || !!llmJob || !hasUnsavedChanges();
+    syncMobileBar();
 };
 
 // ---------------------------------------------------------------------------
@@ -1942,7 +2041,7 @@ const saveVersion = () => {
     const commitMsgEl = $('commit-msg');
     const commitMsg = (commitMsgEl && commitMsgEl.value.trim()) || `Update ${dirtyFiles.length + pendingDeletions.length} file(s)`;
 
-    api('POST', `/studio/games/${currentGame.id}/save`, {
+    return api('POST', `/studio/games/${currentGame.id}/save`, {
         files: dirtyFiles,
         deletions: pendingDeletions,
         message: commitMsg,
@@ -2429,7 +2528,8 @@ $('new-game-create').onclick = () => {
             hideModal('new-game-modal');
             loadGames();
             selectGame(game);
-            if (isAI) startLLMCreate(game.id, aiPrompt);
+            if (isAI) startLLMCreate(game.id, aiPrompt, !!$('new-game-email-notify')?.checked, newGameImages.list());
+            newGameImages.clear();
         })
         .catch(err => { errorEl.textContent = (err && err.error) || 'Failed to create game'; })
         .finally(() => { $('new-game-create').disabled = false; $('new-game-create').textContent = 'Create'; });
@@ -2846,10 +2946,38 @@ const updateLLMBanner = () => {
         startAIAnim(canvas);
     }
 
+    const textWrap = document.createElement('div');
+    textWrap.id = 'ai-banner-text';
+
     const label = document.createElement('span');
     label.id = 'ai-banner-label';
     label.textContent = llmBannerText('In line for the AI worker');
-    banner.appendChild(label);
+    textWrap.appendChild(label);
+
+    // Generation can take up to an hour; make it clear they don't have to
+    // babysit the page (the result commits server-side), and give the ones
+    // who stay something to do.
+    const note = document.createElement('span');
+    note.id = 'ai-banner-note';
+    note.append(llmJob.emailOnComplete
+        ? 'Can take up to an hour. Safe to leave this page — the result saves as a new version and we\'ll email you. While you wait: '
+        : 'Can take up to an hour. Safe to leave this page — the result saves as a new version automatically. While you wait: ');
+    const playLink = document.createElement('a');
+    playLink.href = 'catalog.html';
+    playLink.target = '_blank';
+    playLink.rel = 'noopener';
+    playLink.textContent = 'play some games';
+    note.appendChild(playLink);
+    note.append(' · ');
+    const docsLink = document.createElement('a');
+    docsLink.href = 'docs.html';
+    docsLink.target = '_blank';
+    docsLink.rel = 'noopener';
+    docsLink.textContent = 'read the docs';
+    note.appendChild(docsLink);
+    textWrap.appendChild(note);
+
+    banner.appendChild(textWrap);
 
     const cancelBtn = document.createElement('button');
     cancelBtn.id = 'ai-banner-cancel';
@@ -2882,6 +3010,9 @@ const finishLLMJob = (outcome, message) => {
         if (label) label.textContent = message || 'Done!';
         const cancelBtn = $('ai-banner-cancel');
         if (cancelBtn) cancelBtn.remove();
+        // The "safe to leave / while you wait" note is stale once it's done.
+        const note = $('ai-banner-note');
+        if (note) note.remove();
     }
     setEditorLock();
     if (message) setStatus(message);
@@ -2896,8 +3027,8 @@ const finishLLMJob = (outcome, message) => {
     }
 };
 
-const startLLMJob = (gameId, requestId, prompt) => {
-    llmJob = { requestId, prompt };
+const startLLMJob = (gameId, requestId, prompt, emailOnComplete) => {
+    llmJob = { requestId, prompt, emailOnComplete: !!emailOnComplete };
     setEditorLock();
     pollLLMStatus(gameId, requestId);
 };
@@ -2911,7 +3042,7 @@ const checkLLMJob = () => {
         .then(data => {
             if (!currentGame || currentGame.id !== gameId || llmJob) return;
             const open = (data.requests || []).find(r => r.status === 'PENDING' || r.status === 'PROCESSING');
-            if (open) startLLMJob(gameId, open.requestId, open.prompt || '');
+            if (open) startLLMJob(gameId, open.requestId, open.prompt || '', open.emailOnComplete);
         })
         .catch(() => {});
 };
@@ -2965,10 +3096,10 @@ const cancelLLMJob = () => {
 
 // Kick off generation for a game just created via the "Generate with AI"
 // template choice — same job flow as an edit, no modal.
-const startLLMCreate = (gameId, prompt) => {
-    api('POST', `/studio/games/${gameId}/llm-modify`, { prompt, mode: 'CREATE' })
+const startLLMCreate = (gameId, prompt, emailOnComplete, images) => {
+    api('POST', `/studio/games/${gameId}/llm-modify`, { prompt, mode: 'CREATE', emailOnComplete: !!emailOnComplete, images: images || [] })
         .then(data => {
-            startLLMJob(gameId, data.requestId, prompt);
+            startLLMJob(gameId, data.requestId, prompt, emailOnComplete);
             // Land in the editor so the progress banner is in view.
             openEditorAtHead();
         })
@@ -2977,6 +3108,83 @@ const startLLMCreate = (gameId, prompt) => {
                 + ' — your game was still created; retry from the AI Edit button.');
         });
 };
+
+// ---------------------------------------------------------------------------
+// AI prompt image attachments ("here's a sketch" / "screenshot of the bug").
+// Images are downscaled client-side (max 1024px, JPEG) so even three
+// attachments stay well under the API's body cap, then ride along with the
+// prompt as data URLs for the vision model.
+// ---------------------------------------------------------------------------
+
+const AI_IMAGE_MAX = 3;
+const AI_IMAGE_MAX_DIM = 1024;
+
+const downscaleImage = (file) => new Promise((resolve, reject) => {
+    if (!file.type || !file.type.startsWith('image/')) {
+        reject(new Error(`${file.name} is not an image`));
+        return;
+    }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+        URL.revokeObjectURL(url);
+        const scale = Math.min(1, AI_IMAGE_MAX_DIM / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext('2d');
+        // JPEG has no alpha — flatten transparent sketches onto white.
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(`Could not read ${file.name}`)); };
+    img.src = url;
+});
+
+// Wire one modal's attachment widget (ids `${prefix}-image-{input,add,thumbs}`).
+// Returns { list, clear }: list() is the current data URLs in order.
+const initAIImageAttach = (prefix, errElId) => {
+    const input = $(`${prefix}-image-input`);
+    const addBtn = $(`${prefix}-image-add`);
+    const thumbs = $(`${prefix}-image-thumbs`);
+    if (!input || !addBtn || !thumbs) return { list: () => [], clear: () => {} };
+    let images = [];
+    const render = () => {
+        thumbs.innerHTML = '';
+        images.forEach((dataUrl, i) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'ai-image-thumb';
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.alt = `attached image ${i + 1}`;
+            wrap.appendChild(img);
+            const rm = document.createElement('button');
+            rm.type = 'button';
+            rm.textContent = '×';
+            rm.title = 'Remove image';
+            rm.onclick = () => { images.splice(i, 1); render(); };
+            wrap.appendChild(rm);
+            thumbs.appendChild(wrap);
+        });
+        addBtn.style.display = images.length >= AI_IMAGE_MAX ? 'none' : '';
+    };
+    addBtn.onclick = () => input.click();
+    input.onchange = () => {
+        const files = Array.from(input.files || []).slice(0, AI_IMAGE_MAX - images.length);
+        input.value = '';
+        files.forEach(f => {
+            downscaleImage(f)
+                .then(dataUrl => { if (images.length < AI_IMAGE_MAX) { images.push(dataUrl); render(); } })
+                .catch(e => { const el = $(errElId); if (el) el.textContent = e.message; });
+        });
+    };
+    return { list: () => images.slice(), clear: () => { images = []; render(); } };
+};
+
+const llmImages = initAIImageAttach('llm', 'llm-modal-error');
+const newGameImages = initAIImageAttach('new-game', 'new-game-error');
 
 $('llm-modal-cancel').onclick = () => hideModal('llm-modal');
 $('llm-modal-submit').onclick = () => {
@@ -2995,13 +3203,16 @@ $('llm-modal-submit').onclick = () => {
     }
 
     const gameId = currentGame.id;
+    const emailOnComplete = !!$('llm-email-notify')?.checked;
+    const images = llmImages.list();
     setLLMBusy(true, '<span class="spinner"></span>Submitting…');
-    api('POST', `/studio/games/${gameId}/llm-modify`, { prompt }, { silent: true })
+    api('POST', `/studio/games/${gameId}/llm-modify`, { prompt, emailOnComplete, images }, { silent: true })
         .then(data => {
             setLLMBusy(false, '');
             if (input) input.value = '';
+            llmImages.clear();
             hideModal('llm-modal');
-            startLLMJob(gameId, data.requestId, prompt);
+            startLLMJob(gameId, data.requestId, prompt, emailOnComplete);
         })
         .catch(err => {
             setLLMBusy(false, '');
@@ -3079,7 +3290,7 @@ $('guide-copy').onclick = () => {
 
 // ---------------------------------------------------------------------------
 // Snippets — copy-paste building blocks for common game pieces.
-// Kept in sync with the authoring guide (squishjs-game-authoring.md).
+// Kept in sync with the authoring contract (homegames-context.md, Part II).
 // ---------------------------------------------------------------------------
 
 const SNIPPETS = [
@@ -3185,7 +3396,7 @@ const SNIPPETS = [
     },
     {
         title: 'Per-player visibility',
-        blurb: 'playerIds: [] (or omitted) = everyone, [id] = only them, [0] = NOBODY (hide). Great for private info and "YOU" markers.',
+        blurb: 'playerIds: [] (or omitted) = everyone, [id] = only them. Great for private info and "YOU" markers. NOT a hide switch — to hide something, remove it from the tree.',
         code: [
             "// Only this player sees their own marker:",
             "const youMarker = new GameNode.Text({",
@@ -3194,10 +3405,12 @@ const SNIPPETS = [
             "});",
             "this.base.addChild(youMarker);",
             "",
-            "// Hide a node from everyone / show it again:",
-            "node.node.playerIds = [0];   // hidden",
-            "node.node.playerIds = [];    // visible to all",
-            "this.base.node.onStateChange();"
+            "// Visibility is NOT ownership: leave shared things (ships, bullets,",
+            "// enemies) unscoped or other players can't see them.",
+            "",
+            "// To hide a node, take it OUT of the tree (and re-add to show):",
+            "this.base.removeChild(node.id);   // hidden (and free — not serialized)",
+            "this.base.addChild(node);         // visible again"
         ].join('\n')
     },
     {
@@ -3222,20 +3435,23 @@ const SNIPPETS = [
     },
     {
         title: 'Game loop',
-        blurb: 'Set tickRate in metadata() (15-30 for action games) and do all mutations in tick(), ending with ONE onStateChange.',
+        blurb: 'ALWAYS set tickRate in metadata() if you define tick() — without it, tick() runs at a default 60/sec. Do all mutations in tick(), ending with ONE onStateChange, only when something changed.',
         code: [
-            "// In static metadata():  tickRate: 20,",
+            "// In static metadata():  tickRate: 20,   // required if you define tick()",
             "",
             "tick() {",
             "    this.t = (this.t || 0) + 1;",
+            "    let changed = false;",
             "",
             "    // move things, count down timers (durations = seconds * tickRate)...",
             "    if (this.t >= this.nextSpawnAt) {",
             "        this.spawnThing();",
             "        this.nextSpawnAt = this.t + 2 * 20;   // every 2 seconds",
+            "        changed = true;",
             "    }",
             "",
-            "    this.base.node.onStateChange();   // one notify per tick",
+            "    // one notify per tick, only when something actually changed",
+            "    if (changed) this.base.node.onStateChange();",
             "}"
         ].join('\n')
     }
@@ -3366,15 +3582,18 @@ const togglePreviewPanel = () => {
     const btn = $('preview-toggle-btn');
     if (panel) {
         if (previewOpen) {
-            panel.classList.add('open');
+            // mobile-visible only matters under 768px, where the panel is a
+            // full-screen page; harmless on desktop.
+            panel.classList.add('open', 'mobile-visible');
         } else {
-            panel.classList.remove('open');
+            panel.classList.remove('open', 'mobile-visible');
             stopPreview();
         }
     }
     if (btn) {
         btn.classList.toggle('active', previewOpen);
     }
+    syncMobileBar();
 };
 
 // ---------------------------------------------------------------------------
@@ -3442,6 +3661,40 @@ const settingsSection = (title, hint) => {
 const renderSettingsContent = (panel) => {
     panel.innerHTML = '';
     if (!currentGame) return;
+
+    // --- Name ---
+    const nameSection = settingsSection('Name', 'Renames the game and its repository. Old clone URLs keep working.');
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.value = currentGame.name || '';
+    nameInput.style = 'width:100%;padding:10px;background:var(--bg-deep);border:1px solid var(--border-light);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.95em;';
+    nameSection.appendChild(nameInput);
+    const nameSave = document.createElement('button');
+    nameSave.className = 'dash-btn publish';
+    nameSave.style.marginTop = '8px';
+    nameSave.textContent = 'Save Name';
+    const submitNameChange = () => {
+        const name = nameInput.value.trim();
+        if (!name) { setStatus('Name cannot be empty'); return; }
+        if (name === currentGame.name) return;
+        nameSave.disabled = true; nameSave.textContent = 'Saving...';
+        api('POST', `/studio/games/${currentGame.id}/rename`, { name })
+            .then((updated) => {
+                currentGame.name = updated.name;
+                currentGame.forgejoRepo = updated.forgejoRepo;
+                renderGameBladeTitle();
+                renderGameList();
+                // The editor header caches the name in the DOM — update in place.
+                document.querySelectorAll('#game-header .game-title').forEach(el => { el.textContent = updated.name; });
+                setStatus('Game renamed');
+            })
+            .catch(() => setStatus('Failed to rename game'))
+            .finally(() => { nameSave.disabled = false; nameSave.textContent = 'Save Name'; });
+    };
+    nameSave.onclick = submitNameChange;
+    nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitNameChange(); });
+    nameSection.appendChild(nameSave);
+    panel.appendChild(nameSection);
 
     // --- Description ---
     const descSection = settingsSection('Description', 'A one-line pitch shown in the catalog. Required to publish.');
@@ -3544,6 +3797,31 @@ const renderSettingsContent = (panel) => {
         dl.onclick = () => { const a = url.replace(/\.git$/, '') + '/archive/main.zip'; window.open(a.replace(/\/\/[^@]+@/, '//'), '_blank'); };
         cloneBody.appendChild(dl);
     }).catch(() => { cloneBody.textContent = 'Failed to load clone info'; cloneBody.style = 'color:var(--accent-red);font-size:0.85em;'; });
+
+    // --- Archive ---
+    const archiveSection = settingsSection('Archive', currentGame.archived
+        ? 'This game is archived — it only shows up under the Archived filter in your game list.'
+        : 'Hides the game from your main game list. Nothing is deleted; you can unarchive any time.');
+    const archiveBtn = document.createElement('button');
+    archiveBtn.className = 'dash-btn';
+    archiveBtn.textContent = currentGame.archived ? 'Unarchive Game' : 'Archive Game';
+    archiveBtn.onclick = () => {
+        const archived = !currentGame.archived;
+        archiveBtn.disabled = true;
+        api('POST', `/studio/games/${currentGame.id}/archive`, { archived })
+            .then(() => {
+                currentGame.archived = archived;
+                loadGames();
+                renderSettingsContent(panel);
+                setStatus(archived ? 'Game archived' : 'Game unarchived');
+            })
+            .catch(() => {
+                archiveBtn.disabled = false;
+                setStatus('Failed to update game');
+            });
+    };
+    archiveSection.appendChild(archiveBtn);
+    panel.appendChild(archiveSection);
 
     // --- Danger zone ---
     const dangerSection = settingsSection('Danger Zone', 'Deleting a game removes it and all of its versions permanently.');
@@ -3682,6 +3960,8 @@ const _doStartLocalPreview = (files) => {
 
         previewClient = new HomegamesClient.LocalSession({
             containerId: 'preview-container',
+            gameKey: `studio:${currentGame.guest ? 'guest:' + currentGame.templateId : currentGame.id}`,
+            versionId: viewingVersion?.sha || 'local-game-version',
             files,
             entryPoint: 'index.js',
             assetBundle,
@@ -4545,12 +4825,15 @@ const updateAssetModalChrome = () => {
     document.querySelectorAll('.asset-modal-tab').forEach((btn) => {
         btn.classList.toggle('active', btn.dataset.tab === assetModalTab);
     });
+    // Creation tools show on "mine", and for guests on the catalog tab too —
+    // anyone can draw, record, and play; saving is gated at each tool.
+    const showTools = isMine || !userInfo;
     const drawBtn = $('asset-modal-draw-btn');
     const recordBtn = $('asset-modal-record-btn');
     const keyboardBtn = $('asset-modal-keyboard-btn');
-    if (drawBtn) drawBtn.style.display = isMine ? '' : 'none';
-    if (recordBtn) recordBtn.style.display = isMine ? '' : 'none';
-    if (keyboardBtn) keyboardBtn.style.display = isMine ? '' : 'none';
+    if (drawBtn) drawBtn.style.display = showTools ? '' : 'none';
+    if (recordBtn) recordBtn.style.display = showTools ? '' : 'none';
+    if (keyboardBtn) keyboardBtn.style.display = showTools ? '' : 'none';
     const typeFilter = $('asset-modal-type-filter');
     if (typeFilter) typeFilter.style.display = isMine ? 'none' : '';
     const dropZone = $('asset-modal-drop-zone');
@@ -4636,10 +4919,9 @@ const bindAssetModalSearch = () => {
 };
 
 const openAssetModal = () => {
-    if (!userInfo) {
-        openSignupGate('Create a free account to upload and manage assets for your games.');
-        return;
-    }
+    // Guests can browse the catalog and use the creation tools — only saving
+    // an asset is account-gated (at each tool's save action).
+    if (!userInfo) assetModalTab = 'public';
     assetModalOpen = true;
     assetSearchQuery = '';
     assetTypeFilter = '';
@@ -4669,6 +4951,13 @@ const loadAssetModal = (reset) => {
     const queryParam = assetSearchQuery ? `&query=${encodeURIComponent(assetSearchQuery)}` : '';
     const typeParam = assetTypeFilter ? `&type=${encodeURIComponent(assetTypeFilter)}` : '';
     const isPublic = assetModalTab === 'public';
+    // Guests have no "my assets" — render the sign-in empty state, no request.
+    if (!userInfo && !isPublic) {
+        assetList = [];
+        assetTotal = 0;
+        renderAssetGrid();
+        return;
+    }
     const nsfwCb = $('asset-modal-nsfw-cb');
     const nsfwParam = (isPublic && nsfwCb && nsfwCb.checked) ? '&includeNsfw=true' : '';
     const endpoint = isPublic
@@ -5031,7 +5320,9 @@ const renderAssetGrid = () => {
         const empty = document.createElement('div');
         empty.className = 'asset-modal-empty';
         empty.textContent = isMineTab
-            ? 'No assets yet. Upload files, draw, or record audio.'
+            ? (userInfo
+                ? 'No assets yet. Upload files, draw, or record audio.'
+                : 'Sign in to save and manage your own assets. You can still draw, record, and play the keyboard.')
             : 'No public assets found.';
         grid.appendChild(empty);
         return;
@@ -5209,6 +5500,7 @@ const initAssetModalEvents = () => {
 
 const handleAssetFiles = (files) => {
     if (!files || files.length === 0) return;
+    if (!userInfo) { openSignupGate('Create a free account to upload assets for your games.'); return; }
     setStatus('Uploading asset...');
     const uploadNext = (i) => {
         if (i >= files.length) {
@@ -5235,58 +5527,247 @@ const handleAssetFiles = (files) => {
 // Draw Tool
 // ---------------------------------------------------------------------------
 
-const DRAW_GRID_SIZE = 32;
-const DRAW_PIXEL_SIZE = 16; // 512 / 32
-const DRAW_COLORS = [
-    '#1a1a2e', // dark (near-black)
-    '#e74c3c', // red
-    '#3498db', // blue
-    '#2ecc71', // green
-    '#f1c40f', // yellow
-];
-let drawCurrentColor = DRAW_COLORS[0];
-let drawIsErasing = false;
-let drawGrid = null; // 2D array of hex colors or null
-let drawMouseDown = false;
+// "Save locally" — download a blob straight to the user's machine. No API,
+// no account; shared by the draw, record, and keyboard tools.
+const downloadBlob = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
 
-const openDrawOverlay = () => {
+const DRAW_DISPLAY_SIZE = 640; // on-screen size of the canvas's longer edge
+const DRAW_MAX_DIM = 640;
+const DRAW_UNDO_CAP = 20;
+const DRAW_COLORS = [
+    '#1a1a2e', '#ffffff', '#95a5a6', '#8d6e63',
+    '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71',
+    '#1abc9c', '#3498db', '#9b59b6', '#e84393',
+];
+let drawGridW = 32;
+let drawGridH = 32;
+let drawPixelSize = DRAW_DISPLAY_SIZE / 32;
+let drawCurrentColor = DRAW_COLORS[0];
+let drawTool = 'pencil';   // pencil | eraser | fill | line | rect | ellipse
+let drawGrid = null;       // 2D array [h][w] of hex colors or null
+let drawBuffer = null;     // offscreen canvas at grid resolution — also the export
+let drawBufferCtx = null;
+let drawUndoStack = [];    // grid snapshots, pushed before each committed action
+let drawMouseDown = false;
+let drawLastCell = null;   // previous pencil cell, for stroke interpolation
+let drawShapeStart = null; // shape drag anchor {x, y}
+let drawShapeEnd = null;
+
+const initDrawGrid = (w, h) => {
+    drawGridW = w;
+    drawGridH = h;
+    drawPixelSize = DRAW_DISPLAY_SIZE / Math.max(w, h);
     drawGrid = [];
-    for (let y = 0; y < DRAW_GRID_SIZE; y++) {
-        drawGrid[y] = [];
-        for (let x = 0; x < DRAW_GRID_SIZE; x++) {
-            drawGrid[y][x] = null;
+    for (let y = 0; y < h; y++) drawGrid.push(new Array(w).fill(null));
+    drawBuffer = document.createElement('canvas');
+    drawBuffer.width = w;
+    drawBuffer.height = h;
+    drawBufferCtx = drawBuffer.getContext('2d');
+    const canvas = $('draw-canvas');
+    canvas.width = Math.round(w * drawPixelSize);
+    canvas.height = Math.round(h * drawPixelSize);
+    drawUndoStack = [];
+    updateDrawUndoBtn();
+};
+
+const drawHasContent = () => !!drawGrid && drawGrid.some((row) => row.some(Boolean));
+
+const setDrawCell = (x, y, color) => {
+    if (x < 0 || x >= drawGridW || y < 0 || y >= drawGridH) return;
+    drawGrid[y][x] = color;
+    if (color) {
+        drawBufferCtx.fillStyle = color;
+        drawBufferCtx.fillRect(x, y, 1, 1);
+    } else {
+        drawBufferCtx.clearRect(x, y, 1, 1);
+    }
+};
+
+const renderDrawCanvas = (previewCells) => {
+    const canvas = $('draw-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(drawBuffer, 0, 0, canvas.width, canvas.height);
+
+    // in-progress shape, drawn over the committed pixels
+    if (previewCells) {
+        ctx.fillStyle = drawCurrentColor;
+        previewCells.forEach(([x, y]) => {
+            ctx.fillRect(x * drawPixelSize, y * drawPixelSize, drawPixelSize, drawPixelSize);
+        });
+    }
+
+    // grid lines only when cells are big enough for them to help
+    if (drawPixelSize >= 5) {
+        ctx.strokeStyle = '#ddd';
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i <= drawGridW; i++) {
+            ctx.beginPath();
+            ctx.moveTo(i * drawPixelSize, 0);
+            ctx.lineTo(i * drawPixelSize, canvas.height);
+            ctx.stroke();
+        }
+        for (let i = 0; i <= drawGridH; i++) {
+            ctx.beginPath();
+            ctx.moveTo(0, i * drawPixelSize);
+            ctx.lineTo(canvas.width, i * drawPixelSize);
+            ctx.stroke();
         }
     }
-    drawCurrentColor = DRAW_COLORS[0];
-    drawIsErasing = false;
-    drawMouseDown = false;
+};
 
-    // Build palette
+// cell under a pointer event; accounts for CSS scaling on small screens.
+// Clamped to the grid so captured drags past the edge keep painting the edge.
+const drawCellFromEvent = (e) => {
+    const canvas = $('draw-canvas');
+    const rect = canvas.getBoundingClientRect();
+    const scale = canvas.width / rect.width;
+    const x = Math.floor(((e.clientX - rect.left) * scale) / drawPixelSize);
+    const y = Math.floor(((e.clientY - rect.top) * scale) / drawPixelSize);
+    return {
+        x: Math.max(0, Math.min(drawGridW - 1, x)),
+        y: Math.max(0, Math.min(drawGridH - 1, y)),
+    };
+};
+
+// -- shape rasterizers (lists of [x, y] cells) --
+
+const lineCells = (x0, y0, x1, y1) => { // Bresenham
+    const cells = [];
+    const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+    let err = dx + dy;
+    let x = x0, y = y0;
+    for (;;) {
+        cells.push([x, y]);
+        if (x === x1 && y === y1) break;
+        const e2 = 2 * err;
+        if (e2 >= dy) { err += dy; x += sx; }
+        if (e2 <= dx) { err += dx; y += sy; }
+    }
+    return cells;
+};
+
+const rectCells = (x0, y0, x1, y1) => {
+    const cells = [];
+    const [xa, xb] = x0 < x1 ? [x0, x1] : [x1, x0];
+    const [ya, yb] = y0 < y1 ? [y0, y1] : [y1, y0];
+    for (let x = xa; x <= xb; x++) { cells.push([x, ya]); if (yb !== ya) cells.push([x, yb]); }
+    for (let y = ya + 1; y < yb; y++) { cells.push([xa, y]); if (xb !== xa) cells.push([xb, y]); }
+    return cells;
+};
+
+const ellipseCells = (x0, y0, x1, y1) => {
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const rx = Math.abs(x1 - x0) / 2, ry = Math.abs(y1 - y0) / 2;
+    if (rx < 0.5 && ry < 0.5) return [[x0, y0]];
+    const seen = new Set();
+    const cells = [];
+    const steps = Math.max(64, Math.ceil((rx + ry) * 8));
+    for (let i = 0; i < steps; i++) {
+        const a = (i / steps) * Math.PI * 2;
+        const x = Math.round(cx + rx * Math.cos(a));
+        const y = Math.round(cy + ry * Math.sin(a));
+        const key = x + ',' + y;
+        if (!seen.has(key)) { seen.add(key); cells.push([x, y]); }
+    }
+    return cells;
+};
+
+const shapeCells = (a, b) => {
+    if (drawTool === 'line') return lineCells(a.x, a.y, b.x, b.y);
+    if (drawTool === 'rect') return rectCells(a.x, a.y, b.x, b.y);
+    return ellipseCells(a.x, a.y, b.x, b.y);
+};
+
+const floodFill = (x, y) => {
+    const target = drawGrid[y][x];
+    if (target === drawCurrentColor) return;
+    const stack = [[x, y]];
+    while (stack.length) {
+        const [cx, cy] = stack.pop();
+        if (cx < 0 || cx >= drawGridW || cy < 0 || cy >= drawGridH) continue;
+        if (drawGrid[cy][cx] !== target) continue;
+        setDrawCell(cx, cy, drawCurrentColor);
+        stack.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]);
+    }
+};
+
+// -- undo (grid snapshots; buffer is rebuilt on restore) --
+
+const updateDrawUndoBtn = () => {
+    const btn = $('draw-undo');
+    if (btn) btn.disabled = drawUndoStack.length === 0;
+};
+
+const pushDrawUndo = () => {
+    if (!drawGrid) return;
+    drawUndoStack.push(drawGrid.map((row) => row.slice()));
+    if (drawUndoStack.length > DRAW_UNDO_CAP) drawUndoStack.shift();
+    updateDrawUndoBtn();
+};
+
+const repaintDrawBuffer = () => {
+    drawBufferCtx.clearRect(0, 0, drawGridW, drawGridH);
+    for (let y = 0; y < drawGridH; y++) {
+        for (let x = 0; x < drawGridW; x++) {
+            const c = drawGrid[y][x];
+            if (c) { drawBufferCtx.fillStyle = c; drawBufferCtx.fillRect(x, y, 1, 1); }
+        }
+    }
+};
+
+const drawUndo = () => {
+    if (!drawGrid || !drawUndoStack.length) return;
+    drawGrid = drawUndoStack.pop();
+    repaintDrawBuffer();
+    renderDrawCanvas();
+    updateDrawUndoBtn();
+};
+
+// -- tools / palette chrome --
+
+const setDrawTool = (tool) => {
+    drawTool = tool;
+    document.querySelectorAll('.draw-tool').forEach((b) => b.classList.toggle('active', b.dataset.tool === tool));
+};
+
+const buildDrawPalette = () => {
     const palette = $('draw-palette');
     palette.innerHTML = '';
-    DRAW_COLORS.forEach(c => {
+    DRAW_COLORS.forEach((c) => {
         const swatch = document.createElement('div');
         swatch.className = 'draw-color' + (c === drawCurrentColor ? ' active' : '');
         swatch.style.background = c;
         swatch.onclick = () => {
             drawCurrentColor = c;
-            drawIsErasing = false;
-            palette.querySelectorAll('.draw-color').forEach(s => s.classList.remove('active'));
+            $('draw-color-input').value = c;
+            if (drawTool === 'eraser') setDrawTool('pencil');
+            palette.querySelectorAll('.draw-color').forEach((s) => s.classList.remove('active'));
             swatch.classList.add('active');
         };
         palette.appendChild(swatch);
     });
-    // Eraser
-    const eraser = document.createElement('div');
-    eraser.className = 'draw-color eraser';
-    eraser.onclick = () => {
-        drawIsErasing = true;
-        drawCurrentColor = null;
-        palette.querySelectorAll('.draw-color').forEach(s => s.classList.remove('active'));
-        eraser.classList.add('active');
-    };
-    palette.appendChild(eraser);
+};
 
+const openDrawOverlay = () => {
+    initDrawGrid(readDrawSizeInput('draw-size-w'), readDrawSizeInput('draw-size-h'));
+    setDrawTool('pencil');
+    drawMouseDown = false;
+    drawLastCell = null;
+    drawShapeStart = null;
+    drawShapeEnd = null;
+    buildDrawPalette();
     $('draw-name').value = '';
     renderDrawCanvas();
     $('draw-overlay').classList.add('visible');
@@ -5295,80 +5776,81 @@ const openDrawOverlay = () => {
 const closeDrawOverlay = () => {
     $('draw-overlay').classList.remove('visible');
     drawGrid = null;
+    drawBuffer = null;
+    drawBufferCtx = null;
 };
 
-const renderDrawCanvas = () => {
-    const canvas = $('draw-canvas');
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+// -- pointer handling (mouse + touch + stylus) --
 
-    // Draw pixels
-    for (let y = 0; y < DRAW_GRID_SIZE; y++) {
-        for (let x = 0; x < DRAW_GRID_SIZE; x++) {
-            if (drawGrid[y][x]) {
-                ctx.fillStyle = drawGrid[y][x];
-                ctx.fillRect(x * DRAW_PIXEL_SIZE, y * DRAW_PIXEL_SIZE, DRAW_PIXEL_SIZE, DRAW_PIXEL_SIZE);
-            }
-        }
-    }
-
-    // Draw grid lines
-    ctx.strokeStyle = '#ddd';
-    ctx.lineWidth = 0.5;
-    for (let i = 0; i <= DRAW_GRID_SIZE; i++) {
-        ctx.beginPath();
-        ctx.moveTo(i * DRAW_PIXEL_SIZE, 0);
-        ctx.lineTo(i * DRAW_PIXEL_SIZE, canvas.height);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(0, i * DRAW_PIXEL_SIZE);
-        ctx.lineTo(canvas.width, i * DRAW_PIXEL_SIZE);
-        ctx.stroke();
-    }
-};
-
-const drawAtPos = (canvas, clientX, clientY) => {
+const drawPointerDown = (e) => {
     if (!drawGrid) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = Math.floor((clientX - rect.left) / DRAW_PIXEL_SIZE);
-    const y = Math.floor((clientY - rect.top) / DRAW_PIXEL_SIZE);
-    if (x < 0 || x >= DRAW_GRID_SIZE || y < 0 || y >= DRAW_GRID_SIZE) return;
-    drawGrid[y][x] = drawIsErasing ? null : drawCurrentColor;
-    renderDrawCanvas();
+    e.preventDefault();
+    const cell = drawCellFromEvent(e);
+    if (!cell) return;
+    const canvas = $('draw-canvas');
+    if (canvas.setPointerCapture) { try { canvas.setPointerCapture(e.pointerId); } catch (err) {} }
+    if (drawTool === 'fill') {
+        pushDrawUndo();
+        floodFill(cell.x, cell.y);
+        renderDrawCanvas();
+    } else if (drawTool === 'pencil' || drawTool === 'eraser') {
+        pushDrawUndo(); // one snapshot per stroke
+        drawMouseDown = true;
+        drawLastCell = cell;
+        setDrawCell(cell.x, cell.y, drawTool === 'eraser' ? null : drawCurrentColor);
+        renderDrawCanvas();
+    } else {
+        drawShapeStart = cell;
+        drawShapeEnd = cell;
+        renderDrawCanvas(shapeCells(cell, cell));
+    }
 };
 
-// Canvas mouse/touch events
-document.addEventListener('DOMContentLoaded', () => {
+const drawPointerMove = (e) => {
+    if (!drawGrid) return;
+    const cell = drawCellFromEvent(e);
+    if (!cell) return;
+    if (drawShapeStart) {
+        drawShapeEnd = cell;
+        renderDrawCanvas(shapeCells(drawShapeStart, cell));
+    } else if (drawMouseDown) {
+        // interpolate from the previous cell so fast strokes don't leave gaps
+        const color = drawTool === 'eraser' ? null : drawCurrentColor;
+        const from = drawLastCell || cell;
+        lineCells(from.x, from.y, cell.x, cell.y).forEach(([x, y]) => setDrawCell(x, y, color));
+        drawLastCell = cell;
+        renderDrawCanvas();
+    }
+};
+
+const drawPointerUp = () => {
+    if (drawShapeStart && drawShapeEnd && drawGrid) {
+        pushDrawUndo();
+        shapeCells(drawShapeStart, drawShapeEnd).forEach(([x, y]) => setDrawCell(x, y, drawCurrentColor));
+        renderDrawCanvas();
+    }
+    drawShapeStart = null;
+    drawShapeEnd = null;
+    drawMouseDown = false;
+    drawLastCell = null;
+};
+
+{
     const canvas = $('draw-canvas');
-    if (!canvas) return;
-    canvas.addEventListener('mousedown', (e) => { drawMouseDown = true; drawAtPos(canvas, e.clientX, e.clientY); });
-    canvas.addEventListener('mousemove', (e) => { if (drawMouseDown) drawAtPos(canvas, e.clientX, e.clientY); });
-    canvas.addEventListener('mouseup', () => { drawMouseDown = false; });
-    canvas.addEventListener('mouseleave', () => { drawMouseDown = false; });
-    // Touch
-    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); drawAtPos(canvas, e.touches[0].clientX, e.touches[0].clientY); });
-    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); drawAtPos(canvas, e.touches[0].clientX, e.touches[0].clientY); });
-});
+    canvas.addEventListener('pointerdown', drawPointerDown);
+    canvas.addEventListener('pointermove', drawPointerMove);
+    canvas.addEventListener('pointerup', drawPointerUp);
+    canvas.addEventListener('pointercancel', drawPointerUp);
+}
 
 const saveDrawing = () => {
     if (!drawGrid) return;
+    // The drawing stays on the canvas behind the gate — sign up, then save.
+    if (!userInfo) { openSignupGate('Create a free account to save your drawing as an asset.'); return; }
     const name = $('draw-name').value.trim() || ('drawing-' + Date.now());
 
-    // Render to a clean canvas (no grid lines)
-    const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = DRAW_GRID_SIZE;
-    exportCanvas.height = DRAW_GRID_SIZE;
-    const ctx = exportCanvas.getContext('2d');
-    for (let y = 0; y < DRAW_GRID_SIZE; y++) {
-        for (let x = 0; x < DRAW_GRID_SIZE; x++) {
-            if (drawGrid[y][x]) {
-                ctx.fillStyle = drawGrid[y][x];
-                ctx.fillRect(x, y, 1, 1);
-            }
-        }
-    }
-
-    exportCanvas.toBlob((blob) => {
+    // The offscreen buffer is already the clean grid-resolution image.
+    drawBuffer.toBlob((blob) => {
         if (!blob) { setStatus('Failed to export image'); return; }
         const file = new File([blob], name + '.png', { type: 'image/png' });
         setStatus('Saving drawing...');
@@ -5386,22 +5868,62 @@ const saveDrawing = () => {
 };
 
 $('draw-save').onclick = saveDrawing;
+$('draw-download').onclick = () => {
+    if (!drawGrid) return;
+    const name = $('draw-name').value.trim() || ('drawing-' + Date.now());
+    drawBuffer.toBlob((blob) => {
+        if (!blob) { setStatus('Failed to export image'); return; }
+        downloadBlob(blob, name + '.png');
+    }, 'image/png');
+};
 $('draw-cancel').onclick = closeDrawOverlay;
 $('draw-clear').onclick = () => {
-    if (!drawGrid) return;
-    for (let y = 0; y < DRAW_GRID_SIZE; y++) {
-        for (let x = 0; x < DRAW_GRID_SIZE; x++) {
-            drawGrid[y][x] = null;
-        }
-    }
+    if (!drawGrid || !drawHasContent()) return;
+    pushDrawUndo(); // clearing is undoable
+    drawGrid = drawGrid.map((row) => row.map(() => null));
+    drawBufferCtx.clearRect(0, 0, drawGridW, drawGridH);
     renderDrawCanvas();
 };
+$('draw-undo').onclick = drawUndo;
+
+// clamp a W/H input to 1..640 and write the clamped value back
+const readDrawSizeInput = (id) => {
+    const v = Math.max(1, Math.min(DRAW_MAX_DIM, parseInt($(id).value, 10) || 32));
+    $(id).value = v;
+    return v;
+};
+
+const onDrawSizeChange = () => {
+    const w = readDrawSizeInput('draw-size-w');
+    const h = readDrawSizeInput('draw-size-h');
+    if (!drawGrid || (w === drawGridW && h === drawGridH)) return;
+    if (drawHasContent() && !confirm('Changing the canvas size clears your drawing. Continue?')) {
+        $('draw-size-w').value = drawGridW;
+        $('draw-size-h').value = drawGridH;
+        return;
+    }
+    initDrawGrid(w, h);
+    renderDrawCanvas();
+};
+$('draw-size-w').onchange = onDrawSizeChange;
+$('draw-size-h').onchange = onDrawSizeChange;
+$('draw-color-input').oninput = (e) => {
+    drawCurrentColor = e.target.value;
+    document.querySelectorAll('#draw-palette .draw-color').forEach((s) => s.classList.remove('active'));
+    if (drawTool === 'eraser') setDrawTool('pencil');
+};
+document.querySelectorAll('.draw-tool').forEach((b) => { b.onclick = () => setDrawTool(b.dataset.tool); });
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         if ($('draw-overlay').classList.contains('visible')) closeDrawOverlay();
         if ($('record-overlay').classList.contains('visible')) closeRecordOverlay();
         if ($('keyboard-overlay').classList.contains('visible')) closeKeyboardOverlay();
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z'
+        && $('draw-overlay').classList.contains('visible')) {
+        e.preventDefault();
+        drawUndo();
     }
 });
 
@@ -5429,7 +5951,10 @@ const makeAudioRecorder = (stream) => AUDIO_REC_MIME
     ? new MediaRecorder(stream, { mimeType: AUDIO_REC_MIME })
     : new MediaRecorder(stream);
 
-const audioRecExt = (mime) => (mime && mime.includes('mp4')) ? '.m4a' : '.webm';
+const audioRecExt = (mime) => {
+    if (mime && mime.includes('wav')) return '.wav';
+    return (mime && mime.includes('mp4')) ? '.m4a' : '.webm';
+};
 
 const formatRecTime = (ms) => {
     const secs = Math.floor(ms / 1000);
@@ -5575,6 +6100,8 @@ const showRecordingPreview = () => {
 
 const saveRecording = () => {
     if (!recBlob) return;
+    // The take survives behind the gate — sign up, then save.
+    if (!userInfo) { openSignupGate('Create a free account to save your recording as an asset.'); return; }
     const name = $('rec-name').value.trim() || ('recording-' + Date.now());
     const file = new File([recBlob], name + audioRecExt(recBlob.type), { type: recBlob.type || 'audio/webm' });
     setStatus('Saving recording...');
@@ -5596,6 +6123,11 @@ $('rec-start').onclick = startRecording;
 $('rec-pause').onclick = pauseRecording;
 $('rec-stop').onclick = stopRecording;
 $('rec-save').onclick = saveRecording;
+$('rec-download').onclick = () => {
+    if (!recBlob) return;
+    const name = $('rec-name').value.trim() || ('recording-' + Date.now());
+    downloadBlob(recBlob, name + audioRecExt(recBlob.type));
+};
 $('rec-cancel').onclick = closeRecordOverlay;
 $('rec-close').onclick = closeRecordOverlay;
 // Tap the dark backdrop (outside the box) to dismiss.
@@ -5618,10 +6150,16 @@ let synthLfo = null;
 let synthLfoGain = null;      // vibrato depth in cents; each osc.detune taps it
 let synthRecorder = null;
 let synthChunks = [];
-let synthBlob = null;
-let kbdPreviewUrl = null;
 let synthTimerInterval = null;
 let synthStartTime = null;
+
+// Layers — every recorded take lands here. Save one on its own, or mix all
+// unmuted layers into a song. Kept across overlay open/close (page session).
+let synthLayers = [];         // { id, name, blob, buffer, muted, saved }
+let layerIdCounter = 0;
+let layerSources = [];        // BufferSources currently playing back
+let layersPlaying = false;
+let layerMonitor = null;      // layer playback -> speakers only, NOT the recorder
 
 let synthOctave = 0;
 let synthWave = 'triangle';
@@ -5705,6 +6243,11 @@ const ensureAudioCtx = () => {
         synthLfoGain = audioCtx.createGain();
         synthLfo.connect(synthLfoGain);
         synthLfo.start();
+
+        // layer playback is monitor-only: it feeds the speakers, never the
+        // recorder, so overdubbed layers don't get baked into new takes
+        layerMonitor = audioCtx.createGain();
+        layerMonitor.connect(audioCtx.destination);
 
         syncSynthNodes();
     }
@@ -5830,7 +6373,6 @@ const updateSynthTimer = () => {
 };
 
 const openKeyboardOverlay = () => {
-    synthBlob = null;
     synthChunks = [];
     synthStartTime = null;
 
@@ -5838,92 +6380,393 @@ const openKeyboardOverlay = () => {
     $('kbd-indicator').className = 'record-indicator stopped';
     $('kbd-record').style.display = '';
     $('kbd-stop').style.display = 'none';
-    $('kbd-preview').style.display = 'none';
-    $('kbd-preview').innerHTML = '';
-    $('kbd-name').style.display = 'none';
-    $('kbd-name').value = '';
-    $('kbd-save-row').style.display = 'none';
 
     $('keyboard-overlay').classList.add('visible');
     renderPiano();
     ensureAudioCtx();
+    syncSynthNodes(); // close zeroes the echo send; restore slider state
+    renderLayerList(); // layers survive close/reopen
 };
 
 const closeKeyboardOverlay = () => {
-    stopAllNotes();
+    stopAllNotes(true);
+    stopLayerPlayback();
+    closeAssetPicker();
+    // cut the echo tail so sound doesn't ring on behind the studio
+    if (synthDelayFeedback) { synthDelayFeedback.gain.value = 0; synthDelayWet.gain.value = 0; }
     if (synthRecorder && synthRecorder.state !== 'inactive') {
+        synthRecorder.onstop = null; // closing — the in-flight take is discarded
         synthRecorder.stop();
     }
     if (synthTimerInterval) { clearInterval(synthTimerInterval); synthTimerInterval = null; }
     synthRecorder = null;
-    synthBlob = null;
     $('keyboard-overlay').classList.remove('visible');
 };
 
 const startSynthRecording = () => {
+    if (AUDIO_REC_MIME === null) {
+        setStatus('Recording is not supported in this browser');
+        return;
+    }
     ensureAudioCtx();
     synthChunks = [];
-    synthBlob = null;
 
-    synthRecorder = new MediaRecorder(synthRecordDest.stream, { mimeType: 'audio/webm' });
-    synthRecorder.ondataavailable = (e) => {
+    const recorder = makeAudioRecorder(synthRecordDest.stream);
+    synthRecorder = recorder;
+    recorder.ondataavailable = (e) => {
         if (e.data.size > 0) synthChunks.push(e.data);
     };
-    synthRecorder.onstop = () => {
-        synthBlob = new Blob(synthChunks, { type: 'audio/webm' });
+    recorder.onstop = () => {
+        const blob = new Blob(synthChunks, { type: recorder.mimeType || 'audio/webm' });
         if (synthTimerInterval) { clearInterval(synthTimerInterval); synthTimerInterval = null; }
-        showSynthPreview();
+        stopLayerPlayback();
+        addLayerFromBlob(blob);
     };
 
-    synthRecorder.start(100);
+    recorder.start(100);
+    // overdub: hear the existing layers while recording the new one
+    stopLayerPlayback();
+    startLayerPlayback();
     synthStartTime = Date.now();
     synthTimerInterval = setInterval(updateSynthTimer, 200);
 
     $('kbd-indicator').className = 'record-indicator recording';
     $('kbd-record').style.display = 'none';
     $('kbd-stop').style.display = '';
-    $('kbd-preview').style.display = 'none';
-    $('kbd-name').style.display = 'none';
-    $('kbd-save-row').style.display = 'none';
+    $('kbd-play').style.display = 'none';
+    $('kbd-from-asset').style.display = 'none';
+    closeAssetPicker();
 };
 
 const stopSynthRecording = () => {
     if (!synthRecorder || synthRecorder.state === 'inactive') return;
     synthRecorder.stop();
+    stopLayerPlayback();
     $('kbd-indicator').className = 'record-indicator stopped';
     $('kbd-stop').style.display = 'none';
     $('kbd-record').style.display = '';
 };
 
-const showSynthPreview = () => {
-    if (!synthBlob) return;
-    const url = URL.createObjectURL(synthBlob);
-    const preview = $('kbd-preview');
-    preview.innerHTML = '';
-    const audio = document.createElement('audio');
-    audio.controls = true;
-    audio.src = url;
-    preview.appendChild(audio);
-    preview.style.display = '';
-    $('kbd-name').style.display = '';
-    $('kbd-save-row').style.display = 'flex';
+// -- Layers ----------------------------------------------------------------
+
+const addLayerFromBlob = (blob) => {
+    blob.arrayBuffer()
+        .then((ab) => audioCtx.decodeAudioData(ab))
+        .then((buffer) => {
+            layerIdCounter += 1;
+            synthLayers.push({
+                id: layerIdCounter,
+                name: 'layer-' + layerIdCounter,
+                blob,
+                buffer,
+                muted: false,
+                saved: false,
+            });
+            renderLayerList();
+        })
+        .catch((err) => {
+            console.error('Could not decode recording', err);
+            setStatus('Could not decode recording');
+        });
 };
 
-const saveSynthRecording = () => {
-    if (!synthBlob) return;
-    const name = $('kbd-name').value.trim() || ('track-' + Date.now());
-    const file = new File([synthBlob], name + '.webm', { type: 'audio/webm' });
-    setStatus('Saving track...');
-    $('kbd-save').disabled = true;
+// carve [0, t) and [t, end) out of a buffer; both halves play from time zero
+const sliceLayerBuffer = (buffer, t) => {
+    const rate = buffer.sampleRate;
+    const cut = Math.max(1, Math.min(buffer.length - 1, Math.floor(t * rate)));
+    const part = (start, end) => {
+        const out = audioCtx.createBuffer(buffer.numberOfChannels, end - start, rate);
+        for (let c = 0; c < buffer.numberOfChannels; c++) {
+            out.copyToChannel(buffer.getChannelData(c).subarray(start, end), c);
+        }
+        return out;
+    };
+    return [part(0, cut), part(cut, buffer.length)];
+};
+
+const splitLayer = (layer) => {
+    ensureAudioCtx();
+    const dur = layer.buffer.duration;
+    const input = prompt(`Split "${layer.name}" at second (0–${dur.toFixed(1)})`, (dur / 2).toFixed(1));
+    if (input === null) return;
+    const t = parseFloat(input);
+    if (!(t > 0) || t >= dur) { setStatus('Split point must be inside the layer'); return; }
+    const halves = sliceLayerBuffer(layer.buffer, t);
+    const mk = (buffer, suffix) => {
+        layerIdCounter += 1;
+        return {
+            id: layerIdCounter,
+            name: layer.name + suffix,
+            blob: audioBufferToWav(buffer), // re-encoded, so the halves save as their own assets
+            buffer,
+            muted: layer.muted,
+            saved: false,
+        };
+    };
+    const idx = synthLayers.indexOf(layer);
+    synthLayers.splice(idx, 1, mk(halves[0], '-a'), mk(halves[1], '-b'));
+    stopLayerPlayback();
+    renderLayerList();
+};
+
+const stopLayerPlayback = () => {
+    layerSources.forEach((s) => { s.onended = null; try { s.stop(); } catch (e) {} });
+    layerSources = [];
+    layersPlaying = false;
+    updateLayerControls();
+};
+
+const startLayerPlayback = () => {
+    ensureAudioCtx();
+    const live = synthLayers.filter((l) => !l.muted && l.buffer);
+    if (!live.length) return;
+    layerSources = live.map((l) => {
+        const src = audioCtx.createBufferSource();
+        src.buffer = l.buffer;
+        src.connect(layerMonitor);
+        src.onended = () => {
+            layerSources = layerSources.filter((s) => s !== src);
+            if (!layerSources.length) { layersPlaying = false; updateLayerControls(); }
+        };
+        src.start();
+        return src;
+    });
+    layersPlaying = true;
+    updateLayerControls();
+};
+
+const updateLayerControls = () => {
+    const has = synthLayers.length > 0;
+    const recording = synthRecorder && synthRecorder.state === 'recording';
+    $('kbd-layers').style.display = has ? '' : 'none';
+    $('kbd-name').style.display = has ? '' : 'none';
+    $('kbd-save-row').style.display = has ? 'flex' : 'none';
+    const anyLive = synthLayers.some((l) => !l.muted);
+    const play = $('kbd-play');
+    play.style.display = (has && !recording) ? '' : 'none';
+    play.textContent = layersPlaying ? 'Stop' : 'Play all';
+    play.disabled = !anyLive;
+    $('kbd-from-asset').style.display = recording ? 'none' : '';
+    $('kbd-save').disabled = !anyLive;
+    $('kbd-download').disabled = !anyLive;
+};
+
+const renderLayerList = () => {
+    const list = $('kbd-layers');
+    list.innerHTML = '';
+    synthLayers.forEach((layer) => {
+        const row = document.createElement('div');
+        row.className = 'kbd-layer-row' + (layer.muted ? ' muted' : '');
+
+        const name = document.createElement('input');
+        name.type = 'text';
+        name.value = layer.name;
+        name.oninput = () => { layer.name = name.value; };
+
+        const dur = document.createElement('span');
+        dur.className = 'kbd-layer-dur';
+        dur.textContent = formatRecTime(layer.buffer.duration * 1000);
+
+        const mute = document.createElement('button');
+        mute.textContent = layer.muted ? 'Unmute' : 'Mute';
+        mute.onclick = () => { layer.muted = !layer.muted; stopLayerPlayback(); renderLayerList(); };
+
+        const split = document.createElement('button');
+        split.textContent = 'Split';
+        split.onclick = () => splitLayer(layer);
+
+        const save = document.createElement('button');
+        save.className = 'kbd-layer-save';
+        save.textContent = layer.saved ? 'Saved' : 'Save';
+        save.disabled = layer.saved;
+        save.onclick = () => saveLayer(layer, save);
+
+        const dl = document.createElement('button');
+        dl.textContent = '⬇';
+        dl.title = 'Download';
+        dl.onclick = () => {
+            const name = (layer.name || '').trim() || ('layer-' + layer.id);
+            downloadBlob(layer.blob, name + audioRecExt(layer.blob.type));
+        };
+
+        const del = document.createElement('button');
+        del.textContent = '✕';
+        del.onclick = () => {
+            synthLayers = synthLayers.filter((l) => l !== layer);
+            stopLayerPlayback();
+            renderLayerList();
+        };
+
+        row.appendChild(name);
+        row.appendChild(dur);
+        row.appendChild(mute);
+        row.appendChild(split);
+        row.appendChild(save);
+        row.appendChild(dl);
+        row.appendChild(del);
+        list.appendChild(row);
+    });
+    updateLayerControls();
+};
+
+// -- Add layer from an existing audio asset (e.g. a mic recording) ----------
+
+let assetPickerOpen = false;
+
+const closeAssetPicker = () => {
+    assetPickerOpen = false;
+    const picker = $('kbd-asset-picker');
+    picker.style.display = 'none';
+    picker.innerHTML = '';
+};
+
+const toggleAssetPicker = () => {
+    if (assetPickerOpen) { closeAssetPicker(); return; }
+    assetPickerOpen = true;
+    const picker = $('kbd-asset-picker');
+    picker.style.display = '';
+    picker.innerHTML = '<div class="kbd-asset-picker-note">Loading…</div>';
+    // Guests browse the public catalog; signed-in users get their own assets.
+    const req = userInfo
+        ? api('GET', '/assets?limit=100&offset=0')
+        : fetch(`${API_URL}/catalog/assets?limit=100&offset=0&type=audio`).then((r) => r.json());
+    req
+        .then((data) => {
+            if (!assetPickerOpen) return;
+            const audios = (data.assets || []).filter((a) => getAssetType(a) === 'audio');
+            picker.innerHTML = '';
+            if (!audios.length) {
+                picker.innerHTML = userInfo
+                    ? '<div class="kbd-asset-picker-note">No audio assets yet — record one with the microphone first.</div>'
+                    : '<div class="kbd-asset-picker-note">No public audio assets found.</div>';
+                return;
+            }
+            audios.forEach((asset) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = asset.name || asset.id;
+                btn.onclick = () => addLayerFromAsset(asset, btn);
+                picker.appendChild(btn);
+            });
+        })
+        .catch((err) => {
+            console.error('Failed to load assets', err);
+            if (assetPickerOpen) picker.innerHTML = '<div class="kbd-asset-picker-note">Failed to load assets.</div>';
+        });
+};
+
+const addLayerFromAsset = (asset, btn) => {
+    ensureAudioCtx();
+    btn.disabled = true;
+    setStatus('Loading asset...');
+    fetch(`${API_URL}/assets/${asset.id}`, userInfo ? { headers: { Authorization: `Bearer ${userInfo.token}` } } : undefined)
+        .then((r) => { if (!r.ok) throw new Error('http ' + r.status); return r.blob(); })
+        .then((blob) => blob.arrayBuffer()
+            .then((ab) => audioCtx.decodeAudioData(ab))
+            .then((buffer) => {
+                layerIdCounter += 1;
+                synthLayers.push({
+                    id: layerIdCounter,
+                    name: asset.name || ('layer-' + layerIdCounter),
+                    blob,
+                    buffer,
+                    muted: false,
+                    saved: true, // it already exists as an asset
+                });
+                renderLayerList();
+                closeAssetPicker();
+                setStatus('Layer added');
+            }))
+        .catch((err) => {
+            console.error('Could not load asset', err);
+            setStatus('Could not load that asset');
+            btn.disabled = false;
+        });
+};
+
+const saveLayer = (layer, btn) => {
+    // Layers live in memory across the gate — sign up, then save.
+    if (!userInfo) { openSignupGate('Create a free account to save your layers as assets.'); return; }
+    const name = (layer.name || '').trim() || ('layer-' + layer.id);
+    const file = new File([layer.blob], name + audioRecExt(layer.blob.type), { type: layer.blob.type || 'audio/webm' });
+    setStatus('Saving layer...');
+    btn.disabled = true;
     apiUpload(file, name)
         .then(() => {
-            setStatus('Track saved');
-            closeKeyboardOverlay();
+            layer.saved = true;
+            setStatus('Layer saved');
+            renderLayerList();
             loadAssets(true);
         })
         .catch((err) => {
-            console.error('Failed to save track', err);
-            setStatus('Failed to save track');
+            console.error('Failed to save layer', err);
+            setStatus('Failed to save layer');
+            btn.disabled = false;
+        });
+};
+
+// 16-bit PCM WAV — the song mix is rendered offline, so we encode it ourselves
+const audioBufferToWav = (buffer) => {
+    const numCh = Math.min(2, buffer.numberOfChannels);
+    const rate = buffer.sampleRate;
+    const frames = buffer.length;
+    const dataSize = frames * numCh * 2;
+    const ab = new ArrayBuffer(44 + dataSize);
+    const dv = new DataView(ab);
+    const writeStr = (off, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(off + i, s.charCodeAt(i)); };
+    writeStr(0, 'RIFF'); dv.setUint32(4, 36 + dataSize, true); writeStr(8, 'WAVE');
+    writeStr(12, 'fmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true);
+    dv.setUint16(22, numCh, true); dv.setUint32(24, rate, true);
+    dv.setUint32(28, rate * numCh * 2, true); dv.setUint16(32, numCh * 2, true);
+    dv.setUint16(34, 16, true); writeStr(36, 'data'); dv.setUint32(40, dataSize, true);
+    const chans = [];
+    for (let c = 0; c < numCh; c++) chans.push(buffer.getChannelData(c));
+    let off = 44;
+    for (let i = 0; i < frames; i++) {
+        for (let c = 0; c < numCh; c++) {
+            const s = Math.max(-1, Math.min(1, chans[c][i]));
+            dv.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+            off += 2;
+        }
+    }
+    return new Blob([ab], { type: 'audio/wav' });
+};
+
+const mixLayersToWav = () => {
+    const live = synthLayers.filter((l) => !l.muted && l.buffer);
+    if (!live.length) return Promise.resolve(null);
+    const rate = 44100;
+    const seconds = Math.max(...live.map((l) => l.buffer.duration));
+    const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const offline = new OfflineCtx(2, Math.max(1, Math.ceil(seconds * rate)), rate);
+    live.forEach((l) => {
+        const src = offline.createBufferSource();
+        src.buffer = l.buffer;
+        src.connect(offline.destination);
+        src.start(0);
+    });
+    return offline.startRendering().then(audioBufferToWav);
+};
+
+const saveSong = () => {
+    if (!userInfo) { openSignupGate('Create a free account to save your song as an asset.'); return; }
+    const name = $('kbd-name').value.trim() || ('song-' + Date.now());
+    setStatus('Saving song...');
+    $('kbd-save').disabled = true;
+    mixLayersToWav()
+        .then((blob) => {
+            if (!blob) return Promise.reject(new Error('no unmuted layers'));
+            const file = new File([blob], name + '.wav', { type: 'audio/wav' });
+            return apiUpload(file, name);
+        })
+        .then(() => {
+            setStatus('Song saved');
+            $('kbd-save').disabled = false;
+            loadAssets(true);
+        })
+        .catch((err) => {
+            console.error('Failed to save song', err);
+            setStatus('Failed to save song');
             $('kbd-save').disabled = false;
         });
 };
@@ -5931,7 +6774,23 @@ const saveSynthRecording = () => {
 $('asset-modal-keyboard-btn').onclick = openKeyboardOverlay;
 $('kbd-record').onclick = startSynthRecording;
 $('kbd-stop').onclick = stopSynthRecording;
-$('kbd-save').onclick = saveSynthRecording;
+$('kbd-play').onclick = () => { if (layersPlaying) stopLayerPlayback(); else startLayerPlayback(); };
+$('kbd-from-asset').onclick = toggleAssetPicker;
+$('kbd-save').onclick = saveSong;
+$('kbd-download').onclick = () => {
+    const name = $('kbd-name').value.trim() || ('song-' + Date.now());
+    setStatus('Rendering song...');
+    mixLayersToWav()
+        .then((blob) => {
+            if (!blob) { setStatus('Nothing to download — all layers are muted'); return; }
+            downloadBlob(blob, name + '.wav');
+            setStatus('Song downloaded');
+        })
+        .catch((err) => {
+            console.error('Failed to render song', err);
+            setStatus('Failed to render song');
+        });
+};
 $('kbd-cancel').onclick = closeKeyboardOverlay;
 $('kbd-close').onclick = closeKeyboardOverlay;
 // Tap the dark backdrop (outside the box) to dismiss.
@@ -5945,72 +6804,179 @@ $('synth-volume').oninput = (e) => {
     synthVolume = parseInt(e.target.value, 10) / 100;
     if (synthMaster) synthMaster.gain.value = synthVolume;
 };
+$('synth-attack').oninput = (e) => {
+    const v = parseInt(e.target.value, 10) / 100;
+    synthAttack = v * v * 1.5; // quadratic: fine control at the plucky end
+};
+$('synth-release').oninput = (e) => {
+    const v = parseInt(e.target.value, 10) / 100;
+    synthRelease = 0.02 + v * v * 2.5;
+};
+$('synth-detune').oninput = (e) => { synthDetune = parseInt(e.target.value, 10); };
+$('synth-vib-depth').oninput = (e) => {
+    synthVibDepth = parseInt(e.target.value, 10) * 2; // up to +/-2 semitones — siren territory
+    if (synthLfoGain) synthLfoGain.gain.value = synthVibDepth;
+};
+$('synth-vib-rate').oninput = (e) => {
+    const v = parseInt(e.target.value, 10) / 100;
+    synthVibRate = 0.1 * Math.pow(300, v); // 0.1Hz slow sweep -> 30Hz buzz
+    if (synthLfo) synthLfo.frequency.value = synthVibRate;
+};
+$('synth-cutoff').oninput = (e) => {
+    const v = parseInt(e.target.value, 10) / 100;
+    synthCutoff = 60 * Math.pow(16000 / 60, v); // log sweep, 60Hz -> 16kHz
+    if (synthFilter) synthFilter.frequency.value = synthCutoff;
+};
+$('synth-resonance').oninput = (e) => {
+    synthResonance = 0.5 + (parseInt(e.target.value, 10) / 100) * 19.5;
+    if (synthFilter) synthFilter.Q.value = synthResonance;
+};
+$('synth-drive').oninput = (e) => {
+    synthDrive = parseInt(e.target.value, 10) / 100;
+    if (synthShaper) synthShaper.curve = makeDriveCurve(synthDrive);
+};
+$('synth-echo').oninput = (e) => {
+    synthEcho = parseInt(e.target.value, 10) / 100;
+    if (synthDelayFeedback) {
+        synthDelayFeedback.gain.value = synthEcho * 0.7;
+        synthDelayWet.gain.value = synthEcho * 0.6;
+    }
+};
 document.addEventListener('keydown', onSynthKeyDown);
 document.addEventListener('keyup', onSynthKeyUp);
 
 // ---------------------------------------------------------------------------
-// Mobile tab bar
+// Mobile bar — one big contextual action button plus a Menu button that
+// expands a grid of page tiles. Desktop never sees it (CSS hides it above
+// 768px). Navigation from anywhere in the app funnels through setActiveBlade,
+// togglePreviewPanel, and updateSaveButton — each calls syncMobileBar, so the
+// bar always reflects where the user is and what they most likely want next.
 // ---------------------------------------------------------------------------
 (() => {
-    const tabBar = document.getElementById('mobile-tab-bar');
-    if (!tabBar) return;
+    const bar = $('mobile-bar');
+    if (!bar) return;
+    const actionBtn = $('mobile-action-btn');
+    const menuBtn = $('mobile-menu-btn');
+    const menu = $('mobile-menu');
+    const tiles = Array.from(menu.querySelectorAll('.mmenu-tile'));
 
-    const clearMobileVisible = () => {
-        ['file-tree', 'preview-panel'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.classList.remove('mobile-visible');
-        });
+    const panelVisible = (id) => {
+        const el = $(id);
+        return !!el && el.classList.contains('mobile-visible');
     };
 
-    tabBar.addEventListener('click', (e) => {
-        const tab = e.target.closest('.mtab');
-        if (!tab) return;
+    // The "page" the user is on: one of the two overlay panels that sit on
+    // top of the editor blade, or the expanded blade itself.
+    const currentPage = () => {
+        if (panelVisible('preview-panel')) return 'preview';
+        if (panelVisible('file-tree')) return 'files';
+        if ($('blade-games').classList.contains('expanded')) return 'games';
+        if ($('blade-game').classList.contains('expanded')) return 'versions';
+        return 'code';
+    };
 
-        const tabName = tab.dataset.tab;
-
-        // Update active state
-        tabBar.querySelectorAll('.mtab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-
-        // Blade tabs — setActiveBlade falls back to the deepest reachable blade.
-        if (tabName === 'games') {
-            clearMobileVisible();
-            setActiveBlade('games');
-        } else if (tabName === 'versions') {
-            clearMobileVisible();
-            setActiveBlade('game');
-        } else if (tabName === 'code') {
-            clearMobileVisible();
-            setActiveBlade('editor');
-        } else if (tabName === 'save') {
-            clearMobileVisible();
-            setActiveBlade('editor');
-            const saveBtn = document.getElementById('save-btn');
-            if (saveBtn && !saveBtn.disabled) saveBtn.click();
-            // Flash back to code tab
-            setTimeout(() => {
-                tabBar.querySelector('[data-tab="code"]').classList.add('active');
-                tab.classList.remove('active');
-            }, 300);
-        } else if (tabName === 'preview') {
-            clearMobileVisible();
-            setActiveBlade('editor');
-            const panel = document.getElementById('preview-panel');
-            if (panel) {
-                panel.classList.add('open', 'mobile-visible');
-                // Auto-start preview if not running
-                const playBtn = document.getElementById('preview-play-btn');
-                if (playBtn && !document.getElementById('preview-container')?.children.length) {
-                    playBtn.click();
-                }
-            }
-        } else if (tabName === 'files') {
-            clearMobileVisible();
-            setActiveBlade('editor');
-            const panel = document.getElementById('file-tree');
-            if (panel) panel.classList.add('mobile-visible');
-        }
+    const closeMenu = () => {
+        menu.classList.remove('open');
+        menuBtn.classList.remove('open');
+    };
+    const hidePanels = () => ['file-tree', 'preview-panel'].forEach(id => {
+        const el = $(id);
+        if (el) el.classList.remove('mobile-visible');
     });
+
+    const openPreviewPage = () => {
+        setActiveBlade('editor');
+        const panel = $('preview-panel');
+        if (!panel) return;
+        if (!previewOpen) togglePreviewPanel();
+        else panel.classList.add('mobile-visible'); // was running behind another page
+        // Auto-start the game if nothing is running yet
+        const playBtn = $('preview-play-btn');
+        const container = $('preview-container');
+        if (playBtn && container && !container.children.length) playBtn.click();
+    };
+
+    const goto = (page) => {
+        closeMenu();
+        // Leaving the preview page keeps the game running in the background;
+        // the panel's own Stop button ends the session.
+        hidePanels();
+        if (page === 'games') {
+            setActiveBlade('games');
+        } else if (page === 'versions') {
+            setActiveBlade('game');
+        } else if (page === 'code') {
+            setActiveBlade('editor');
+        } else if (page === 'files') {
+            setActiveBlade('editor');
+            const ft = $('file-tree');
+            if (ft && editorBladeOpened) ft.classList.add('mobile-visible');
+        } else if (page === 'preview') {
+            openPreviewPage();
+        } else if (page === 'assets') {
+            openAssetModal();
+        }
+        syncMobileBar();
+    };
+
+    // The one big button: whatever the user most likely wants to do on the
+    // page they're looking at.
+    const actionFor = (page) => {
+        if (page === 'games') {
+            const newBtn = $('new-game-btn');
+            // Guest mode hides "+ New Game" — the template list is the action.
+            if (newBtn && newBtn.style.display !== 'none') {
+                return { label: '+ New Game', run: () => newBtn.click() };
+            }
+            return null;
+        }
+        if (page === 'versions') return { label: 'Open Editor', run: openEditorAtHead };
+        if (page === 'code') {
+            const saveBtn = $('save-btn');
+            if (saveBtn && !saveBtn.disabled) return { label: 'Save Version', run: () => saveBtn.click() };
+            if (viewingVersion) return { label: 'Restore Version', run: () => restoreVersion(viewingVersion) };
+            return { label: 'Play', run: () => goto('preview') };
+        }
+        if (page === 'files') {
+            return { label: '+ New File', run: () => { const b = $('new-file-btn'); if (b) b.click(); } };
+        }
+        if (page === 'preview') return { label: 'Back to Code', run: () => goto('code') };
+        return null;
+    };
+
+    const pageAvailable = (page) => {
+        if (page === 'games' || page === 'assets') return true;
+        if (page === 'versions') return !!currentGame && !currentGame.guest;
+        return !!currentGame && editorBladeOpened; // code / files / preview
+    };
+
+    syncMobileBar = () => {
+        const page = currentPage();
+        tiles.forEach(t => {
+            t.classList.toggle('active', t.dataset.page === page);
+            t.disabled = !pageAvailable(t.dataset.page);
+        });
+        const action = actionFor(page);
+        actionBtn.classList.toggle('hidden', !action);
+        if (action) {
+            actionBtn.textContent = action.label;
+            actionBtn.onclick = action.run;
+        }
+    };
+
+    menuBtn.onclick = () => {
+        const open = !menu.classList.contains('open');
+        menu.classList.toggle('open', open);
+        menuBtn.classList.toggle('open', open);
+        if (open) syncMobileBar();
+    };
+    // Tapping the dimmed area above the grid closes the menu
+    menu.onclick = (e) => { if (e.target === menu) closeMenu(); };
+    tiles.forEach(t => {
+        t.onclick = () => { if (!t.disabled) goto(t.dataset.page); };
+    });
+
+    syncMobileBar();
 })();
 
 // ---------------------------------------------------------------------------
@@ -6019,3 +6985,4 @@ document.addEventListener('keyup', onSynthKeyUp);
 // ---------------------------------------------------------------------------
 
 enterGuestStudio();
+if (linkedGameId) openAuthOverlay('Sign in to open your game from ChatGPT.', 'login');

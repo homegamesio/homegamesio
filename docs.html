@@ -188,6 +188,24 @@
             main { padding: 24px 16px 100px; }
             #docs-header nav { gap: 12px; }
         }
+
+        /* Long guides remain navigable on narrow screens. */
+        main h2, main h3 { scroll-margin-top: 110px; }
+        main code { overflow-wrap: anywhere; }
+        pre code { overflow-wrap: normal; }
+        table { display: block; max-width: 100%; overflow-x: auto; }
+        .mobile-toc { display: none; }
+        @media (max-width: 820px) {
+            #docs-header { height: auto; min-height: 48px; flex-wrap: wrap; gap: 8px; padding: 10px 16px; }
+            #docs-header nav { flex-wrap: wrap; column-gap: 14px; row-gap: 6px; }
+            .mobile-toc { display: block; margin-bottom: 24px; padding: 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; }
+            main th, main td { min-width: 160px; }
+            .mobile-toc summary { cursor: pointer; color: var(--accent-green); font-weight: 600; }
+            .mobile-toc a { display: block; padding: 4px 0; }
+            .mobile-toc .toc-group { margin-top: 12px; color: var(--text-muted); }
+            #ask-form { flex-wrap: wrap; }
+            #ask-input { min-width: 0; }
+        }
     </style>
 </head>
 <body>
@@ -197,7 +215,7 @@
             <a href="/how_it_works.html">How it works</a>
             <a href="/self-hosting.html">Self-hosting</a>
             <a href="/studio.html">Developer Studio</a>
-            <a href="/authoring-guide.md" target="_blank" rel="noopener" title="The full technical reference (also used as LLM context)">Reference</a>
+            <a href="/authoring-guide.md" target="_blank" rel="noopener" title="Extended reference (also used as LLM context; check version-specific behavior)">Reference</a>
             <button id="theme-toggle">Light</button>
         </nav>
     </div>
@@ -206,6 +224,8 @@
         <aside id="sidebar">
             <div class="toc-group">Start</div>
             <a href="#start-here">Start here</a>
+            <a href="#studio-workflow">Studio workflow</a>
+            <a href="#game-contract">Files &amp; metadata</a>
             <a href="#big-picture">The big picture</a>
             <a href="#first-game">Your first game</a>
             <div class="toc-group">Core concepts</div>
@@ -217,6 +237,7 @@
             <div class="toc-group">Building your game</div>
             <a href="#recipes">Recipes: "how do I make…"</a>
             <a href="#assets">Images &amp; sound</a>
+            <a href="#saving-progress">Saving progress</a>
             <a href="#gotchas">Gotchas</a>
             <div class="toc-group">Shipping</div>
             <a href="#testing">Test &amp; share</a>
@@ -225,6 +246,31 @@
         </aside>
 
         <main>
+            <details class="mobile-toc">
+                <summary>On this page</summary>
+            <div class="toc-group">Start</div>
+            <a href="#start-here">Start here</a>
+            <a href="#studio-workflow">Studio workflow</a>
+            <a href="#game-contract">Files &amp; metadata</a>
+            <a href="#big-picture">The big picture</a>
+            <a href="#first-game">Your first game</a>
+            <div class="toc-group">Core concepts</div>
+            <a href="#drawing">Drawing things</a>
+            <a href="#changing">Making things change</a>
+            <a href="#players">Players &amp; multiplayer</a>
+            <a href="#input">Input: taps, buttons, keys</a>
+            <a href="#game-loop">Movement &amp; game loops</a>
+            <div class="toc-group">Building your game</div>
+            <a href="#recipes">Recipes: "how do I make…"</a>
+            <a href="#assets">Images &amp; sound</a>
+            <a href="#saving-progress">Saving progress</a>
+            <a href="#gotchas">Gotchas</a>
+            <div class="toc-group">Shipping</div>
+            <a href="#testing">Test &amp; share</a>
+            <a href="#publishing">Publish to the catalog</a>
+            <a href="#further">Going further</a>
+
+            </details>
             <h1>How to make Homegames games</h1>
             <p class="subtitle">
                 What a Homegames game is, how it works, and how to build and publish one. Basic JavaScript
@@ -232,7 +278,7 @@
             </p>
 
             <div id="ask-box">
-                <div class="ask-label">Have a question about Homegames or making games? Ask here — answered by a model running on Homegames hardware, so it may take a minute.</div>
+                <div class="ask-label">Ask a Homegames question (up to 500 characters). This optional model service can be busy or offline; answers are generated from a reference document and may be mistaken. It does not inspect your current game.</div>
                 <form id="ask-form">
                     <input id="ask-input" type="text" maxlength="500" placeholder="e.g. Why isn't my screen updating when I change a node?" autocomplete="off">
                     <button id="ask-submit" type="submit">Ask</button>
@@ -243,11 +289,10 @@
 
             <h2 id="start-here">Start here</h2>
             <p>
-                A Homegames game is a JavaScript class exported from an <code>index.js</code>. No framework,
-                no build step. Bigger games can split into multiple files with relative <code>require</code>s.
-                The platform runs your class and renders what it describes: single-player games run in the
-                player's browser, multiplayer games run in a hosted session that players connect to. Input
-                comes back to your code the same way in both.
+                A Homegames game is a JavaScript class exported from <code>index.js</code>, using the
+                Squish framework provided by the runtime. The examples need no build step. Bigger games
+                split into JavaScript modules with relative <code>require</code>s. The game describes a
+                scene, and the runtime renders it in a browser-local or shared hosted session.
             </p>
             <p>To try it:</p>
             <ol>
@@ -256,7 +301,79 @@
                 <li>Hit <strong>Play</strong>.</li>
                 <li>Change something and hit Play again.</li>
             </ol>
-            <p>The rest of this page explains what the code means.</p>
+            <p>This tutorial uses <code>squish-142</code>. Keep that import and the metadata version
+                together; newer node features require a matching Squish package in both the host and
+                browser runtime. The rest of this page explains the code and how to ship it.</p>
+
+            <h2 id="studio-workflow">A reliable Studio workflow</h2>
+            <ol>
+                <li><strong>Start as a guest.</strong> Pick a template, edit its files, and run a local
+                    preview. Guest work is a draft in this browser's storage, not an account backup.</li>
+                <li><strong>Save to an account.</strong> Sign up, verify the emailed code using Studio's
+                    banner, and choose <strong>Save Version</strong>. This creates a repository-backed
+                    game and carries your guest edits into it. Creating, saving, restoring, uploading,
+                    and publishing require a verified account.</li>
+                <li><strong>Iterate.</strong> Preview includes unsaved editor changes. While a preview is
+                    running, edits trigger a restart after a short delay; this resets the live game.
+                    A successful preview does not mean the edits have been saved or published.</li>
+                <li><strong>Check the saved result.</strong> Save Version writes changed files to Git.
+                    A multi-file save can create several consecutive commits. Wait for “Version saved,”
+                    then inspect the final version before publishing.</li>
+                <li><strong>Publish deliberately.</strong> Set your game's description and thumbnail,
+                    write its README, and submit the saved version you tested. Unsaved changes are not
+                    included in a publish request.</li>
+            </ol>
+            <p>Historical versions open read-only and can be previewed. <strong>Restore</strong> writes
+                the selected version's files back to the current branch through new commits; it does not
+                erase Git history or change which versions are published. If saving fails partway through,
+                preserve your editor text and inspect version history before retrying: earlier files may
+                already have been committed.</p>
+            <p>Studio also keeps local drafts of unsaved work when browser storage is available. Treat
+                those as recovery help, not a substitute for a successful Save Version. Clearing site data
+                removes local drafts. <strong>Archive</strong> only moves a game out of your main Studio
+                list; it does not remove published versions from the catalog.</p>
+            <p><strong>AI Edit:</strong> when the server enables this feature, save your changes first.
+                The editor locks while the queued job runs, and a successful edit becomes a new version.
+                Inspect and test that version before publishing. A visible AI button does not guarantee
+                server availability; disabled, busy, and failed jobs have separate status messages.</p>
+
+            <h2 id="game-contract">Files and metadata</h2>
+            <p>Use a root <code>index.js</code> exporting your game class with
+                <code>module.exports = MyGame</code>. Import the supplied Squish alias and your own
+                JavaScript files; the publishing path does not install arbitrary npm dependencies.</p>
+<pre><code>// index.js
+const { Game, GameNode, Colors, Shapes, ShapeUtils } = require('squish-142');
+const { clamp } = require('./rules');
+
+// rules.js (a separate file)
+module.exports.clamp = (value, min, max) =&gt; Math.max(min, Math.min(max, value));</code></pre>
+            <p>The website's local-play source map includes JavaScript files. Put data needed by those
+                modules in JavaScript exports and use the asset system for media; do not assume a local
+                JSON file or filesystem read will work in every play mode.</p>
+            <table>
+                <tr><th>Metadata field</th><th>What it means</th></tr>
+                <tr><td><code>squishVersion: '142'</code></td><td>Required for publishing; match the supplied
+                    package alias and use a version supported by both host and client.</td></tr>
+                <tr><td><code>name: 'My Game'</code></td><td>A nonempty literal name; publishing validates
+                    a maximum of 100 characters.</td></tr>
+                <tr><td><code>aspectRatio: { x: 16, y: 9 }</code></td><td>Positive dimensions for the game
+                    viewport. The coordinate plane still runs from 0 to 100 on each axis.</td></tr>
+                <tr><td><code>tickRate: 20</code></td><td>Target calls per second when you implement
+                    <code>tick()</code>. Publishing accepts 1–120; timing is not a real-time guarantee.</td></tr>
+                <tr><td><code>services: ['multiplayer']</code></td><td>Marks a game for the website's
+                    multiplayer controls. It is not a player-count limit or matchmaking implementation.</td></tr>
+                <tr><td><code>assets: { ... }</code></td><td>Literal keys mapped to
+                    <code>new Asset({ id: '...', type: 'image' })</code> declarations; see
+                    <a href="#assets">assets</a>.</td></tr>
+                <tr><td><code>saveCompatibility: ['older-version-id']</code></td><td>Opt into loading
+                    another version's save on hosts using versioned saves. Only list formats your code
+                    can actually read.</td></tr>
+            </table>
+            <p>Keep <code>metadata()</code> a static method returning an object literal, with literal
+                values for names, versions, services, and asset IDs. The catalog and local-play path read
+                these from source without executing your game; computed values can disappear from that
+                analysis even if they work during a preview. The Studio listing description and thumbnail
+                are separate settings from your code's metadata.</p>
 
             <h2 id="big-picture">The big picture</h2>
             <p>
@@ -268,19 +385,21 @@
             <h3>1. Your code runs inside the Homegames runtime</h3>
             <p>
                 The runtime creates one instance of your class and keeps it alive for the whole session.
-                Single-player games run in the player's browser (this is also how downloaded games work
-                offline). Multiplayer games run on a hosted server that players' browsers connect to. Your
-                game can't tell the difference and shouldn't try. In both cases:
+                Local play runs that instance in the browser; shared play runs it on a host. The same
+                lifecycle and scene APIs work in both, but the environments and available services differ.
+                In either mode:
             </p>
             <ul>
                 <li>You never draw anything. No canvas, no CSS, no HTML. You describe what exists (a red square here, some text there) and the platform renders it.</li>
                 <li>You never write networking. If four people join a hosted session, they're all in your one game instance.</li>
-                <li>Your code gets no browser objects — no <code>window</code>, <code>document</code>, <code>location</code>, or <code>alert</code>. Hosted sessions run in Node.js where those don't exist, and the local runtime doesn't expose them either. See the <a href="#gotchas">gotchas</a>.</li>
+                <li>Do not depend on <code>window</code>, <code>document</code>, <code>location</code>, or <code>alert</code>.
+                    They are absent in hosted Node.js games. The local loader executes in a browser context,
+                    so previewing successfully does not prove your code is portable or sandboxed.</li>
             </ul>
 
             <h3>2. The screen is a 100×100 grid</h3>
             <p>
-                Every position and size is a number from 0 to 100. <code>(0, 0)</code> is the top-left corner,
+                The visible viewport spans 0 to 100 on each axis; positions can have fractional values. <code>(0, 0)</code> is the top-left corner,
                 <code>(100, 100)</code> is the bottom-right, on every screen size. "A button a third of the way
                 down, half the screen wide" is <code>y: 33, width: 50</code>.
             </p>
@@ -304,13 +423,13 @@
             <p>
                 When someone joins, your game gets their <code>playerId</code>. Every tap and key press comes
                 with the acting player's id. You decide what the ids mean — whose ship is whose, whose turn it
-                is. Nodes can also be scoped to specific players, which is how card games keep hands secret in
-                a shared game.
+                is. Nodes can also be scoped to specific players for personal views. Read the
+                <a href="#players">visibility limitations</a> before relying on this for secret information.
             </p>
 
             <h2 id="first-game">Your first game, line by line</h2>
             <p>
-                A complete working game: a square you tap to score points. Every game has this structure —
+                A complete working game: a target you press to score points. Every game has this structure —
                 <code>metadata</code>, constructor, <code>getLayers</code>.
             </p>
 <pre><code>const { Game, GameNode, Colors, Shapes, ShapeUtils } = require('squish-142');
@@ -334,6 +453,7 @@ class TapGame extends Game {
     constructor() {
         super();                     // always call super() first
         this.score = 0;
+        this.heldPlayers = new Set(); // avoid counting repeats while held
 
         // The root of everything: a full-screen background.
         this.base = new GameNode.Shape({
@@ -348,12 +468,14 @@ class TapGame extends Game {
                         size: 4, align: 'center', color: COLORS.WHITE }
         });
 
-        // A tappable square. onClick fires when any player taps it.
+        // A tappable target. Held presses can repeat onClick.
         this.target = new GameNode.Shape({
             shapeType: Shapes.POLYGON,
             coordinates2d: ShapeUtils.rectangle(40, 40, 20, 20),
             fill: COLORS.CANDY_RED,
             onClick: (playerId, x, y) => {
+                if (this.heldPlayers.has(playerId)) return;
+                this.heldPlayers.add(playerId);
                 this.score++;
                 // To change text, replace the whole text object...
                 this.scoreText.node.text = { text: `Score: ${this.score}`,
@@ -366,7 +488,15 @@ class TapGame extends Game {
         this.base.addChildren(this.scoreText, this.target);
     }
 
-    // Tells the platform what to render. Almost always exactly this.
+    handleMouseUp(playerId) {
+        this.heldPlayers.delete(playerId);
+    }
+
+    handlePlayerDisconnect(playerId) {
+        this.heldPlayers.delete(playerId);
+    }
+
+    // Tells the platform what to render. A single layer is enough here.
     getLayers() {
         return [{ root: this.base }];
     }
@@ -400,7 +530,7 @@ ShapeUtils.triangle(x1, y1, x2, y2, x3, y3) // any three points</code></pre>
     shapeType: Shapes.POLYGON,
     coordinates2d: ShapeUtils.rectangle(10, 10, 30, 20),
     fill: COLORS.CORAL,               // interior color
-    color: COLORS.WHITE,              // OUTLINE color (only used with border)
+    color: COLORS.WHITE,              // outline color; its alpha also controls opacity
     border: 4,                        // outline width — a NUMBER. Setting border
                                       // requires setting color too.
     effects: {                        // a glow! great for neon looks
@@ -410,7 +540,7 @@ ShapeUtils.triangle(x1, y1, x2, y2, x3, y3) // any three points</code></pre>
 });</code></pre>
 
             <div class="callout danger">
-                <p><strong>There are no circles.</strong> A <code>Shapes.CIRCLE</code> constant exists, but it does not render. Draw a many-sided polygon instead — 16 sides reads as a circle:</p>
+                <p><strong>Use polygon circles with this client.</strong> A <code>Shapes.CIRCLE</code> constant exists, but the canvas renderer does not draw that representation as an arc. Draw a many-sided polygon instead — 16 sides reads as a circle:</p>
 <pre><code>const polyCircle = (cx, cy, r, sides = 16) =&gt; {
     const pts = [];
     for (let i = 0; i &lt;= sides; i++) {
@@ -432,15 +562,17 @@ ShapeUtils.triangle(x1, y1, x2, y2, x3, y3) // any three points</code></pre>
     }
 });</code></pre>
             <div class="callout">
-                <p><strong>Text can't be tapped.</strong> <code>onClick</code> on a Text node is silently ignored. To make a button, put the <code>onClick</code> on a Shape and draw the Text on top of it — see the <a href="#recipe-button">button recipe</a>.</p>
+                <p><strong>In Squish 142, put button handlers on Shapes.</strong> Its Text constructor does not accept <code>onClick</code>. To make a button, put the <code>onClick</code> on a Shape and draw the Text on top of it — see the <a href="#recipe-button">button recipe</a>.</p>
             </div>
 
             <h3>Colors</h3>
             <p>
                 A color is <code>[red, green, blue, alpha]</code>, each channel an integer from 0 to 255.
                 Alpha 255 is solid, 0 is invisible. There's a named palette on <code>Colors.COLORS</code>
-                (<code>RED</code>, <code>GOLD</code>, <code>EMERALD</code>, <code>HG_BLUE</code>,
-                <code>CANDY_PINK</code>, ~100 more), and <code>Colors.randomColor()</code>.
+                (including <code>RED</code>, <code>GOLD</code>, <code>EMERALD</code>, <code>HG_BLUE</code>,
+                and <code>CANDY_PINK</code>), and <code>Colors.randomColor()</code>. For a Shape fade,
+                use <code>node.color[3]</code>: the current renderer applies that channel as overall
+                opacity, while integer <code>fill</code> alpha values above zero render opaque.
             </p>
             <div class="callout danger">
                 <p><strong>Channels outside 0–255 wrap around</strong> instead of clamping — an alpha of 400 renders as 144. If you compute a color (a fade, say), clamp it: <code>Math.max(0, Math.min(255, Math.round(v)))</code>.</p>
@@ -529,22 +661,33 @@ handlePlayerDisconnect(playerId) {
             </p>
             <table>
                 <tr><th>Value</th><th>Who sees the node</th></tr>
-                <tr><td>omitted</td><td>Everyone (this is the default — use it for almost everything)</td></tr>
-                <tr><td><code>[42]</code></td><td>Only player 42</td></tr>
-                <tr><td><code>[42, 99]</code></td><td>Players 42 and 99</td></tr>
-                <tr><td><code>[0]</code></td><td><strong>Nobody</strong> — the standard trick for temporarily hiding a node</td></tr>
+                <tr><td>omitted or <code>[]</code></td><td>Shared visibility; an empty array does not hide a node</td></tr>
+                <tr><td><code>[42]</code></td><td>Selected for player 42's scoped view</td></tr>
+                <tr><td><code>[42, 99]</code></td><td>Selected for players 42 and 99</td></tr>
+                <tr><td><code>[0]</code></td><td>Not a safe hide switch. The node remains in the full scene;
+                    remove it from the tree to stop rendering it.</td></tr>
             </table>
             <div class="callout danger">
                 <p><strong><code>playerIds</code> means visibility, not ownership.</strong> Tagging each player's ship with <code>playerIds: [playerId]</code> "because it's theirs" makes every ship invisible to every other player. Ships, bullets, and enemies belong to the shared world — leave <code>playerIds</code> off and scope only genuinely private things. Input handlers already receive the acting player's id.</p>
             </div>
+
+            <p><strong>Visibility is not a secrecy guarantee.</strong> The runtime can fall back to the
+                full scene for players without a scoped frame, and spectator views can receive the full
+                scene. Give every active player a scoped node as soon as they join, test the second-player
+                view, and keep unrevealed information in game state rather than hidden scene nodes. This
+                does not by itself protect secrets from spectators. Input handlers must independently
+                check player permissions and game rules.</p>
+            <p>Initialize <code>this.players = {}</code> before using the player example. Player IDs are
+                session identities, not account IDs; do not assume someone reconnecting retains their seat.</p>
 
             <h2 id="input">Input: taps, buttons, keyboards</h2>
 
             <h3>Taps and clicks</h3>
             <p>
                 Put <code>onClick: (playerId, x, y) =&gt; { ... }</code> on any Shape or Asset. It fires for
-                mouse clicks and taps alike. Most players are on phones, so make tap targets big — a 30×12
-                button, not an 8×3 one.
+                mouse presses and taps alike, and can repeat while held. For a one-shot action, latch
+                the press and reset it in <code>handleMouseUp(playerId)</code>, as in the first game.
+                Make tap targets generous enough to use on phones.
             </p>
             <div class="callout">
                 <p><strong>Taps land on the topmost node and stop there.</strong> If a decorative shape covers your button, the tap hits the decoration and is dropped — it doesn't fall through. Two habits prevent this: give invisible grouping containers zero size (<code>rectangle(0,0,0,0)</code>), and add tappable things to the tree after the scenery they sit on.</p>
@@ -573,6 +716,26 @@ handleKeyUp(playerId, key) {
             <div class="callout tip">
                 <p><strong>Phones don't have keyboards.</strong> If keys are your only controls, phone players can't play. Either design tap-first, or add on-screen buttons alongside the key handlers.</p>
             </div>
+
+            <h3>Dragging and controllers</h3>
+            <p><code>handleMouseMove(playerId, { x, y })</code> receives movement while the pointer or
+                finger is held, and <code>handleMouseUp(playerId, data)</code> ends the press. This is not
+                a general hover stream. Node-level <code>onDrag</code>/<code>offClick</code> are newer
+                Squish features; the 142 examples use game-level handlers.</p>
+            <p>In builds with Homepad integration, map normalized controller controls to your existing
+                key handlers with <code>gamepadBindings</code> in metadata:</p>
+<pre><code>gamepadBindings: {
+    ArrowLeft: ['DIRECTION_LEFT', 'STICK_1_LEFT'],
+    ArrowRight: ['DIRECTION_RIGHT', 'STICK_1_RIGHT'],
+    ' ': 'FACE_1'
+}</code></pre>
+            <p><code>FACE_1</code> is the bottom face button, independent of the printed letter.
+                Held bindings repeat keydown. For analog input, implement
+                <code>handleGamepadInput(playerId, message)</code> and read normalized
+                <code>message.input</code>, <code>pressed</code>, <code>released</code>, and
+                <code>deltaTime</code>. A controller does not automatically create another player;
+                player assignment belongs to the session. Test the target browser and keep keyboard or
+                touch alternatives available.</p>
 
             <h3>Text fields</h3>
             <p>
@@ -617,8 +780,11 @@ tick() {
 }</code></pre>
             <p>
                 Pick the lowest <code>tickRate</code> that feels good: 15–30 for action games, 8–15 for casual
-                ones, none at all for turn-based games (just update inside your click handlers). Every ticking
-                frame costs real bandwidth for every player.
+                ones. For turn-based games, don't write a <code>tick()</code> method at all (just update inside
+                your click handlers) — merely defining <code>tick()</code> starts the loop, at a default 60
+                per second if you forgot <code>tickRate</code>. Ticks do not automatically notify scene
+                changes; call <code>onStateChange()</code> when the visuals changed. Hosted scene updates
+                are full frames, so notification frequency and scene size affect bandwidth.
             </p>
             <div class="callout danger">
                 <p><strong><code>tick()</code> starts the moment your game is created</strong> — before anyone joins, before anyone presses Start, and it keeps running on menus and game-over screens. Two rules keep you safe:</p>
@@ -646,8 +812,7 @@ this.setInterval(() =&gt; this.spawnEnemy(), 1000);</code></pre>
 
             <h3 id="recipe-button">…a button?</h3>
             <p>
-                There's no button node, and Text can't be tapped — so a button is a tappable Shape with a Text
-                label on top. Make it a helper and reuse it everywhere:
+                In Squish 142, use a tappable Shape with a Text label on top for a button. Make it a helper and reuse it everywhere:
             </p>
 <pre><code>makeButton({ x, y, w, h, label, fill, onClick }) {
     const bg = new GameNode.Shape({
@@ -684,7 +849,7 @@ this.setInterval(() =&gt; this.spawnEnemy(), 1000);</code></pre>
 
 startRound() {
     if (this.phase === 'playing') return;
-    this.lobby.node.clearChildren();
+    this.lobby.clearChildren();
     this.phase = 'playing';
     // reset scores/positions, show the play field...
 }</code></pre>
@@ -714,13 +879,13 @@ for (const e of this.enemies) {
     }
 }</code></pre>
             <div class="callout tip">
-                <p>Spawn enemies <em>at</em> the screen edge, not beyond it — coordinates below 0 get pinned to 0 on the wire, so an enemy "hiding" at <code>y = -5</code> is actually sitting visibly on the top edge. Spawning off the right/bottom (up to 255) does work.</p>
+                <p>Spawn enemies <em>at</em> the screen edge, not beyond it — coordinates below 0 get pinned to 0 on the wire, so an enemy "hiding" at <code>y = -5</code> is actually sitting visibly on the top edge. The safe pattern everywhere: keep the logical position in a plain variable and only draw the node once it's fully on screen.</p>
             </div>
 
             <h3>…explosions, particles, trails?</h3>
             <p>
                 Don't create shapes when something explodes and delete them as they fade — creating and
-                destroying nodes every frame is the main cause of slow games. Make a fixed pool once and
+                destroying nodes every frame adds allocation and scene-update work. Make a fixed pool once and
                 recycle it:
             </p>
 <pre><code>// Constructor: 40 permanently-allocated particles, hidden (zero size).
@@ -762,7 +927,8 @@ for (const p of this.particles) {
     }
     p.node.node.coordinates2d = ShapeUtils.rectangle(p.x, p.y, 0.7, 0.7);
     p.node.node.color = [255, 255, 255, Math.round(255 * p.life / 20)];  // fade out
-}</code></pre>
+}
+this.base.node.onStateChange();</code></pre>
             <p>
                 Note the fade uses the <code>color</code> field's alpha, not <code>fill</code>'s —
                 <code>fill</code> alpha is effectively on/off (anything above 0 renders solid), while
@@ -778,9 +944,10 @@ for (const p of this.particles) {
 
             <h3>…a secret hand of cards?</h3>
             <p>
-                Scope each player's hand nodes with <code>playerIds: [playerId]</code>, and give every player at
-                least one scoped node the moment they join (a zero-size invisible one works) — see the privacy
-                notes in the <a href="/authoring-guide.md" target="_blank" rel="noopener">full reference</a> for why that matters.
+                Use <code>playerIds: [playerId]</code> for personal hand views, and initialize a scoped
+                node for every player. Read the <a href="#players">visibility limitations</a>: full-scene
+                fallback and spectators mean this is not enough to guarantee a secret hand. Keep the deck
+                and unrevealed cards out of the render tree, and test every supported viewing mode.
             </p>
 
             <h2 id="assets">Images &amp; sound</h2>
@@ -812,15 +979,72 @@ this.base.addChild(ding);
 this.setTimeout(() =&gt; this.base.removeChild(ding.id), 500);</code></pre>
             <p>
                 Upload images and sounds with the <strong>Assets</strong> button in the Studio; it gives you
-                ids to paste into your metadata. A made-up asset id renders nothing — until you have real
-                assets, draw with shapes and text.
+                IDs to paste into your metadata. Keep asset keys short (at most 32 ASCII characters for
+                the bundle format), stable, and identical in metadata and <code>assetInfo</code>. A missing
+                asset may fail the entire preview or game load; use shapes and text until you have real IDs.
+            </p>
+            <p>Studio can also draw images, record audio, and browse the public asset catalog. Uploading
+                or saving an asset to the service requires email verification. <strong>Publish to catalog</strong>
+                makes an asset discoverable; turning it off does not prevent downloading that asset by ID.
+                Removing an asset that a game references can break future loads of that game.</p>
+            <p>Declared assets must be recognizable in <code>index.js</code> for local previews and
+                downloadable games. Use literal <code>new Asset({ id: '...', type: '...' })</code>
+                declarations rather than constructing them in helper functions. Asset nodes use the metadata
+                key, not the asset ID. Audio normally needs a player gesture before the browser will play it.
+                Removing an audio node stops playback; the 500 ms timeout above deliberately cuts off a
+                longer clip.</p>
+
+            <h2 id="saving-progress">Saving game progress</h2>
+            <p>Saving your source with Studio's Save Version does not save a player's progress. A game
+                opts into progress saving through constructor options:</p>
+<pre><code>constructor({ saveGame, saveData } = {}) {
+    super();
+    this.saveGame = saveGame;
+    this.best = Number.isFinite(saveData?.best) ? saveData.best : 0;
+    // Build the scene here, including any labels that show this.best.
+}
+
+async recordBest(score) {
+    if (!Number.isFinite(score) || score &lt;= this.best) return;
+    this.best = score;
+    if (this.saveGame) {
+        try { await this.saveGame({ best: this.best }); }
+        catch (err) { console.error('Could not save progress:', err); }
+    }
+}</code></pre>
+            <p>Pass small JSON-serializable data, not nodes, functions, or circular objects. Keep it below
+                1 MiB; writes are debounced and rapid calls keep the latest value. <code>saveData</code>
+                is supplied when the game is constructed and can be absent. Validate it before use.</p>
+            <table>
+                <tr><th>Mode</th><th>Where saves go</th></tr>
+                <tr><td>Browser-local play</td><td>Browser storage, normally localStorage. If storage is
+                    unavailable, persistence cannot be relied on. Website play and downloads use the catalog
+                    game ID; Studio previews use a separate game/template identity. There is one local slot
+                    per game identity, with the version recorded in the save. Saves are not synchronized
+                    with an account or stored in a separate browser slot for each published commit.</td></tr>
+                <tr><td>Hosted game with disk saves</td><td>The host's per-game, per-version save directory.
+                    This is shared game data, not automatically a separate save slot for every player or
+                    session. Concurrent sessions for the same game/version can overwrite that save.</td></tr>
+                <tr><td>Hosted game with disk saves disabled</td><td>Save envelopes are sent to connected
+                    browsers. Restoring requires the session creator's launch flow to provide a stored
+                    envelope. The home dashboard has this handoff; the website's ordinary session-create
+                    request currently does not send one.</td></tr>
+            </table>
+            <p>For versioned host saves, the runtime first tries the current version, then entries of
+                <code>metadata().saveCompatibility</code> in order. This is permission to read an older
+                format, not an automatic migration. Browser-local play checks its one stored envelope
+                against the selected version and that same compatibility list. Saving a new version can
+                replace the older envelope. Unversioned work uses <code>local-game-version</code>.
+                Older class-name-keyed browser saves are retained but are not automatically moved to a
+                catalog or Studio identity, because several games can share a class name. A downloaded
+                game file includes code and assets, not existing progress.
             </p>
 
             <h2 id="gotchas">Gotchas</h2>
             <p>Common problems and their usual causes.</p>
             <ul>
                 <li><strong>Screen not updating:</strong> missing <code>this.base.node.onStateChange()</code> after changing node properties.</li>
-                <li><strong>Button not working:</strong> the <code>onClick</code> is on a Text node (ignored — put it on a Shape), or something invisible is drawn over it and swallowing the tap.</li>
+                <li><strong>Button not working:</strong> in Squish 142, the <code>onClick</code> is on a Text node (put it on a Shape), or something invisible is drawn over it and swallowing the tap.</li>
                 <li><strong>Crash on the menu:</strong> <code>tick()</code> is touching a node that doesn't exist yet, or the code references a browser global (<code>location</code>, <code>window</code>, <code>alert</code>).</li>
                 <li><strong>Other players can't see something:</strong> <code>playerIds</code> is set on a shared object. It's for private UI only.</li>
                 <li><strong>Game slows down over time:</strong> nodes created every tick and not all removed. Pool and reuse instead.</li>
@@ -833,46 +1057,84 @@ this.setTimeout(() =&gt; this.base.removeChild(ding.id), 500);</code></pre>
                 <li><strong>Single player instantly wins:</strong> a last-one-standing check firing with one person in the session.</li>
             </ul>
 
-            <h2 id="testing">Test &amp; share</h2>
-            <p>The Studio's <strong>Play</strong> button runs your game two ways:</p>
+            <h2 id="testing">Test and share</h2>
+            <p>Start with Studio's local preview, which runs the current editor files without publishing.
+                Use <strong>+ Player</strong> to add a second simulated view of the same instance. This
+                helps catch invisible avatars, incorrect turn handling, and per-player UI mistakes.</p>
+            <p>The local <strong>Inspect</strong> control exposes the scene tree and recorded frames.
+                Use it to find a node, inspect its properties, or see which object covers a button.
+                Stopping with the inspector active preserves the recorded view; restarting runs a new game.</p>
+            <p>Use <strong>Get share link (runs online)</strong> for a real session on multiple devices. Studio asks you to
+                sign in for this option. It submits the preview files, including unsaved editor changes,
+                and returns a join link; this is separate from saving or publishing. Restarting an online
+                preview creates a new session, so share the new link.</p>
             <ul>
-                <li><strong>Local preview</strong> — runs instantly in your own tab, no account needed. This is the same in-browser runtime players get when they click Play on a published game.</li>
-                <li><strong>Online session</strong> — hosts a real session with a shareable link so friends can join from their phones. Requires a free account.</li>
+                <li>Test with one player, then two, then a player leaving and returning.</li>
+                <li>Test held presses as well as quick taps, keyboard repeats, touch, and any controller bindings.</li>
+                <li>Test the lobby, game over, play again, and a long enough run to catch accumulating nodes or timers.</li>
+                <li>Test on a phone and in a hosted session, even if local preview succeeds.</li>
+                <li>If the game saves, reload and verify restored data, including an older save format.</li>
+                <li>After publishing, test the selected version's download without internet access.</li>
             </ul>
-            <p>
-                Test on a phone early — that's how most people play. It shows you quickly whether your buttons
-                are big enough and whether the game secretly requires a keyboard.
-            </p>
-            <p><strong>Save Version</strong> snapshots your code; any earlier version can be restored.</p>
+            <p>Shared sessions are temporary and may end when nobody is connected or the host restarts.
+                Current child servers share an idle policy: players or spectators keep a session occupied;
+                an unpinned empty session gets a host-configured grace period, normally 30 seconds,
+                checked periodically. Do not depend on an exact reconnect window. Share codes expire after the day they are created and the following UTC day; they
+                are not permanent invitations. See <a href="/how_it_works.html#sharing">sharing a session</a>.</p>
 
             <h2 id="publishing">Publish to the catalog</h2>
-            <p>Publishing happens from the Studio:</p>
+            <p>Save and test your intended version, then use <strong>Publish</strong> beside its commit
+                in Studio's version history. The following checks apply:</p>
             <ol>
-                <li>Hit <strong>Publish</strong> on a saved version (verified account required).</li>
-                <li>Automated checks run the game briefly in a sandbox. It has to load, run, and not crash, and it can only use the squish library and its own files — no network calls, no filesystem, no <code>eval</code>.</li>
-                <li>Once it passes, the game is publicly listed in the catalog. Featured games are hand-picked by a human — there's no review step just to get listed.</li>
+                <li><strong>Account and listing:</strong> verify your email, set the game's description
+                    and thumbnail in Studio settings, and change the starter template.</li>
+                <li><strong>Repository:</strong> include root <code>index.js</code>, the full GPLv3 license
+                    text (Studio creates <code>LICENSE</code>), and a README explaining the game and controls.
+                    The worker requires at least 40 characters of README content beyond headings.</li>
+                <li><strong>Metadata and source:</strong> use a literal name and supported Squish version.
+                    Only literal imports of your own relative files and supplied Squish aliases are accepted.
+                    Filesystem/network built-ins, arbitrary npm modules, dynamic imports/requires,
+                    <code>eval</code>, and code-generation constructs fail validation.</li>
+                <li><strong>Size:</strong> keep each JavaScript source file at or below 5 MiB and the
+                    checked repository contents at or below 20 MiB. Symbolic links are rejected.
+                    Store media through the asset tools rather than embedding it in source.</li>
+                <li><strong>Runtime:</strong> Docker validation must be available. It checks metadata and
+                    scene serialization, simulates player input and lifecycle events, and runs the game
+                    briefly with networking disabled. A local preview pass is not a validation pass.</li>
             </ol>
-            <p>A published game gets a page on homegames.io with:</p>
-            <ul>
-                <li><strong>Play</strong> — single-player games run in the visitor's browser when they click it.</li>
-                <li><strong>Play with friends</strong> — for games that declare <code>services: ['multiplayer']</code>. Starts a hosted session and gives the creator a link; anyone who opens the link joins.</li>
-                <li><strong>Download</strong> — a single HTML file containing the game, the runtime, and its assets. Runs offline. Multiplayer features don't work in a downloaded copy; it runs as a solo local session.</li>
-                <li><strong>View Source</strong> — the published code is browsable from the page.</li>
-            </ul>
-            <p>
-                Note: the platform decides these play modes by reading your <code>metadata()</code> without
-                running your code, so keep it a plain literal — <code>name: 'My Game'</code>, not
-                <code>name: computeName()</code>.
-            </p>
-            <p>Published games are open source under GPLv3, like every game on the platform.</p>
+            <p>Status progresses from <code>PENDING</code> to <code>PROCESSING</code>, then
+                <code>PUBLISHED</code> or <code>FAILED</code>. A failed request includes an error; fix the
+                underlying issue, save a new version, and submit that commit. Publishing is limited to
+                <strong>one request per 10 minutes per user</strong>, including requests for other games.</p>
+            <table>
+                <tr><th>Failure</th><th>What to do</th></tr>
+                <tr><td>Email verification required</td><td>Enter the emailed code in Studio, or resend
+                    it from the verification banner, then retry.</td></tr>
+                <tr><td>Missing description / thumbnail</td><td>Update the game's Studio settings;
+                    adding only metadata fields to the source does not set these listing fields.</td></tr>
+                <tr><td>README too thin / license mismatch</td><td>Describe the rules and controls in
+                    ordinary prose and preserve the complete GPLv3 license text.</td></tr>
+                <tr><td>Source or runtime validation failed</td><td>Read the file/line or runtime error,
+                    test the affected code, and check the Squish version and required assets.</td></tr>
+                <tr><td>Docker validation unavailable / request stays pending</td><td>This can be a
+                    service-side issue. Keep the request ID and commit SHA for support; do not repeatedly
+                    create duplicate submissions.</td></tr>
+            </table>
+            <p>A passing version becomes publicly listed without a separate manual featuring step.
+                Administrators choose featured games separately. Published source is browsable through
+                <strong>View Source</strong>. Eligible games get local Play and Download; games declaring
+                <code>services: ['multiplayer']</code> also get hosted multiplayer controls. Downloaded
+                HTML games run as solo sessions and include the selected version's declared assets.</p>
+            <p>Saving or restoring source does not replace a published commit. Publishing another version
+                adds a version; existing sessions and downloaded files continue running their earlier code.</p>
 
             <h2 id="further">Going further</h2>
             <ul>
-                <li><a href="/authoring-guide.md" target="_blank" rel="noopener"><strong>Full technical reference</strong></a> — the complete contract: every node option, scrolling worlds and per-player cameras (<code>ViewableGame</code>), spritesheets, live typing, bot AI. It's also written to work as LLM context — the Studio's <em>Guide</em> button copies it for pasting into an AI assistant.</li>
+                <li><a href="/authoring-guide.md" target="_blank" rel="noopener"><strong>Extended technical reference</strong></a> — additional examples for scrolling worlds and per-player cameras (<code>ViewableGame</code>), spritesheets, live typing, and bot AI. This separate shared document can describe older behavior or different Squish versions; check examples against your runtime. Studio's <em>Guide</em> button copies it for use with an AI assistant.</li>
                 <li><strong>Snippets</strong> — the <em>Snippets</em> button in the Studio has copy-paste blocks for buttons, sounds, glow, per-player visibility, and more.</li>
                 <li><strong>Read real games</strong> — every first-party game is open source in the <a href="https://github.com/homegamesio" target="_blank" rel="noopener">homegamesio GitHub org</a>.</li>
                 <li><strong>How the platform works</strong> — the end-to-end system view (sessions, squish, publishing, homegames.link) is at <a href="/how_it_works.html">how it works</a>.</li>
-                <li><strong>Self-hosting</strong> — the whole platform can run on your own machine; see <a href="/self-hosting.html">self-hosting</a>.</li>
+                <li><strong>Self-hosting</strong> — run a dashboard and game sessions on your own computer; see <a href="/self-hosting.html">self-hosting</a> for how that differs from operating the public services.</li>
             </ul>
 
             <p style="margin-top:48px;color:var(--text-muted);">
