@@ -4,7 +4,6 @@
 
 //const API_URL = 'http://localhost';
 const API_URL = 'https://api.homegames.io';//'http://localhost:80';
-const HOMENAMES_URL = 'https://core.homegames.io:7400';//'https://api.homegames.io/homenames';
 
 // Gates the AI entry points (dashboard "AI Edit" button, "Generate with AI"
 // template option). The full pipeline (modal, polling, API, worker) is always
@@ -41,7 +40,9 @@ let viewingVersion = null; // null = HEAD, or { sha, message, date }
 let publishStatuses = {};  // commitSha -> { status, error, requestId, ... }
 let llmJob = null;         // { requestId, prompt } — open AI edit for currentGame; locks the editor
 let previewClient = null;
-let previewSessionId = null;
+let previewRtcHost = null;
+let previewShareDialog = null;
+let previewGeneration = 0;
 let previewOpen = false;
 let previewDebounceTimer = null;
 // 'local' = LocalSession in this tab (instant reload, no server session);
@@ -1070,7 +1071,7 @@ const renderGameView = () => {
     // one would kick everyone who joined via the share link).
     textarea.addEventListener('mousedown', () => {
         // Already frozen for inspection: leave the recording alone
-        if (previewClient && previewMode === 'local' && !previewFrozen) {
+        if (previewClient && !previewRtcHost?.link && !previewFrozen) {
             if (inspectorOn) {
                 freezePreview();
             } else {
@@ -3901,10 +3902,11 @@ const fetchAllFilesForPreview = () => new Promise((resolve, reject) => {
 });
 
 const startPreview = () => {
+    const generation = ++previewGeneration;
     setPreviewStatus('Loading files...');
     fetchAllFilesForPreview()
-        .then(files => previewMode === 'local' ? _doStartLocalPreview(files) : _doStartPreview(files))
-        .catch(err => setPreviewStatus(err || 'Failed to load files'));
+        .then(files => { if (generation === previewGeneration) _doStartLocalPreview(files); })
+        .catch(err => { if (generation === previewGeneration) setPreviewStatus(err || 'Failed to load files'); });
 };
 
 // Pulls { key, id, type } for every `key: new Asset({ id, type })` declared in
@@ -3943,18 +3945,19 @@ const fetchPreviewAssetBundle = (files) => {
 };
 
 // Local preview: the game runs in this tab via LocalSession — no server
-// session, so restarts are instant and cost nothing. The hosted path
-// (_doStartPreview) remains for shareable multi-device previews.
+// session. Sharing adds RTC players to this same running preview.
 const _doStartLocalPreview = (files) => {
     // Keep the inspector across restarts — it records the new session afresh
     const wasInspecting = inspectorOn;
     stopPreview();
+    const generation = previewGeneration;
 
     const playBtn = $('preview-play-btn');
     const stopBtn = $('preview-stop-btn');
     if (playBtn) playBtn.disabled = true;
 
     fetchPreviewAssetBundle(files).then(assetBundle => {
+        if (generation !== previewGeneration) return;
         setPreviewStatus('Starting...');
         startLocalLogCapture();
 
@@ -3974,7 +3977,7 @@ const _doStartLocalPreview = (files) => {
                 const playerBtn = $('preview-player2-btn');
                 if (playerBtn) playerBtn.style.display = '';
                 if (wasInspecting && !inspectorOn) toggleInspector();
-                showOnlinePreviewOffer();
+                showPreviewShareOffer();
             },
             onError: (err) => {
                 appendPreviewLog('error', 'Error: ' + ((err && err.message) || err));
@@ -3985,27 +3988,41 @@ const _doStartLocalPreview = (files) => {
         });
         previewClient.start();
     }).catch(err => {
+        if (generation !== previewGeneration) return;
         setPreviewStatus((err && err.message) || 'Failed to load assets');
         if (playBtn) playBtn.disabled = false;
     });
 };
 
-// In local mode the share area offers the hosted option instead of a link.
-const showOnlinePreviewOffer = () => {
+// Share the running preview without restarting its game.
+const showPreviewShareOffer = () => {
     const shareEl = $('preview-share');
     if (!shareEl) return;
     shareEl.innerHTML = '';
 
     const onlineBtn = document.createElement('button');
-    onlineBtn.textContent = 'Get share link (runs online)';
+    onlineBtn.textContent = 'Share';
     onlineBtn.className = 'preview-share-copy';
     onlineBtn.onclick = () => {
         if (!userInfo) {
-            openSignupGate('Create a free account to host online sessions and share a link with friends. Local preview stays free — no account needed.');
+            openSignupGate('Create a free account to share your preview with friends. Keep this tab open while they play.');
             return;
         }
-        previewMode = 'online';
-        startPreview();
+        if (!previewClient || previewFrozen) return;
+        if (!previewRtcHost) {
+            previewRtcHost = new HomegamesClient.RtcHost(previewClient, {
+                signalingUrl: `${API_URL}/rtc`,
+                joinUrl: new URL('/play.html', window.location.href).href,
+                onStatus: setPreviewStatus,
+            });
+            previewShareDialog = HomegamesClient.createShareDialog({
+                container: $('preview-container'),
+                getLink: () => previewRtcHost.share(),
+                onOpen: () => previewClient?.inputHandler?.detach(),
+                onClose: () => previewClient?.inputHandler?.attach(),
+            });
+        }
+        previewShareDialog.show();
     };
     shareEl.appendChild(onlineBtn);
 
@@ -4037,203 +4054,12 @@ const enterPreviewFullscreen = () => {
     document.addEventListener(evt, () => window.dispatchEvent(new Event('resize')));
 });
 
-const _doStartPreview = (files) => {
-    // Online sessions require an account (frontend gate; local preview does not)
-    if (!userInfo) {
-        previewMode = 'local';
-        openSignupGate('Create a free account to host online sessions and share a link with friends. Local preview stays free — no account needed.');
-        return;
-    }
-
-    stopPreview();
-
-    setPreviewStatus('Starting session...');
-
-    const playBtn = $('preview-play-btn');
-    const stopBtn = $('preview-stop-btn');
-    if (playBtn) playBtn.disabled = true;
-
-    // Create a session on Homenames with the game files
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', `${HOMENAMES_URL}/sessions`, true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.onreadystatechange = () => {
-        if (xhr.readyState !== XMLHttpRequest.DONE) return;
-
-        if (xhr.status >= 200 && xhr.status < 300) {
-            let data;
-            try { data = JSON.parse(xhr.response); } catch (e) {
-                setPreviewStatus('Invalid response from server');
-                if (playBtn) playBtn.disabled = false;
-                return;
-            }
-
-            previewSessionId = data.sessionId;
-            const wsUrl = data.wsUrl;
-
-            setPreviewStatus('Connecting...');
-
-            previewClient = new HomegamesClient({
-                containerId: 'preview-container',
-                wsUrl: wsUrl,
-                onReady: (playerId) => {
-                    setPreviewStatus('Running (player ' + playerId + ')');
-                    if (playBtn) { playBtn.textContent = 'Restart'; playBtn.disabled = false; }
-                    if (stopBtn) stopBtn.style.display = '';
-                    showPreviewShareLink(wsUrl);
-                    startPreviewLogs(previewSessionId);
-                },
-                onClose: () => {
-                    setPreviewStatus('Disconnected');
-                    resetPreviewButtons();
-                },
-                onError: (err) => {
-                    setPreviewStatus('Error: ' + (err.message || err));
-                    resetPreviewButtons();
-                },
-            });
-            previewClient.start();
-        } else {
-            let errMsg = 'Failed to start preview session';
-            try { errMsg = JSON.parse(xhr.response).error || errMsg; } catch (e) {}
-            setPreviewStatus(errMsg);
-            if (playBtn) playBtn.disabled = false;
-        }
-    };
-    xhr.send(JSON.stringify({ files }));
-};
-
-// Opaque share codes for hosted-session links. Not encryption — just enough
-// structure that links don't advertise a host:port to poke at, and go stale:
-// the checksum binds the payload to a UTC date, so a code only decodes on the
-// day it was minted (or the day after, for links shared near midnight).
-// Format: 1.<fnv1a8(wsUrl|date)>.<base64url(wsUrl XOR checksum)>
-// Keep in sync across studio.js, client.js, and play.html.
-const fnv1a8 = (str) => {
-    let h = 0x811c9dc5;
-    for (let i = 0; i < str.length; i++) {
-        h ^= str.charCodeAt(i);
-        h = Math.imul(h, 0x01000193) >>> 0;
-    }
-    return ('0000000' + h.toString(16)).slice(-8);
-};
-
-const shareCodeUtcDay = (daysAgo) => new Date(Date.now() - (daysAgo || 0) * 86400000).toISOString().slice(0, 10);
-
-const encodeShareCode = (wsUrl) => {
-    const sum = fnv1a8(wsUrl + '|' + shareCodeUtcDay(0));
-    const mixed = Array.from(wsUrl, (c, i) => String.fromCharCode(c.charCodeAt(0) ^ sum.charCodeAt(i % 8))).join('');
-    const b64 = btoa(mixed).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    return `1.${sum}.${b64}`;
-};
-
-const showPreviewShareLink = (wsUrl) => {
-    const shareEl = $('preview-share');
-    if (!shareEl) return;
-    const playUrl = `${window.location.origin}/play.html?s=${encodeShareCode(wsUrl)}`;
-    shareEl.innerHTML = '';
-
-    const linkInput = document.createElement('input');
-    linkInput.readOnly = true;
-    linkInput.value = playUrl;
-    linkInput.className = 'preview-share-input';
-    linkInput.onclick = () => linkInput.select();
-
-    const copyBtn = document.createElement('button');
-    copyBtn.textContent = 'Copy';
-    copyBtn.className = 'preview-share-copy';
-    copyBtn.onclick = () => {
-        navigator.clipboard.writeText(playUrl).then(() => {
-            copyBtn.textContent = 'Copied!';
-            setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
-        });
-    };
-
-    shareEl.appendChild(linkInput);
-    shareEl.appendChild(copyBtn);
-
-    // Way back to the instant local mode
-    const localBtn = document.createElement('button');
-    localBtn.textContent = 'Back to local preview';
-    localBtn.className = 'preview-share-copy';
-    localBtn.onclick = () => {
-        previewMode = 'local';
-        startPreview();
-    };
-    shareEl.appendChild(localBtn);
-};
-
 const clearPreviewShareLink = () => {
     const shareEl = $('preview-share');
     if (shareEl) shareEl.innerHTML = '';
 };
 
-// ---------------------------------------------------------------------------
-// Preview log streaming
-// ---------------------------------------------------------------------------
-
-let previewLogSource = null;
-
-const startPreviewLogs = (sessionId) => {
-    stopPreviewLogs();
-
-    const logsEl = $('preview-logs');
-    if (!logsEl) return;
-    logsEl.innerHTML = '';
-
-    try {
-        previewLogSource = new EventSource(`${HOMENAMES_URL}/sessions/${sessionId}/logs`);
-
-        previewLogSource.onmessage = (event) => {
-            let data;
-            try { data = JSON.parse(event.data); } catch (e) { return; }
-
-            const line = document.createElement('div');
-            line.className = 'log-line log-' + (data.level || 'log');
-
-            const ts = document.createElement('span');
-            ts.className = 'log-ts';
-            if (data.timestamp) {
-                try {
-                    const d = new Date(data.timestamp);
-                    ts.textContent = d.toLocaleTimeString() + ' ';
-                } catch (e) {
-                    ts.textContent = '';
-                }
-            }
-
-            const msg = document.createElement('span');
-            msg.className = 'log-msg';
-            msg.textContent = data.message || '';
-
-            line.appendChild(ts);
-            line.appendChild(msg);
-            logsEl.appendChild(line);
-
-            // Auto-scroll to bottom
-            logsEl.scrollTop = logsEl.scrollHeight;
-        };
-
-        previewLogSource.onerror = () => {
-            // SSE will auto-reconnect, but if the session is dead, stop
-            if (previewLogSource && previewLogSource.readyState === EventSource.CLOSED) {
-                stopPreviewLogs();
-            }
-        };
-    } catch (e) {
-        console.error('Failed to start log stream:', e);
-    }
-};
-
-const stopPreviewLogs = () => {
-    if (previewLogSource) {
-        previewLogSource.close();
-        previewLogSource = null;
-    }
-};
-
 const clearPreviewLogs = () => {
-    stopPreviewLogs();
     const logsEl = $('preview-logs');
     if (logsEl) logsEl.innerHTML = '';
 };
@@ -4241,7 +4067,7 @@ const clearPreviewLogs = () => {
 // ---------------------------------------------------------------------------
 // Local preview log capture — the game runs in this tab, so its console
 // output IS the log stream. Mirror console into the logs pane while a local
-// preview runs (SSE streaming stays for online sessions).
+// preview runs.
 // ---------------------------------------------------------------------------
 
 let _localLogRestore = null;
@@ -4273,7 +4099,6 @@ const _formatLogArg = (a) => {
 };
 
 const startLocalLogCapture = () => {
-    stopPreviewLogs();
     const logsEl = $('preview-logs');
     if (logsEl) logsEl.innerHTML = '';
     if (_localLogRestore) return;
@@ -4297,17 +4122,21 @@ const stopLocalLogCapture = () => {
     if (_localLogRestore) _localLogRestore();
 };
 
+const stopPreviewSharing = () => {
+    previewShareDialog?.dispose(); previewShareDialog = null;
+    previewRtcHost?.stop(); previewRtcHost = null;
+};
+window.addEventListener('pagehide', () => stopPreview());
+
 const stopPreview = () => {
+    previewGeneration++;
+    stopPreviewSharing();
     stopLocalLogCapture();
 
-    // Disconnecting the only client empties the session, which then self-kills
-    // (child_game_server checkPulse). No explicit DELETE — that endpoint is now
-    // gated to internal/admin callers, and teardown-on-empty makes it redundant.
     if (previewClient) {
         previewClient.stop();
         previewClient = null;
     }
-    previewSessionId = null;
     previewFrozen = false;
 
     setPreviewStatus('');
@@ -4322,6 +4151,8 @@ const stopPreview = () => {
 // against the frozen recording; Run tears it down and starts fresh.
 const freezePreview = () => {
     if (!previewClient || !previewClient.freeze) { stopPreview(); return; }
+    stopPreviewSharing();
+    clearPreviewShareLink();
     previewClient.freeze();
     previewFrozen = true;
     stopLocalLogCapture();

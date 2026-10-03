@@ -465,40 +465,23 @@ const renderMessages = () => {
     }).catch(() => { $('content').innerHTML = '<div class="empty">Failed to load (admin access required)</div>'; });
 };
 
-// Live running sessions across all games, with a persistence toggle. Unlike
-// the other tabs this is live state (no pagination/search) pulled through the
-// API, which proxies Homenames with the shared secret.
+// Public browser rooms. Hosts control their tab's lifetime; rooms cannot be pinned.
 const renderSessions = () => {
     $('content').innerHTML = '<div class="empty">Loading…</div>';
-    api('GET', '/admin/sessions').then(data => {
-        const items = data.items || [];
-        if (!items.length) { $('content').innerHTML = '<div class="empty">No running sessions</div>'; return; }
+    api('GET', '/rooms?limit=100').then(data => {
+        const items = data.rooms || [];
+        if (!items.length) { $('content').innerHTML = '<div class="empty">No public sessions</div>'; return; }
         const fields = [
-            ['Game', r => r.gameId || r.gameKey || '—'],
-            ['Session', r => '#' + r.id],
-            ['Port', r => r.port],
-            ['Players', r => (r.playerCount != null ? r.playerCount : '—')],
-            ['Persistent', r => r.persistent ? '📌 pinned' : ''],
+            ['Game', r => r.name],
+            ['Version', r => r.versionId.slice(0, 7)],
+            ['Players', r => `${r.playerCount}/${r.maxPlayers}`],
         ];
-        const actions = (r) => {
-            const btn = document.createElement('button');
-            btn.textContent = r.persistent ? 'Unpin' : 'Pin (keep alive)';
-            btn.onclick = () => {
-                btn.disabled = true;
-                api('POST', `/admin/sessions/${encodeURIComponent(r.id)}/persistent`, { persistent: !r.persistent })
-                    .then(renderSessions).catch(err => { btn.disabled = false; showErr(err); });
-            };
-            return [btn];
-        };
         const wrap = document.createElement('div');
         const refresh = document.createElement('button');
-        refresh.textContent = '↻ Refresh';
-        refresh.style.marginBottom = '8px';
-        refresh.onclick = renderSessions;
-        wrap.appendChild(refresh);
-        wrap.appendChild(buildTable(items, fields, actions));
+        refresh.textContent = '↻ Refresh'; refresh.style.marginBottom = '8px'; refresh.onclick = renderSessions;
+        wrap.appendChild(refresh); wrap.appendChild(buildTable(items, fields, () => []));
         $('content').innerHTML = ''; $('content').appendChild(wrap);
-    }).catch(() => { $('content').innerHTML = '<div class="empty">Failed to load (admin access required)</div>'; });
+    }).catch(() => { $('content').innerHTML = '<div class="empty">Public sessions unavailable</div>'; });
 };
 
 const CUSTOM = { publishRequests: renderPublishRequests, messages: renderMessages, failed: renderFailed, sessions: renderSessions };

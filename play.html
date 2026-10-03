@@ -7,12 +7,14 @@
         <style>
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body { background: #000; height: 100vh; overflow: hidden; }
-            #game-container { width: 100vw; height: 100vh; }
+            #game-container { width: 100vw; height: calc(100vh - 40px); height: calc(100dvh - 40px); }
+            nav { height: 40px; display: flex; align-items: center; padding: 0 14px; background: #242424; font: 14px system-ui; }
+            nav a { color: #FFF78E; }
             #status { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #888; font-family: sans-serif; font-size: 1.2em; }
-            #share-toast { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); max-width: 90vw; background: #FFF78E; color: #333; font-family: sans-serif; font-size: 0.95em; padding: 10px 18px; border-radius: 8px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4); cursor: pointer; opacity: 0; transition: opacity 0.4s; }
         </style>
     </head>
     <body>
+        <nav><a href="/">⌂ Home</a></nav>
         <div id="game-container"></div>
         <div id="status">Connecting...</div>
     </body>
@@ -25,138 +27,58 @@
         const localRef = params.get('ref');
         const statusEl = document.getElementById('status');
 
-        // Opaque share codes for hosted-session links. Not encryption — just enough
-        // structure that links don't advertise a host:port to poke at, and go stale:
-        // the checksum binds the payload to a UTC date, so a code only decodes on the
-        // day it was minted (or the day after, for links shared near midnight).
-        // Format: 1.<fnv1a8(wsUrl|date)>.<base64url(wsUrl XOR checksum)>
-        // Keep in sync across studio.js, client.js, and play.html.
-        const fnv1a8 = (str) => {
-            let h = 0x811c9dc5;
-            for (let i = 0; i < str.length; i++) {
-                h ^= str.charCodeAt(i);
-                h = Math.imul(h, 0x01000193) >>> 0;
-            }
-            return ('0000000' + h.toString(16)).slice(-8);
-        };
-
-        const shareCodeUtcDay = (daysAgo) => new Date(Date.now() - (daysAgo || 0) * 86400000).toISOString().slice(0, 10);
-
-        const decodeShareCode = (code) => {
-            const parts = (code || '').split('.');
-            if (parts.length !== 3 || parts[0] !== '1') return null;
-            const sum = parts[1];
-            let mixed;
-            try { mixed = atob(parts[2].replace(/-/g, '+').replace(/_/g, '/')); } catch (e) { return null; }
-            const decoded = Array.from(mixed, (c, i) => String.fromCharCode(c.charCodeAt(0) ^ sum.charCodeAt(i % 8))).join('');
-            // Codes are date-bound: valid the day they were minted or the day after
-            if (fnv1a8(decoded + '|' + shareCodeUtcDay(0)) !== sum && fnv1a8(decoded + '|' + shareCodeUtcDay(1)) !== sum) return null;
-            return decoded;
-        };
-
-        const shareCode = params.get('s');
-        // Prefer the opaque share code; fall back to the legacy plain ws param
-        const wsUrl = shareCode ? decodeShareCode(shareCode) : params.get('ws');
-
-        // created=1 marks the tab of whoever spun the session up — they get a
-        // share nudge once connected. Stripped from the URL immediately so the
-        // address bar is clean to copy and joiners don't inherit the flag.
-        const sessionCreator = params.get('created') === '1';
-        if (sessionCreator) {
-            params.delete('created');
-            const qs = params.toString();
-            history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
-        }
-
-        let nudgeShown = false;
-        const showShareNudge = () => {
-            // onReady can re-fire on reconnect — nudge only once
-            if (nudgeShown) return;
-            nudgeShown = true;
-            const toast = document.createElement('div');
-            toast.id = 'share-toast';
-            toast.textContent = "Share this page's link for friends to join — click to copy";
-            document.body.appendChild(toast);
-            requestAnimationFrame(() => { toast.style.opacity = '1'; });
-            let hideTimer;
-            const dismiss = () => {
-                clearTimeout(hideTimer);
-                toast.style.opacity = '0';
-                setTimeout(() => toast.remove(), 500);
-            };
-            toast.onclick = () => {
-                if (!navigator.clipboard) { dismiss(); return; }
-                navigator.clipboard.writeText(window.location.href).then(() => {
-                    toast.textContent = 'Link copied!';
-                    clearTimeout(hideTimer);
-                    hideTimer = setTimeout(dismiss, 1500);
-                }).catch(dismiss);
-            };
-            hideTimer = setTimeout(dismiss, 8000);
-        };
-
         const showStatus = (text) => {
             statusEl.style.display = '';
             statusEl.textContent = text;
         };
 
-        // Local mode: the game runs entirely in this browser — fetch its
-        // source + assets from the API and boot a LocalSession. No server
-        // session, no WebSocket.
+        // Play hosts one game in this browser. Published multiplayer games
+        // register on readiness, with privacy chosen before registration.
         const startLocal = () => {
             showStatus('Loading game...');
 
             const manifestUrl = `${API_URL}/games/${encodeURIComponent(localGameId)}/local-manifest?ref=${encodeURIComponent(localRef)}`;
-            HomegamesClient.loadLocalGame({
-                manifestUrl,
-                gameKey: `catalog:${localGameId}`,
-                versionId: localRef,
-            }).then(game => {
-                document.title = `${game.name} — Homegames`;
-                const session = new HomegamesClient.LocalSession({
-                    ...game,
+            const client = new HomegamesClient({
                     containerId: 'game-container',
+                    localHome: false,
+                    loadLocalGame: async (_, options) => {
+                        const game = await HomegamesClient.loadLocalGame({ manifestUrl,
+                            gameKey: `catalog:${localGameId}`, versionId: localRef }, options);
+                        document.title = `${game.name} — Homegames`;
+                        return game;
+                    },
+                    share: game => ({
+                        signalingUrl: `${API_URL}/rtc`,
+                        joinUrl: new URL('/play.html', window.location.href).href,
+                        autoStart: game.multiplayer,
+                        room: game.multiplayer ? { gameId: localGameId, versionId: localRef } : null,
+                        visibility: game.multiplayer && params.get('private') !== '1' ? 'public' : 'private',
+                    }),
                     onReady: () => { statusEl.style.display = 'none'; },
                     onError: (err) => {
                         console.error(err);
                         showStatus('Error: ' + ((err && err.message) || err));
                     },
-                });
-                session.start();
-            })
-                .catch(err => {
-                    console.error(err);
-                    showStatus('Error: ' + (err.message || err));
-                });
+            });
+            window.addEventListener('pagehide', () => client.stop());
+            client.startLocalGame({});
         };
 
-        // Hosted mode: connect to a running server session over WebSocket.
-        const startHosted = () => {
+        const invitation = HomegamesClient.readInvitation();
+        if (invitation) {
             const client = new HomegamesClient({
                 containerId: 'game-container',
-                wsUrl: wsUrl,
-                onReady: (playerId) => {
-                    statusEl.style.display = 'none';
-                    if (sessionCreator) showShareNudge();
-                },
-                onClose: () => {
-                    showStatus('Disconnected');
-                },
-                onError: (err) => {
-                    showStatus('Connection error');
-                },
+                transport: HomegamesClient.createRtcTransport(invitation),
+                onReady: () => { statusEl.style.display = 'none'; },
+                onError: err => showStatus(err.message || 'Unable to join this game'),
+                onClose: () => { if (statusEl.style.display === 'none') showStatus('The host disconnected. Reopen the invitation to join again.'); },
             });
             client.start();
-        };
-
-        if (localGameId && localRef) {
+            window.addEventListener('pagehide', () => client.stop());
+        } else if (localGameId && localRef) {
             startLocal();
-        } else if (wsUrl) {
-            startHosted();
-        } else if (shareCode) {
-            showStatus('This share link is invalid or has expired');
         } else {
-            showStatus('No session URL provided');
+            showStatus('This game link has ended. Choose a game from Home to play.');
         }
     </script>
 </html>

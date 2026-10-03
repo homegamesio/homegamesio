@@ -2,8 +2,7 @@ window.API_PROTOCOL = 'https';//window.origin && window.origin.startsWith('https
 window.API_HOST = 'api.homegames.io';//'api.homegames.io';//'api.homegames.io';//window.origin && window.origin.indexOf('localhost') >= 0 ? 'localhost:8000' : 'api.homegames.io';
 window.API_PORT = 443;
 
-window.API_URL = `${window.API_PROTOCOL}://${window.API_HOST}:${window.API_PORT}`;
-window.HOMENAMES_URL = 'https://core.homegames.io:7400';//api.homegames.io/homenames';
+window.API_URL = window.API_URL || `${window.API_PROTOCOL}://${window.API_HOST}:${window.API_PORT}`;
 
 
 
@@ -331,7 +330,7 @@ const renderGamePage = (gameId, gameDetails) => {
     description.textContent = gameDetails?.game?.description || 'No description available';
 
     // Sessions only make sense for session-based games — revealed once the
-    // local-manifest classifies this as multiplayer (or the hosted fallback).
+    // local-manifest classifies this as multiplayer.
     const sessionCount = gameDetails?.game?.sessionCount || 0;
     const stats = document.createElement('div');
     stats.style = 'margin-top: 12px; color: #888; font-size: 0.9em; display: none;';
@@ -400,8 +399,8 @@ const renderGamePage = (gameId, gameDetails) => {
     col3.appendChild(author);
     col3.appendChild(description);
 
-    // Every game gets Play (solo local session) + Download; multiplayer games
-    // additionally get the Multiplayer Sessions section below.
+    // Play and Download run the same browser host. Discovery is a separate
+    // list of already-running public rooms.
     // block + fit-content + auto margins: each button sits on its own line
     // below the version dropdown, centered in the column
     const playBtn = document.createElement('div');
@@ -419,32 +418,22 @@ const renderGamePage = (gameId, gameDetails) => {
     downloadCountLine.textContent = `${downloadCount.toLocaleString()} download${downloadCount === 1 ? '' : 's'}`;
     downloadCountLine.style = 'margin-top: 6px; font-size: 0.8em; color: #888; display: none;';
 
-    const downloadNote = document.createElement('div');
-    downloadNote.textContent = 'Multiplayer features are unavailable in downloaded games';
-    downloadNote.style = 'margin-top: 6px; font-size: 0.8em; color: #888; display: none;';
 
     versionSection.appendChild(playBtn);
     versionSection.appendChild(downloadLink);
     versionSection.appendChild(downloadCountLine);
-    versionSection.appendChild(downloadNote);
 
-    // Multiplayer Sessions — list of joinable hosted sessions plus the
-    // create button. Shown for multiplayer games (and the legacy fallback).
+    // Public browser sessions, independent of starting a new game.
     const sessionSection = document.createElement('div');
     sessionSection.style = 'margin-bottom: 32px; text-align: left; display: none;';
 
     const sessionHeader = document.createElement('h3');
     sessionHeader.className = 'amateur';
-    sessionHeader.textContent = 'Play with friends';
+    sessionHeader.textContent = 'Public sessions';
     sessionHeader.style = 'text-align: center;';
 
     const sessionList = document.createElement('div');
     sessionList.style = 'margin-top: 8px;';
-
-    const createBtn = document.createElement('div');
-    createBtn.textContent = 'Start a new game';
-    createBtn.className = 'clickable amateur';
-    createBtn.style = 'background: #A0EB5D; color: #333; padding: 12px 24px; border-radius: 8px; margin: 12px auto 0; width: fit-content; font-size: 1.1em; cursor: pointer;';
 
     // Private (unlisted) opt-in — the session won't show up in the session
     // lists on this page or the front page; players get in via the link.
@@ -455,15 +444,15 @@ const renderGamePage = (gameId, gameDetails) => {
     privateCheck.style = 'margin-right: 6px; cursor: pointer; vertical-align: middle;';
     privateLabel.appendChild(privateCheck);
     privateLabel.appendChild(document.createTextNode('Private game — not listed publicly, invite friends with a link'));
+    privateLabel.style.display = 'none';
+    versionSection.appendChild(privateLabel);
 
     const statusMsg = document.createElement('div');
     statusMsg.style = 'margin-top: 8px; font-size: 0.9em; color: #888; text-align: center;';
 
     sessionSection.appendChild(sessionHeader);
     sessionSection.appendChild(sessionList);
-    sessionSection.appendChild(createBtn);
-    sessionSection.appendChild(privateLabel);
-    sessionSection.appendChild(statusMsg);
+    versionSection.appendChild(statusMsg);
 
     // Play controls — full-width row between the columns and the comments,
     // centered to match the comments card width.
@@ -525,58 +514,54 @@ const renderGamePage = (gameId, gameDetails) => {
         viewSourceSlot.appendChild(viewCodeLink);
 
         const updateDownloadHref = () => {
-            downloadLink.href = `${API_URL}/games/${gameId}/download?ref=${versionSelect.value}`;
+            downloadLink.href = `${API_URL}/games/${gameId}/download?format=rtc2&ref=${versionSelect.value}`;
         };
 
-        versionSelect.onchange = () => {
-            viewCodeLink.href = `/view.html?game=${gameId}&sha=${versionSelect.value}`;
-            updateDownloadHref();
-        };
-
-        // Legacy hosted UI, for games the manifest can't classify
-        const showHostedFallback = () => {
-            sessionSection.style.display = '';
-            stats.style.display = '';
-            loadGameSessions(gameId, sessionList);
-        };
-
-        // The local-manifest decides which play UI this game gets: Play +
-        // Download for anything the local runtime can handle, plus the
-        // Multiplayer Sessions section for multiplayer games.
-        makeGet(`${API_URL}/games/${gameId}/local-manifest?ref=${publishedVersions[0].commitSha}`).then(_manifest => {
+        let selectedManifest = null, capabilityGeneration = 0;
+        const updateCapabilities = () => {
+            const generation = ++capabilityGeneration;
+            selectedManifest = null;
+            playBtn.style.display = downloadLink.style.display = privateLabel.style.display = 'none';
+            downloadCountLine.style.display = 'none';
+            statusMsg.textContent = 'Loading game…';
+            makeGet(`${API_URL}/games/${encodeURIComponent(gameId)}/local-manifest?ref=${encodeURIComponent(versionSelect.value)}`).then(_manifest => {
+            if (generation !== capabilityGeneration) return;
             const manifest = JSON.parse(_manifest);
+            selectedManifest = manifest;
+            statusMsg.textContent = manifest.localPlayable ? '' : (manifest.reason || 'This version cannot run in the browser');
             if (manifest.localPlayable) {
                 playBtn.style.display = 'block';
             }
             if (manifest.downloadable) {
                 downloadLink.style.display = 'block';
-                if (manifest.downloadSizeBytes) {
-                    downloadLink.textContent = `Download (${formatBytes(manifest.downloadSizeBytes)})`;
-                }
+                downloadLink.textContent = manifest.downloadSizeBytes ? `Download (${formatBytes(manifest.downloadSizeBytes)})` : 'Download';
                 downloadCountLine.style.display = 'block';
-                if (manifest.multiplayer) downloadNote.style.display = 'block';
                 updateDownloadHref();
             }
             if (manifest.multiplayer) {
                 stats.style.display = '';
                 sessionSection.style.display = '';
-                // For multiplayer games the solo local session is the
-                // secondary option — label it accordingly.
-                playBtn.textContent = 'Play offline';
-                loadGameSessions(gameId, sessionList);
-            } else if (!manifest.localPlayable) {
-                showHostedFallback();
+                if (manifest.localPlayable) privateLabel.style.display = 'block';
             }
         }).catch(err => {
+            if (generation !== capabilityGeneration) return;
             console.error('local-manifest check failed', err);
-            showHostedFallback();
+            statusMsg.textContent = 'Unable to load this game version. Refresh to try again.';
         });
+        };
+        versionSelect.onchange = () => {
+            viewCodeLink.href = `/view.html?game=${gameId}&sha=${versionSelect.value}`;
+            updateCapabilities();
+        };
+        updateCapabilities();
+        sessionSection.style.display = '';
+        loadGameSessions(gameId, sessionList);
 
         playBtn.onclick = () => {
-            if (!versionSelect.value) return;
+            if (!versionSelect.value || !selectedManifest?.localPlayable) return;
             // Local plays count toward the game's download total (fire-and-forget)
             fetch(`${API_URL}/games/${gameId}/play`, { method: 'POST' }).catch(() => {});
-            window.open(`/play.html?localGame=${encodeURIComponent(gameId)}&ref=${encodeURIComponent(versionSelect.value)}`, '_blank');
+            window.open(`/play.html?localGame=${encodeURIComponent(gameId)}&ref=${encodeURIComponent(versionSelect.value)}${privateCheck.checked ? '&private=1' : ''}`, '_blank');
         };
 
     }).catch(err => {
@@ -584,67 +569,6 @@ const renderGamePage = (gameId, gameDetails) => {
         versionCountLine.textContent = 'Version info unavailable';
         console.error(err);
     });
-
-    // --- Create session handler ---
-    createBtn.onclick = () => {
-        const commitSha = versionSelect.value;
-        if (!commitSha) return;
-
-        // Open the tab now, while still inside the click gesture. Session
-        // spin-up (docker) can take longer than the browser's popup-blocker
-        // grace window, so a window.open after the POST resolves is
-        // intermittently blocked — session created, no tab, looks broken.
-        const tab = window.open('', '_blank');
-        if (tab) {
-            try { tab.document.title = 'Starting your game...'; tab.document.body.textContent = 'Starting your game...'; } catch (e) {}
-        }
-
-        createBtn.style.display = 'none';
-        statusMsg.innerHTML = 'Starting your game...';
-
-        const isPrivate = privateCheck.checked;
-
-        makePost(`${API_URL}/sessions`, { gameId, commitSha, private: isPrivate }).then(sessionData => {
-            statusMsg.innerHTML = '';
-            createBtn.style.display = '';
-            // Refresh session list (and reveal it — a session now exists).
-            // A private session won't appear in it — that's the point.
-            sessionSection.style.display = '';
-            loadGameSessions(gameId, sessionList);
-            // Connect to the new session
-            connectToSession(sessionData, tab, true);
-            const url = sessionPlayUrl(sessionData, true);
-            // Popup blocked even at gesture time — leave a manual way in
-            if (!tab || tab.closed) {
-                if (url) statusMsg.innerHTML = `<a href="${url}" target="_blank">Your game is ready — click here to join</a>`;
-            } else if (isPrivate && url) {
-                // The list won't ever show this session, so the link in the
-                // status line is the only way back in from this page.
-                statusMsg.innerHTML = `Private game started — <a href="${url}" target="_blank">share this link</a> to invite players`;
-            }
-        }).catch(err => {
-            if (tab && !tab.closed) tab.close();
-            createBtn.style.display = '';
-            if (err && err.status === 429) {
-                let secs = (err.body && err.body.retryAfter) || 30;
-                createBtn.disabled = true;
-                const msg = (err.body && err.body.error) || 'Please wait a moment';
-                const tick = () => {
-                    statusMsg.innerHTML = `${msg} (${secs}s)`;
-                    if (secs-- <= 0) {
-                        clearInterval(timer);
-                        statusMsg.innerHTML = '';
-                        createBtn.disabled = false;
-                    }
-                };
-                tick();
-                const timer = setInterval(tick, 1000);
-            } else {
-                statusMsg.innerHTML = "Couldn't start the game — try again";
-            }
-            console.error(err);
-        });
-    };
 
     return container;
 };
@@ -908,100 +832,58 @@ const renderCommentsSection = (gameId) => {
 // Session helpers for game page
 // ---------------------------------------------------------------------------
 
-const loadGameSessions = (gameId, listEl) => {
-    listEl.innerHTML = '<div style="text-align: center; color: #888;">Loading...</div>';
+// Poll while this page is present. Failed refreshes clear stale Join links.
+const roomListPollers = new WeakMap();
+const watchRooms = (element, request) => {
+    if (roomListPollers.has(element)) return roomListPollers.get(element)();
+    let inFlight = false;
+    const refresh = async () => {
+        if (inFlight || document.hidden) return;
+        inFlight = true;
+        try { await request(); } finally { inFlight = false; }
+    };
+    let timer = setInterval(() => {
+        if (!element.isConnected) { clearInterval(timer); roomListPollers.delete(element); return; }
+        refresh();
+    }, 10000);
+    window.addEventListener('pagehide', () => clearInterval(timer));
+    window.addEventListener('pageshow', event => {
+        if (event.persisted && element.isConnected) {
+            clearInterval(timer); timer = setInterval(refresh, 10000); refresh();
+        }
+    });
+    roomListPollers.set(element, refresh);
+    return refresh();
+};
 
-    makeGet(`${window.HOMENAMES_URL}/sessions`).then(_data => {
-        const data = JSON.parse(_data);
-        const allSessions = data.sessions || [];
-        // Filter to sessions for this game
-        const gameSessions = allSessions.filter(s => s.gameId === gameId);
+const roomPlayUrl = room => {
+    const signal = new URL('/rtc', API_URL);
+    signal.protocol = signal.protocol === 'https:' ? 'wss:' : 'ws:';
+    return '/play.html#' + new URLSearchParams({ room: room.roomId, signal: signal.href });
+};
 
+const loadGameSessions = (gameId, listEl) => watchRooms(listEl, async () => {
+    try {
+        const data = JSON.parse(await makeGet(`${API_URL}/rooms?gameId=${encodeURIComponent(gameId)}`));
         listEl.innerHTML = '';
-
-        if (gameSessions.length === 0) {
-            listEl.innerHTML = '<div style="text-align: center; color: #888;">No one\'s playing right now — start a game!</div>';
+        if (!data.rooms.length) {
+            listEl.textContent = 'No public sessions right now. Press Play to start one.';
             return;
         }
-
-        gameSessions.forEach(s => {
+        data.rooms.forEach(room => {
             const row = document.createElement('div');
-            row.style = 'display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 6px;';
-
-            const info = document.createElement('div');
-            const count = s.playerCount || 0;
-            info.textContent = `${count} ${count === 1 ? 'player' : 'players'} in game #${s.id}`;
-            info.style = 'font-size: 0.9em;';
-
-            const joinBtn = document.createElement('div');
-            joinBtn.innerHTML = 'Join';
-            joinBtn.className = 'clickable';
-            joinBtn.style = 'background: #A0EB5D; color: #333; padding: 4px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;';
-            joinBtn.onclick = () => {
-                // Prefer wsUrl from server (includes correct wss:// path-based proxy URL)
-                let wsUrl = s.wsUrl;
-                if (!wsUrl) {
-                    const homenamesHost = window.HOMENAMES_URL.replace(/^https?:\/\//, '').replace(/:\d+$/, '');
-                    const isSecure = window.HOMENAMES_URL.startsWith('https');
-                    wsUrl = isSecure
-                        ? `wss://${homenamesHost}/session/${s.port}`
-                        : `ws://${homenamesHost}:${s.port}`;
-                }
-                connectToSession({ wsUrl, sessionId: s.id, port: s.port });
-            };
-
-            row.appendChild(info);
-            row.appendChild(joinBtn);
-            listEl.appendChild(row);
+            row.style = 'display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px;';
+            const info = document.createElement('span');
+            info.textContent = `${room.playerCount}/${room.maxPlayers} players · version ${room.versionId.slice(0, 7)}`;
+            const join = document.createElement('a');
+            join.textContent = room.joinable ? 'Join' : 'Full';
+            if (room.joinable) { join.href = roomPlayUrl(room); join.target = '_blank'; }
+            else join.setAttribute('aria-disabled', 'true');
+            join.className = 'session-join';
+            row.appendChild(info); row.appendChild(join); listEl.appendChild(row);
         });
-    }).catch(err => {
-        listEl.innerHTML = '<div style="text-align: center; color: #888;">Could not load sessions</div>';
-        console.error(err);
-    });
-};
-
-// Opaque share codes for hosted-session links. Not encryption — just enough
-// structure that links don't advertise a host:port to poke at, and go stale:
-// the checksum binds the payload to a UTC date, so a code only decodes on the
-// day it was minted (or the day after, for links shared near midnight).
-// Format: 1.<fnv1a8(wsUrl|date)>.<base64url(wsUrl XOR checksum)>
-// Keep in sync across studio.js, client.js, and play.html.
-const fnv1a8 = (str) => {
-    let h = 0x811c9dc5;
-    for (let i = 0; i < str.length; i++) {
-        h ^= str.charCodeAt(i);
-        h = Math.imul(h, 0x01000193) >>> 0;
-    }
-    return ('0000000' + h.toString(16)).slice(-8);
-};
-
-const shareCodeUtcDay = (daysAgo) => new Date(Date.now() - (daysAgo || 0) * 86400000).toISOString().slice(0, 10);
-
-const encodeShareCode = (wsUrl) => {
-    const sum = fnv1a8(wsUrl + '|' + shareCodeUtcDay(0));
-    const mixed = Array.from(wsUrl, (c, i) => String.fromCharCode(c.charCodeAt(0) ^ sum.charCodeAt(i % 8))).join('');
-    const b64 = btoa(mixed).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    return `1.${sum}.${b64}`;
-};
-
-// created: this tab belongs to whoever spun the session up (vs joined an
-// existing one) — play.html uses the flag to nudge them to share the link.
-const sessionPlayUrl = (sessionData, created) => sessionData.wsUrl ? `/play.html?s=${encodeShareCode(sessionData.wsUrl)}${created ? '&created=1' : ''}` : null;
-
-// tab: a window pre-opened synchronously during the user's click, so slow
-// session creation doesn't run afoul of popup blockers. Falls back to
-// window.open when absent (e.g. the Join button, which opens directly
-// inside its click handler).
-const connectToSession = (sessionData, tab, created) => {
-    const playUrl = sessionPlayUrl(sessionData, created);
-    if (!playUrl) {
-        console.error('No WebSocket URL in session data');
-        if (tab && !tab.closed) tab.close();
-        return;
-    }
-    if (tab && !tab.closed) tab.location = playUrl;
-    else window.open(playUrl, '_blank');
-};
+    } catch (err) { listEl.textContent = 'Public sessions are unavailable. Refresh to try again.'; }
+});
 
 const renderDevProfile = (devId, devInfo) => {
     const container = document.createElement('div');
@@ -1579,121 +1461,43 @@ const showGamePage = (gameId) => {
     }); 
 };
 
-// Inline play from game cards (front page). Single-player opens a solo local
-// session; multiplayer creates a hosted session — same flows as the game page.
+// Inline Play uses the same browser host as the game page.
 // Uses the play capabilities the list endpoint returns (captured at publish),
 // so cards need no extra requests.
-const playGameInline = (game, btnEl) => {
-    const ref = game.latestPublishedSha;
-    if (!ref) return;
-
-    if (!game.multiplayer) {
-        // Local plays count toward the game's download total (fire-and-forget)
-        fetch(`${API_URL}/games/${game.id}/play`, { method: 'POST' }).catch(() => {});
-        window.open(`/play.html?localGame=${encodeURIComponent(game.id)}&ref=${encodeURIComponent(ref)}`, '_blank');
-        return;
-    }
-
-    // Open the tab inside the click gesture — session spin-up can outlast the
-    // popup-blocker grace window (same pattern as the game page).
-    const tab = window.open('', '_blank');
-    if (tab) {
-        try { tab.document.title = 'Starting your game...'; tab.document.body.textContent = 'Starting your game...'; } catch (e) {}
-    }
-
-    const originalText = btnEl ? btnEl.textContent : null;
-    if (btnEl) btnEl.textContent = 'Starting...';
-
-    makePost(`${API_URL}/sessions`, { gameId: game.id, commitSha: ref }).then((sessionData) => {
-        if (btnEl) btnEl.textContent = originalText;
-        connectToSession(sessionData, tab, true);
-    }).catch((err) => {
-        if (tab && !tab.closed) tab.close();
-        if (btnEl) {
-            btnEl.textContent = (err && err.status === 429) ? 'Busy — try again shortly' : 'Failed — try again';
-            setTimeout(() => { btnEl.textContent = originalText; }, 4000);
-        }
-        console.error(err);
-    });
+const playGameInline = (game) => {
+    if (!game.latestPublishedSha) return;
+    fetch(`${API_URL}/games/${game.id}/play`, { method: 'POST' }).catch(() => {});
+    window.open(`/play.html?localGame=${encodeURIComponent(game.id)}&ref=${encodeURIComponent(game.latestPublishedSha)}`, '_blank');
 };
 window.playGameInline = playGameInline;
 
-// Front-page "Active Sessions" — the top few live hosted sessions by player
+// Front-page "Active Sessions" — the top few live browser sessions by player
 // count, each with a join link. Only published-game sessions are shown
 // (studio/dev preview sessions have no gameId). The section element stays
 // hidden unless there's at least one session, so an empty platform doesn't
 // advertise itself.
-const loadActiveSessions = (sectionEl, listEl, limit = 3) => {
-    makeGet(`${window.HOMENAMES_URL}/sessions`).then(_data => {
-        const data = JSON.parse(_data);
-        const sessions = (data.sessions || [])
-            .filter(s => s.gameId && s.wsUrl)
-            .sort((a, b) => (b.playerCount || 0) - (a.playerCount || 0))
-            .slice(0, limit);
-
-        if (!sessions.length) return;
-
-        // Resolve game names — one request per unique game, falling back to
-        // a generic label if the lookup fails.
-        const uniqueIds = Array.from(new Set(sessions.map(s => s.gameId)));
-        Promise.all(uniqueIds.map(id =>
-            makeGet(`${API_URL}/games/${id}`)
-                .then(_details => [id, JSON.parse(_details)?.game || null])
-                .catch(() => [id, null])
-        )).then(pairs => {
-            const gamesById = Object.fromEntries(pairs);
-
-            listEl.innerHTML = '';
-            sessions.forEach(s => {
-                const game = gamesById[s.gameId];
-
-                const row = document.createElement('div');
-                row.className = 'active-session-row';
-
-                const thumb = document.createElement('div');
-                thumb.className = 'session-thumb';
-                if (game && game.thumbnail) {
-                    const img = document.createElement('img');
-                    img.src = `${API_URL}/assets/${game.thumbnail}`;
-                    img.alt = game.name || 'game thumbnail';
-                    thumb.appendChild(img);
-                } else {
-                    thumb.textContent = '🎮';
-                }
-                row.appendChild(thumb);
-
-                const info = document.createElement('div');
-                info.className = 'session-info';
-                const name = document.createElement('a');
-                name.className = 'session-name';
-                name.textContent = (game && game.name) || 'Mystery game';
-                name.href = `/game.html?id=${encodeURIComponent(s.gameId)}`;
-                info.appendChild(name);
-                const count = s.playerCount || 0;
-                const players = document.createElement('div');
-                players.className = 'session-players';
-                players.textContent = `${count} ${count === 1 ? 'player' : 'players'}`;
-                info.appendChild(players);
-                row.appendChild(info);
-
-                const join = document.createElement('a');
-                join.className = 'session-join';
-                join.textContent = 'Join';
-                join.target = '_blank';
-                join.href = sessionPlayUrl({ wsUrl: s.wsUrl });
-                row.appendChild(join);
-
-                listEl.appendChild(row);
-            });
-
-            sectionEl.removeAttribute('hidden');
+const loadActiveSessions = (sectionEl, listEl, limit = 3) => watchRooms(sectionEl, async () => {
+    try {
+        const data = JSON.parse(await makeGet(`${API_URL}/rooms?limit=${limit}`));
+        listEl.innerHTML = '';
+        if (!data.rooms.length) { sectionEl.hidden = true; return; }
+        data.rooms.forEach(room => {
+            const row = document.createElement('div'); row.className = 'active-session-row';
+            const info = document.createElement('div'); info.className = 'session-info';
+            const name = document.createElement('a'); name.className = 'session-name';
+            name.textContent = room.name; name.href = `/game.html?id=${encodeURIComponent(room.gameId)}`;
+            const players = document.createElement('div'); players.className = 'session-players';
+            players.textContent = `${room.playerCount}/${room.maxPlayers} players · version ${room.versionId.slice(0, 7)}`;
+            info.appendChild(name); info.appendChild(players); row.appendChild(info);
+            const join = document.createElement('a'); join.className = 'session-join';
+            join.textContent = room.joinable ? 'Join' : 'Full';
+            if (room.joinable) { join.href = roomPlayUrl(room); join.target = '_blank'; }
+            else join.setAttribute('aria-disabled', 'true');
+            row.appendChild(join); listEl.appendChild(row);
         });
-    }).catch(err => {
-        // Leave the section hidden — a broken sessions endpoint shouldn't
-        // break the landing page.
-        console.error(err);
-    });
-};
+        sectionEl.hidden = false;
+    } catch (err) { listEl.innerHTML = ''; sectionEl.hidden = true; }
+});
 window.loadActiveSessions = loadActiveSessions;
 
 window.loadMap = () => {
@@ -1817,4 +1621,3 @@ window.loadMap = () => {
 };
 
 window.showGamePage = showGamePage;
-

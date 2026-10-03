@@ -620,17 +620,16 @@ static metadata() {
     return { squishVersion: '142', name: 'My Game', aspectRatio: { x: 16, y: 9 } };
 }
 
-// Multiplayer: declare the service. The game's page gets "Play with friends",
-// which starts a hosted session with a shareable join link.
+// Multiplayer: Play runs a browser host and lists a public RTC session.
+// Private hides it from discovery; Share shows its QR invitation.
 static metadata() {
     return { squishVersion: '142', name: 'My Party Game',
              aspectRatio: { x: 16, y: 9 }, services: ['multiplayer'] };
 }</code></pre>
             <p>
-                Multiplayer games are also playable solo — the catalog offers them as "Play offline", running
-                as a one-player local session — so they should still work with one player (bots filling empty
-                seats is the usual fix). In a local session the player's id is <code>1</code>; hosted sessions
-                assign arbitrary ids, so don't hardcode it. Players arrive and leave through two methods:
+                Play starts with one player, so design a useful waiting state or solo mode while others join.
+                Players join the same browser-hosted game over RTC. Do not hardcode player IDs.
+                Players arrive and leave through two methods:
             </p>
 <pre><code>handleNewPlayer({ playerId, info }) {
     // playerId is a number. info.name is their display name (may be absent).
@@ -1064,10 +1063,9 @@ async recordBest(score) {
             <p>The local <strong>Inspect</strong> control exposes the scene tree and recorded frames.
                 Use it to find a node, inspect its properties, or see which object covers a button.
                 Stopping with the inspector active preserves the recorded view; restarting runs a new game.</p>
-            <p>Use <strong>Get share link (runs online)</strong> for a real session on multiple devices. Studio asks you to
-                sign in for this option. It submits the preview files, including unsaved editor changes,
-                and returns a join link; this is separate from saving or publishing. Restarting an online
-                preview creates a new session, so share the new link.</p>
+            <p>Use <strong>Share</strong> to invite friends to the current preview over RTC. Studio asks you to sign in
+                for this option. Sharing does not restart the game or upload its source to Core.
+                Keep the preview tab open; stopping or restarting it ends the invitation.</p>
             <ul>
                 <li>Test with one player, then two, then a player leaving and returning.</li>
                 <li>Test held presses as well as quick taps, keyboard repeats, touch, and any controller bindings.</li>
@@ -1076,11 +1074,9 @@ async recordBest(score) {
                 <li>If the game saves, reload and verify restored data, including an older save format.</li>
                 <li>After publishing, test the selected version's download without internet access.</li>
             </ul>
-            <p>Shared sessions are temporary and may end when nobody is connected or the host restarts.
-                Current child servers share an idle policy: players or spectators keep a session occupied;
-                an unpinned empty session gets a host-configured grace period, normally 30 seconds,
-                checked periodically. Do not depend on an exact reconnect window. Share codes expire after the day they are created and the following UTC day; they
-                are not permanent invitations. See <a href="/how_it_works.html#sharing">sharing a session</a>.</p>
+            <p>Shared browser games end when the host closes or restarts the tab. The API removes stale listings
+                when heartbeats stop. There is no session migration or pinning. See
+                <a href="/how_it_works.html#sharing">sharing a session</a>.</p>
 
             <h2 id="publishing">Publish to the catalog</h2>
             <p>Save and test your intended version, then use <strong>Publish</strong> beside its commit

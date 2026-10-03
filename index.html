@@ -466,7 +466,7 @@
                     if (game.latestPublishedSha && (game.multiplayer || game.localPlayable)) {
                         const playBtn = document.createElement('div');
                         playBtn.className = 'card-play';
-                        playBtn.textContent = game.multiplayer ? 'Play with friends' : 'Play';
+                        playBtn.textContent = 'Play';
                         playBtn.onclick = (e) => {
                             // The whole card is a link to the game page — keep
                             // the button from navigating.

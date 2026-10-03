@@ -229,49 +229,34 @@
 
             <h2 id="playing">Choose how to play</h2>
             <table>
-                <tr><th>Action</th><th>Where the game runs</th><th>What other players get</th></tr>
-                <tr><td><strong>Play</strong> / <strong>Play offline</strong> on a game page</td>
-                    <td>Your browser tab, after fetching the selected version and its assets</td>
-                    <td>Their own independent game if they open the same page</td></tr>
-                <tr><td><strong>Play with friends</strong> / join an active session</td>
-                    <td>A hosted session server</td><td>The same running game when they use its join link</td></tr>
-                <tr><td><strong>Download</strong> on a game page</td>
-                    <td>A single HTML file opened in a browser, with the runtime and declared assets included</td>
-                    <td>A separate solo copy; the file does not host multiplayer</td></tr>
-                <tr><td><strong>Download Homegames</strong> from the self-hosting page</td>
-                    <td>A server on your computer, plus browser play on connected devices</td>
-                    <td>A shared dashboard and the ability to join sessions on your LAN</td></tr>
+                <tr><th>Action</th><th>Where the game runs</th><th>Multiplayer</th></tr>
+                <tr><td><strong>Play</strong></td><td>Your browser tab, after downloading the selected version and its assets</td>
+                    <td>Public multiplayer games appear in session lists automatically. Use Share for a QR invitation.</td></tr>
+                <tr><td><strong>Join</strong></td><td>The existing host's browser</td><td>You join that same game over WebRTC.</td></tr>
+                <tr><td><strong>Download</strong></td><td>A single HTML file with the runtime, game, and declared assets included</td>
+                    <td>Open the file and use Share to invite players over RTC. Downloaded games are unlisted.</td></tr>
+                <tr><td><strong>Self-host Homegames</strong></td><td>A dashboard on your home server; Play runs games in your browser</td>
+                    <td>Household sessions appear on that dashboard. Host with WebSocket is available as a separate option.</td></tr>
             </table>
-            <p>Multiplayer games may also offer <strong>Play offline</strong> and <strong>Download</strong>.
-                Those start a one-player local session; whether that is fun or even playable depends on
-                the game's rules. Games requiring the <code>contentGenerator</code> service cannot use
-                the local-play/download path. The buttons available for a game reflect its capabilities.</p>
-            <div class="callout">
-                <p><strong>“Play offline” still needs an initial download.</strong> Opening that button
-                    on the website fetches source and assets. Use <strong>Download</strong> ahead of time
-                    for a standalone HTML file you can reopen without the website. Test your downloaded
-                    copy before relying on it without internet access.</p>
-            </div>
-            <p>The version dropdown selects the published commit used by Play, Download, View Source,
-                and a new hosted session. Joining an existing session joins the version already running
-                there. Publishing a newer version does not update an active game or a file you downloaded.</p>
+            <p>The game's rules determine whether it is playable alone. Games requiring the retired
+                <code>contentGenerator</code> service cannot use browser Play or Download.</p>
+            <p>Play fetches the game first. Download gives you an HTML file you can reopen without the website;
+                multiplayer sharing still needs internet access for signaling and, when needed, a relay.</p>
+            <p>The version dropdown selects the published commit used by Play, Download, and View Source.
+                Join connects to the version already running. Publishing a newer version does not update active games.</p>
 
             <h3 id="sharing">Play together and share a session</h3>
             <ol>
-                <li>Open a multiplayer game's page and choose a published version.</li>
-                <li>Start a session with <strong>Play with friends</strong>, or choose <strong>Join</strong>
-                    for an existing one. Starting a second session creates a separate game.</li>
-                <li>Copy the player page's URL and send it to your friends. Keep the session open while
-                    they join. Studio's online preview also provides a share link.</li>
+                <li>Open a game's page and choose a published version.</li>
+                <li>Press <strong>Play</strong> to host a new game, or <strong>Join</strong> for an existing public session.</li>
+                <li>Press <strong>Share</strong> below the canvas. Friends can scan the QR code or open its invitation link.</li>
             </ol>
-            <p>The <strong>Private</strong> option hides a session from public session lists. Anyone with
-                its link can still join; there is no invitation approval or password attached to that option.</p>
-            <p>Share codes work on the UTC date they were created and the following UTC date. This is
-                separate from the session's lifetime: a session can end when nobody is connected or when its host restarts.
-                Current servers normally allow about 30 seconds of observed empty time before cleanup,
-                checked periodically; hosts can configure that grace. Spectators count as connected.
-                There is no guaranteed reconnect window. An administrator can keep a session running
-                while empty, but this does not make its share code permanent.</p>
+            <p>Keep the host tab open and awake. Closing it ends the game for everyone. Returning Home from a guest
+                leaves only that guest; returning Home from the host ends its session.</p>
+            <p><strong>Private</strong> hides a website game from public discovery. Anyone with its invitation can
+                still join, inside or outside the house. Changing visibility keeps the same game and invitation.</p>
+            <p>Studio Share adds players to the current preview without restarting it. Draft previews and downloaded
+                games are unlisted. Invitations last only while the host is available; games cannot be pinned or moved between hosts.</p>
 
             <h3 id="progress">Progress, identity, and downloads</h3>
             <p>A running session is temporary. Progress survives only if the game implements saving.
