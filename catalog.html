@@ -1,200 +1,65 @@
 <!DOCTYPE HTML>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <title>Homegames</title>
-        <link rel="stylesheet" href="app.css">
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-        <link rel="manifest" href="/site.webmanifest">
-    </head>
-
-    <body>
-        <div id="modal" class="fade-in" hidden>
-            <div id="modal-content">
-                <div class="close clickable" onclick="hideModal()">X</div>
-                <div class="back"></div>
-                <div class="content"></div>
-            </div>
-        </div>
-        <div id="main">
-            <div id="page-container">
-                <div id="header">
-                    <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png"></img></div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Discover community-made Homegames. Find a game, explore its source, play in your browser, or join an open room.">
+    <title>Browse games — Homegames</title>
+    <link rel="stylesheet" href="/app.css">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+</head>
+<body class="discovery-page">
+    <a class="skip-link" href="#content">Skip to games</a>
+    <div id="page-container">
+        <header id="header">
+            <nav class="discovery-nav" aria-label="Main navigation">
+                <a class="discovery-brand" href="/" aria-label="Homegames home"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png" alt="Homegames"></a>
+                <div class="discovery-links">
+                    <a href="/catalog.html" aria-current="page">Browse games</a>
+                    <a href="/studio.html">Create a game</a>
+                    <a href="/self-hosting.html">Self-host</a>
                 </div>
-                <div id="content">
-                    <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; max-width: 960px; margin: 8px auto 20px; padding: 0 16px; box-sizing: border-box;">
-                        <input type="text" id="search-box" placeholder="Find a game" style="flex: 1; min-width: 220px; font-size: 1.15em; font-family: inherit; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box;">
-                        <label style="cursor: pointer; font-size: 1em; color: #555; display: inline-flex; align-items: center; gap: 6px; user-select: none; white-space: nowrap;">
-                            <input checked type="checkbox" id="featured-filter" style="accent-color: #e6a817; cursor: pointer; width: 16px; height: 16px;" />
-                            Only Show Featured Games
-                        </label>
-                        <label style="cursor: pointer; font-size: 1em; color: #555; display: inline-flex; align-items: center; gap: 6px; user-select: none; white-space: nowrap;">
-                            <input type="checkbox" id="nsfw-filter" style="accent-color: #e44; cursor: pointer; width: 16px; height: 16px;" />
-                            Include NSFW
-                        </label>
+            </nav>
+        </header>
+        <main id="content">
+            <div class="discovery-shell">
+                <section class="browse-intro" aria-labelledby="browse-heading">
+                    <p class="discovery-eyebrow">The Homegames library</p>
+                    <h1 id="browse-heading">Find something to play.</h1>
+                    <p>Games made by the community, yours to explore. Play in your browser, bring others into a room, or download a game to keep.</p>
+                </section>
+                <section class="browse-rooms" id="active-sessions" hidden aria-labelledby="rooms-heading">
+                    <div class="discovery-section-heading"><h2 id="rooms-heading">Open rooms</h2><span>Hosted by players</span></div>
+                    <p class="discovery-note">Jump into a game that’s already running in someone’s browser.</p>
+                    <div id="active-sessions-list"></div>
+                </section>
+                <form id="catalog-search" class="catalog-tools" role="search">
+                    <label class="catalog-search-label" for="search-box">Search games</label>
+                    <div class="catalog-search-row">
+                        <input type="search" id="search-box" placeholder="Search by name, description, or creator" autocomplete="off">
+                        <button class="discovery-button primary" type="submit">Search</button>
                     </div>
-                    <div id="catalog"></div>
-                </div>
+                    <div class="catalog-filters">
+                        <label><input type="checkbox" id="featured-filter"> Featured only</label>
+                        <label><input type="checkbox" id="nsfw-filter"> Include NSFW</label>
+                        <button type="button" id="catalog-reset" class="text-button" hidden>Clear filters</button>
+                    </div>
+                </form>
+                <p id="catalog-status" tabindex="-1" class="discovery-note" role="status" aria-live="polite">Finding games…</p>
+                <div id="catalog" class="game-grid" aria-busy="true"></div>
+                <nav id="catalog-pagination" class="catalog-pagination" aria-label="Game pages"></nav>
+                <aside class="browse-how">
+                    <h2>A game runs wherever you are.</h2>
+                    <p>Start a multiplayer room and your browser hosts it. Make it public or invite people with a link. Keep the game tab open while they play.</p>
+                    <a href="/how_it_works.html">How Homegames works →</a>
+                </aside>
             </div>
-        </div>
-    </body>
-    <script src="bundle.js"></script>
+        </main>
+    </div>
+    <script src="/bundle.js"></script>
     <script>
-        const contentDiv = document.getElementById('catalog');
-        const searchBox = document.getElementById('search-box');
-        const featuredCheckbox = document.getElementById('featured-filter');
-        const nsfwCheckbox = document.getElementById('nsfw-filter');
-
-        const searchParams = new URLSearchParams(window.location.search);
-        let page = (searchParams && searchParams.get('page')) ? Number(searchParams.get('page')) : 1;
-        const pageSize = 9;
-
-        const renderCatalogGames = (data, _page = 1) => {
-            const games = data.games;
-            const total = data.total || 0;
-            const pageCount = Math.max(1, Math.ceil(total / pageSize));
-
-            clearChildren(contentDiv);
-
-            const container = document.createElement('div');
-            container.style = 'display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 960px; margin: 0 auto; padding: 0 16px;';
-
-            if (games.length === 0) {
-                const empty = document.createElement('div');
-                empty.style = 'grid-column: 1 / -1; text-align: center; color: #888; padding: 48px;';
-                empty.textContent = 'No games found';
-                container.appendChild(empty);
-            }
-
-            games.forEach(game => {
-                const card = document.createElement('a');
-                card.href = `${window.location.origin}/game.html?id=${game.id}`;
-                card.style = 'text-decoration: none; color: inherit; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; display: block; transition: box-shadow 0.15s;';
-                card.onmouseover = () => { card.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)'; };
-                card.onmouseout = () => { card.style.boxShadow = 'none'; };
-
-                if (game.thumbnail) {
-                    const img = document.createElement('img');
-                    img.src = window.API_URL + '/assets/' + game.thumbnail;
-                    img.alt = game.name;
-                    img.style = 'width: 100%; height: 160px; object-fit: cover; display: block; background: #eee;';
-                    card.appendChild(img);
-                } else {
-                    const placeholder = document.createElement('div');
-                    placeholder.style = 'width: 100%; height: 160px; background: #eee; display: flex; align-items: center; justify-content: center; color: #aaa; font-size: 2em;';
-                    placeholder.textContent = '🎮';
-                    card.appendChild(placeholder);
-                }
-
-                const body = document.createElement('div');
-                body.style = 'padding: 10px;';
-                const title = document.createElement('div');
-                title.className = 'amateur';
-                title.style = 'font-size: 1.1em; font-weight: bold;';
-                title.textContent = game.name;
-                body.appendChild(title);
-                const desc = document.createElement('div');
-                desc.style = 'font-size: 0.85em; color: #777; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
-                desc.textContent = game.description || 'No description available';
-                body.appendChild(desc);
-
-                // Same inline play as the front page cards. Games published
-                // before play capabilities were recorded get no button.
-                if (game.latestPublishedSha && (game.multiplayer || game.localPlayable)) {
-                    const playBtn = document.createElement('div');
-                    playBtn.style = 'display: inline-block; margin-top: 8px; background: #A0EB5D; color: #333; padding: 6px 16px; border-radius: 8px; font-size: 0.9em; cursor: pointer;';
-                    playBtn.textContent = 'Play';
-                    playBtn.onclick = (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        playGameInline(game, playBtn);
-                    };
-                    body.appendChild(playBtn);
-                }
-
-                card.appendChild(body);
-
-                container.appendChild(card);
-            });
-            contentDiv.appendChild(container);
-
-            // Pagination
-            const paginationEl = document.createElement('div');
-            paginationEl.style = 'display: flex; justify-content: center; align-items: center; gap: 16px; padding: 24px;';
-
-            if (_page > 1) {
-                const prevBtn = document.createElement('button');
-                prevBtn.className = 'clickable amateur';
-                prevBtn.style = 'padding: 8px 20px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; background: #fff; font-size: 1em; font-family: inherit;';
-                prevBtn.textContent = 'Previous';
-                prevBtn.onclick = () => { page = _page - 1; refreshCatalog(); };
-                paginationEl.appendChild(prevBtn);
-            }
-
-            const pageInfo = document.createElement('span');
-            pageInfo.style = 'color: #888; font-size: 0.9em;';
-            pageInfo.textContent = 'Page ' + _page + (pageCount > 1 ? ' of ' + pageCount : '');
-            paginationEl.appendChild(pageInfo);
-
-            if (_page < pageCount) {
-                const nextBtn = document.createElement('button');
-                nextBtn.className = 'clickable amateur';
-                nextBtn.style = 'padding: 8px 20px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; background: #fff; font-size: 1em; font-family: inherit;';
-                nextBtn.textContent = 'Next';
-                nextBtn.onclick = () => { page = _page + 1; refreshCatalog(); };
-                paginationEl.appendChild(nextBtn);
-            }
-
-            contentDiv.appendChild(paginationEl);
-        };
-
-        const refreshCatalog = () => {
-            const query = searchBox.value.trim();
-            const featured = featuredCheckbox.checked;
-            const includeNsfw = nsfwCheckbox.checked;
-            if (query) {
-                searchGames(query, pageSize, (page - 1) * pageSize).then((data) => {
-                    renderCatalogGames(data, page);
-                });
-            } else {
-                getAllGames(pageSize, (page - 1) * pageSize, featured || null, includeNsfw).then((data) => {
-                    renderCatalogGames(data, page);
-                });
-            }
-        };
-
-        refreshCatalog();
-
-        searchBox.oninput = () => {
-            page = 1;
-            refreshCatalog();
-        };
-
-        featuredCheckbox.onchange = () => {
-            page = 1;
-            refreshCatalog();
-        };
-
-        nsfwCheckbox.onchange = () => {
-            page = 1;
-            refreshCatalog();
-        };
-
+        initCatalog();
     </script>
-    <script>
-
-    </script>
-    <style>
-        #search-box {
-            width: 60%; 
-            border-radius: 4px;
-            padding: 24px;
-            margin: 24px;
-            font-size: 24px;
-            font-family: amateur;
-        }
-
-        #submit-button {margin-top: 1%; margin-left: 2%; text-decoration: underline;}
-    </style>
-
+</body>
 </html>

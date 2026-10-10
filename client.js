@@ -114,58 +114,6 @@ const loaderBlack = () => {
 };
 
 const modals = {
-    'download': {
-        elementId: 'download-modal',
-        render: (path) => {
-            const container = document.createElement('div');
-
-            const _loader = loader();
-
-            const downloadHeader = document.createElement('h1');
-            downloadHeader.innerHTML = 'Download';
-            downloadHeader.className = 'amateur';
-            downloadHeader.style = 'text-align: center; font-size: 30pt;';
-
-            container.appendChild(downloadHeader);
-
-            const stableDiv = document.createElement('div');
-
-            const stableWindows = document.createElement('a');
-            stableWindows.className = 'downloadLink';
-            stableWindows.innerHTML = 'Windows (x64)';
-            stableWindows.href = 'https://builds.homegames.io/stable/homegames-setup-x64.exe';
-
-            const stableLinux = document.createElement('a');
-            stableLinux.className = 'downloadLink';
-            stableLinux.innerHTML = 'Linux (x64)';
-            stableLinux.href = 'https://builds.homegames.io/stable/homegames-x64.snap';
-
-            const stableMac = document.createElement('a');
-            stableMac.className = 'downloadLink';
-            stableMac.innerHTML = 'macOS (x64)';
-            stableMac.href = 'https://builds.homegames.io/stable/homegames-x64.dmg';
-
-            const stableMacArm = document.createElement('a');
-            stableMacArm.className = 'downloadLink';
-            stableMacArm.innerHTML = 'macOS (ARM)';
-            stableMacArm.href = 'https://builds.homegames.io/stable/homegames-arm64.dmg';
-
-            stableDiv.appendChild(stableWindows);
-            stableDiv.appendChild(stableMac);
-            stableDiv.appendChild(stableMacArm);
-            stableDiv.appendChild(stableLinux);
-
-            const downloadInfo = document.createElement('div');
-            const downloadText = document.createElement('strong');
-            downloadText.innerHTML = `Run the app on your computer and go to homegames.link using any browser on your network.`;
-            downloadInfo.appendChild(downloadText);
-            downloadInfo.style = 'text-align: center; color: rgba(255, 247, 142, 255);';
-            container.appendChild(downloadInfo);
-            container.appendChild(stableDiv);
-            
-            return container;
-        }
-    },
     'support': {
         render: () => {
             const container = document.createElement('div');
@@ -278,298 +226,244 @@ const getDeveloperProfile = (devId) => new Promise((resolve, reject) => {
 });
 
 
+// Shared discovery UI uses listing metadata; version-specific actions are
+// always checked against the selected published manifest on the detail page.
+const discoveryElement = (tag, className, text) => {
+    const el = document.createElement(tag);
+    if (className) el.className = className;
+    if (text) el.textContent = text;
+    return el;
+};
+
+const gameArtwork = game => {
+    const frame = discoveryElement('div', 'game-artwork');
+    const fallback = () => {
+        clearChildren(frame);
+        const initial = discoveryElement('span', 'game-artwork-placeholder', (game.name || 'H').slice(0, 1).toUpperCase());
+        initial.setAttribute('aria-hidden', 'true');
+        frame.appendChild(initial);
+    };
+    fallback();
+    if (game.thumbnail) {
+        const img = document.createElement('img');
+        img.alt = game.name || 'Game artwork';
+        img.loading = 'lazy';
+        img.onerror = fallback;
+        img.src = `${API_URL}/assets/${encodeURIComponent(game.thumbnail)}`;
+        clearChildren(frame);
+        frame.appendChild(img);
+    }
+    return frame;
+};
+
+const renderGameCard = game => {
+    const card = discoveryElement('article', 'game-card');
+    const detailUrl = `/game.html?id=${encodeURIComponent(game.id)}`;
+    const link = discoveryElement('a', 'game-card-link');
+    link.href = detailUrl;
+    link.appendChild(gameArtwork(game));
+    const body = discoveryElement('div', 'game-card-body');
+    const badges = discoveryElement('div', 'game-badges');
+    if (game.featured) badges.appendChild(discoveryElement('span', 'game-badge featured-badge', 'Featured'));
+    if (game.multiplayer === true) badges.appendChild(discoveryElement('span', 'game-badge', 'Multiplayer'));
+    else if (game.localPlayable && game.multiplayer === false) badges.appendChild(discoveryElement('span', 'game-badge', 'Solo'));
+    if (game.nsfw) badges.appendChild(discoveryElement('span', 'game-badge nsfw-badge', '18+ NSFW'));
+    body.appendChild(badges);
+    body.appendChild(discoveryElement('h3', 'game-card-title', game.name || 'Untitled game'));
+    if (game.developerName || game.developerId) body.appendChild(discoveryElement('p', 'game-card-author', `by ${game.developerName || game.developerId}`));
+    body.appendChild(discoveryElement('p', 'game-card-description', game.description || 'Explore this game, its published versions, and source code.'));
+    link.appendChild(body);
+    card.appendChild(link);
+    const actions = discoveryElement('div', 'game-card-actions');
+    const details = discoveryElement('a', 'game-details-link', 'View game →');
+    details.href = detailUrl;
+    details.setAttribute('aria-label', `View ${game.name || 'game'} details`);
+    actions.appendChild(details);
+    if (game.latestPublishedSha && game.localPlayable && game.multiplayer != null) {
+        const play = discoveryElement('a', 'discovery-button primary small', game.multiplayer ? 'Set up a room' : 'Play in browser');
+        // Let a host choose public or private on the game page before starting.
+        play.href = game.multiplayer ? `${detailUrl}#play` : `/play.html?${new URLSearchParams({ localGame: game.id, ref: game.latestPublishedSha })}`;
+        if (!game.multiplayer) {
+            play.target = '_blank';
+            play.rel = 'noopener';
+            play.onclick = () => { fetch(`${API_URL}/games/${encodeURIComponent(game.id)}/play`, { method: 'POST' }).catch(() => {}); };
+        }
+        actions.appendChild(play);
+    }
+    card.appendChild(actions);
+    return card;
+};
+window.renderGameCard = renderGameCard;
+
 const renderGamePage = (gameId, gameDetails) => {
-    const container = document.createElement('div');
-    container.style = 'display: grid; grid-template-columns: 1fr 2fr 1fr; height: 100%; margin: 24px;';
+    const game = gameDetails.game;
+    const gamePath = `${API_URL}/games/${encodeURIComponent(gameId)}`;
+    const container = discoveryElement('div', 'game-detail discovery-shell');
+    const back = discoveryElement('a', 'browse-back', '← Browse games');
+    back.href = '/catalog.html';
+    container.appendChild(back);
 
-    // --- Column 1: Image + Author ---
-    const col1 = document.createElement('div');
-    col1.style = 'text-align: center';
-
-    const gameImageWrapper = document.createElement('div');
-    gameImageWrapper.style = 'width: 100%;';
-
-    if (gameDetails?.game?.thumbnail) {
-        const gameImage = document.createElement('img');
-        gameImage.src = `${ASSET_URL}/${gameDetails?.game?.thumbnail}`;
-        gameImage.style = 'min-width: 360px; max-width: 360px; max-height: 360px';
-        gameImage.setAttribute('alt', `${gameDetails?.game?.name} image`);
-        gameImageWrapper.appendChild(gameImage);
-    }
-
-    const author = document.createElement('h2');
-    author.style = 'margin: 0 0 12px;';
-    const by = document.createElement('span');
-    by.textContent = 'Made by:';
-    const authorLink = document.createElement('a');
-    authorLink.textContent = gameDetails?.game?.developerName || gameDetails?.game?.developerId;
-    authorLink.href = `${window.location.origin}/dev.html?id=${gameDetails?.game?.developerId}`;
-    authorLink.style = 'color: #F1706F; text-decoration: none; margin-left: 6px;';
-    author.appendChild(by);
+    const hero = discoveryElement('div', 'game-detail-hero');
+    hero.appendChild(gameArtwork(game));
+    const info = discoveryElement('div', 'game-detail-info');
+    const badges = discoveryElement('div', 'game-badges');
+    if (game.featured) badges.appendChild(discoveryElement('span', 'game-badge featured-badge', 'Featured'));
+    if (game.nsfw) badges.appendChild(discoveryElement('span', 'game-badge nsfw-badge', '18+ NSFW'));
+    const modeBadge = discoveryElement('span', 'game-badge');
+    modeBadge.hidden = true;
+    badges.appendChild(modeBadge);
+    info.appendChild(badges);
+    info.appendChild(discoveryElement('h1', '', game.name || 'Untitled game'));
+    const author = discoveryElement('p', 'game-byline', 'Made by ');
+    const authorLink = discoveryElement('a', '', game.developerName || game.developerId || 'Unknown creator');
+    authorLink.href = `/dev.html?id=${encodeURIComponent(game.developerId || '')}`;
     author.appendChild(authorLink);
+    info.appendChild(author);
+    info.appendChild(discoveryElement('p', 'game-description', game.description || 'The creator hasn’t added a description yet.'));
 
-    col1.appendChild(gameImageWrapper);
-
-    // --- Column 2: Title + Description ---
-    const col2 = document.createElement('div');
-    col2.style = 'margin-left: 24px;';
-
-    const gameTitle = document.createElement('h1');
-    gameTitle.className = 'amateur';
-    gameTitle.textContent = gameDetails?.game?.name || 'Unknown game';
-
-    if (gameDetails?.game?.nsfw) {
-        const nsfwBadge = document.createElement('span');
-        nsfwBadge.textContent = '18+ NSFW';
-        nsfwBadge.title = 'Marked NSFW because this game uses assets flagged as NSFW';
-        nsfwBadge.style = 'display: inline-block; vertical-align: middle; margin-left: 12px; background: #e44; color: #fff; font-size: 0.45em; padding: 4px 12px; border-radius: 999px; letter-spacing: 1px;';
-        gameTitle.appendChild(nsfwBadge);
-    }
-
-    const description = document.createElement('div');
-    description.textContent = gameDetails?.game?.description || 'No description available';
-
-    // Sessions only make sense for session-based games — revealed once the
-    // local-manifest classifies this as multiplayer.
-    const sessionCount = gameDetails?.game?.sessionCount || 0;
-    const stats = document.createElement('div');
-    stats.style = 'margin-top: 12px; color: #888; font-size: 0.9em; display: none;';
-    stats.textContent = `${sessionCount.toLocaleString()} ${sessionCount === 1 ? 'session' : 'sessions'} played`;
-
-    const fmtDate = (ts) => ts ? new Date(ts).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : null;
-
-    // Game facts: created date now; version count + last publish date are
-    // filled in once the published-versions fetch below resolves.
-    const meta = document.createElement('div');
-    meta.style = 'margin-top: 16px; color: #666; font-size: 0.9em; display: flex; flex-direction: column; gap: 4px;';
-
-    const createdStr = fmtDate(gameDetails?.game?.created);
-    if (createdStr) {
-        const createdLine = document.createElement('div');
-        createdLine.textContent = `Created ${createdStr}`;
-        meta.appendChild(createdLine);
-    }
-
-    const versionCountLine = document.createElement('div');
-    versionCountLine.textContent = 'Loading version info…';
-    meta.appendChild(versionCountLine);
-
-    const lastPublishedLine = document.createElement('div');
-    meta.appendChild(lastPublishedLine);
-
-    if (gameDetails?.game?.nsfw) {
-        const nsfwLine = document.createElement('div');
-        nsfwLine.style = 'color: #e44;';
-        nsfwLine.textContent = 'Marked NSFW — uses assets flagged as NSFW';
-        meta.appendChild(nsfwLine);
-    }
-
-    col2.appendChild(gameTitle);
-    col2.appendChild(meta);
-    col2.appendChild(stats);
-
-    // --- Column 3: Made by + description ---
-    // (children appended below, alongside the version elements' col1 append)
-    const col3 = document.createElement('div');
-    col3.style = 'text-align: left; padding-top: 24px;';
-
-    // Fetch published versions from the API
-    const versionSection = document.createElement('div');
-    versionSection.style = 'margin-bottom: 24px;';
-
-    const versionLabel = document.createElement('div');
-    versionLabel.innerHTML = 'Loading versions...';
-    versionLabel.className = 'amateur';
-
-    const versionSelect = document.createElement('select');
-    versionSelect.style = 'width: 180px; padding: 6px; margin-top: 8px; display: none;';
-
-    // Version picker + View Source sit under the thumbnail in the left column;
-    // the play/download buttons stay in the play row below.
-    const versionArea = document.createElement('div');
-    versionArea.style = 'margin-top: 16px;';
-    versionArea.appendChild(versionLabel);
-    versionArea.appendChild(versionSelect);
-
-    // View Source drops in here once versions load
-    const viewSourceSlot = document.createElement('div');
-    versionArea.appendChild(viewSourceSlot);
-
-    col1.appendChild(versionArea);
-    col3.appendChild(author);
-    col3.appendChild(description);
-
-    // Play and Download run the same browser host. Discovery is a separate
-    // list of already-running public rooms.
-    // block + fit-content + auto margins: each button sits on its own line
-    // below the version dropdown, centered in the column
-    const playBtn = document.createElement('div');
-    playBtn.textContent = 'Play';
-    playBtn.className = 'clickable amateur';
-    playBtn.style = 'background: #A0EB5D; color: #333; padding: 12px 24px; border-radius: 8px; margin: 12px auto 0; width: fit-content; font-size: 1.1em; cursor: pointer; display: none;';
-
-    const downloadLink = document.createElement('a');
-    downloadLink.textContent = 'Download';
-    downloadLink.className = 'clickable amateur';
-    downloadLink.style = 'background: #F5D76E; color: #333; padding: 12px 24px; border-radius: 8px; margin: 12px auto 0; width: fit-content; font-size: 1.1em; cursor: pointer; text-decoration: none; display: none;';
-
-    const downloadCount = gameDetails?.game?.downloadCount || 0;
-    const downloadCountLine = document.createElement('div');
-    downloadCountLine.textContent = `${downloadCount.toLocaleString()} download${downloadCount === 1 ? '' : 's'}`;
-    downloadCountLine.style = 'margin-top: 6px; font-size: 0.8em; color: #888; display: none;';
-
-
-    versionSection.appendChild(playBtn);
-    versionSection.appendChild(downloadLink);
-    versionSection.appendChild(downloadCountLine);
-
-    // Public browser sessions, independent of starting a new game.
-    const sessionSection = document.createElement('div');
-    sessionSection.style = 'margin-bottom: 32px; text-align: left; display: none;';
-
-    const sessionHeader = document.createElement('h3');
-    sessionHeader.className = 'amateur';
-    sessionHeader.textContent = 'Public sessions';
-    sessionHeader.style = 'text-align: center;';
-
-    const sessionList = document.createElement('div');
-    sessionList.style = 'margin-top: 8px;';
-
-    // Private (unlisted) opt-in — the session won't show up in the session
-    // lists on this page or the front page; players get in via the link.
-    const privateLabel = document.createElement('label');
-    privateLabel.style = 'display: block; margin-top: 10px; font-size: 0.9em; color: #888; text-align: center; cursor: pointer;';
+    const playSection = discoveryElement('section', 'game-play-panel');
+    playSection.id = 'play';
+    const playHeading = discoveryElement('h2', '', 'Play this game');
+    playSection.appendChild(playHeading);
+    const playNote = discoveryElement('p', 'discovery-note');
+    playSection.appendChild(playNote);
+    const privateLabel = discoveryElement('label', 'room-privacy');
+    privateLabel.hidden = true;
     const privateCheck = document.createElement('input');
     privateCheck.type = 'checkbox';
-    privateCheck.style = 'margin-right: 6px; cursor: pointer; vertical-align: middle;';
+    privateCheck.id = 'private-room';
     privateLabel.appendChild(privateCheck);
-    privateLabel.appendChild(document.createTextNode('Private game — not listed publicly, invite friends with a link'));
-    privateLabel.style.display = 'none';
-    versionSection.appendChild(privateLabel);
+    privateLabel.appendChild(document.createTextNode('Invite only — hide my room from public listings'));
+    playSection.appendChild(privateLabel);
+    const actions = discoveryElement('div', 'game-play-actions');
+    const playBtn = discoveryElement('button', 'discovery-button primary', 'Play in browser');
+    playBtn.type = 'button';
+    playBtn.hidden = true;
+    const downloadLink = discoveryElement('a', 'discovery-button secondary', 'Download game');
+    downloadLink.hidden = true;
+    actions.appendChild(playBtn);
+    actions.appendChild(downloadLink);
+    playSection.appendChild(actions);
+    const downloadNote = discoveryElement('p', 'discovery-note download-note', 'Download a single HTML file to keep and open in your browser. Multiplayer sharing needs an internet connection.');
+    downloadNote.hidden = true;
+    playSection.appendChild(downloadNote);
+    const statusMsg = discoveryElement('p', 'discovery-status', 'Loading published versions…');
+    statusMsg.setAttribute('role', 'status');
+    playSection.appendChild(statusMsg);
+    info.appendChild(playSection);
+    hero.appendChild(info);
+    container.appendChild(hero);
 
-    const statusMsg = document.createElement('div');
-    statusMsg.style = 'margin-top: 8px; font-size: 0.9em; color: #888; text-align: center;';
-
-    sessionSection.appendChild(sessionHeader);
+    const sessionSection = discoveryElement('section', 'game-rooms');
+    sessionSection.hidden = true;
+    sessionSection.appendChild(discoveryElement('h2', '', 'Open rooms'));
+    sessionSection.appendChild(discoveryElement('p', 'discovery-note', 'Join a public game hosted by another player. Each room stays open while its host keeps the game running.'));
+    const sessionList = discoveryElement('div', 'room-list', 'Looking for open rooms…');
     sessionSection.appendChild(sessionList);
-    versionSection.appendChild(statusMsg);
+    container.appendChild(sessionSection);
 
-    // Play controls — full-width row between the columns and the comments,
-    // centered to match the comments card width.
-    const playSection = document.createElement('div');
-    playSection.style = 'grid-column: 1 / -1; max-width: 640px; width: 100%; margin: 24px auto 0; box-sizing: border-box; text-align: center;';
-    // Multiplayer sessions (hidden for single-player games) sit above the
-    // play/download buttons — joining a live session is the primary action.
-    playSection.appendChild(sessionSection);
-    playSection.appendChild(versionSection);
+    const versions = discoveryElement('details', 'game-versions');
+    versions.appendChild(discoveryElement('summary', '', 'Versions & source code'));
+    versions.appendChild(discoveryElement('p', 'discovery-note', 'Play and download use the latest published version by default. Choose an earlier version to explore how the game has changed.'));
+    const meta = discoveryElement('p', 'discovery-note');
+    versions.appendChild(meta);
+    const versionLabel = discoveryElement('label', 'version-label', 'Published version');
+    versionLabel.htmlFor = 'game-version';
+    const versionSelect = document.createElement('select');
+    versionSelect.id = 'game-version';
+    versionSelect.disabled = true;
+    versionLabel.appendChild(versionSelect);
+    versions.appendChild(versionLabel);
+    const viewCodeLink = discoveryElement('a', 'discovery-button source', 'View source');
+    viewCodeLink.hidden = true;
+    viewCodeLink.target = '_blank';
+    viewCodeLink.rel = 'noopener';
+    versions.appendChild(viewCodeLink);
+    container.appendChild(versions);
+    container.appendChild(renderCommentsSection(gameId));
+    container.appendChild(renderReportSection(gameId, game.name));
 
-    container.appendChild(col1);
-    container.appendChild(col2);
-    container.appendChild(col3);
-    container.appendChild(playSection);
-
-    // Comments — full-width row below the play controls
-    const commentsSection = renderCommentsSection(gameId);
-    commentsSection.style.gridColumn = '1 / -1';
-    container.appendChild(commentsSection);
-
-    container.appendChild(renderReportSection(gameId, gameDetails?.game?.name));
-
-    // --- Load published versions ---
-    makeGet(`${API_URL}/games/${gameId}/published-versions`).then(_data => {
-        const data = JSON.parse(_data);
-        const publishedVersions = data.versions || [];
-
-        versionCountLine.textContent = `${publishedVersions.length} published version${publishedVersions.length === 1 ? '' : 's'}`;
-        if (publishedVersions.length > 0) {
-            // Versions arrive sorted newest-first.
-            lastPublishedLine.textContent = `Last published ${fmtDate(publishedVersions[0].publishedAt)}`;
-        }
-
-        if (publishedVersions.length === 0) {
-            versionLabel.innerHTML = 'No published versions';
-            return;
-        }
-
-        versionLabel.innerHTML = 'Version:';
-        versionSelect.style.display = '';
-
-        publishedVersions.forEach((v, i) => {
-            const opt = document.createElement('option');
-            opt.value = v.commitSha;
-            const dateStr = v.publishedAt ? new Date(v.publishedAt).toLocaleDateString() : '';
-            opt.textContent = `${v.commitSha.substring(0, 7)} — ${dateStr}`;
-            versionSelect.appendChild(opt);
-        });
-
-        // View Source button — same tactile treatment as Create Session, blue.
-        const viewCodeLink = document.createElement('a');
-        viewCodeLink.className = 'clickable amateur';
-        viewCodeLink.style = 'background: #94D2E6; color: #333; padding: 12px 24px; border-radius: 8px; display: inline-block; margin-top: 12px; font-size: 1.1em; cursor: pointer; text-decoration: none;';
-        viewCodeLink.textContent = '</> View Source';
-        viewCodeLink.target = '_blank';
-        viewCodeLink.href = `/view.html?game=${gameId}&sha=${versionSelect.value}`;
-        // View Source sits directly under the version dropdown, above the
-        // Made by line in the right column.
-        viewSourceSlot.appendChild(viewCodeLink);
-
-        const updateDownloadHref = () => {
-            downloadLink.href = `${API_URL}/games/${gameId}/download?format=rtc2&ref=${versionSelect.value}`;
-        };
-
-        let selectedManifest = null, capabilityGeneration = 0;
-        const updateCapabilities = () => {
-            const generation = ++capabilityGeneration;
-            selectedManifest = null;
-            playBtn.style.display = downloadLink.style.display = privateLabel.style.display = 'none';
-            downloadCountLine.style.display = 'none';
-            statusMsg.textContent = 'Loading game…';
-            makeGet(`${API_URL}/games/${encodeURIComponent(gameId)}/local-manifest?ref=${encodeURIComponent(versionSelect.value)}`).then(_manifest => {
+    let selectedManifest = null;
+    let capabilityGeneration = 0;
+    let roomsStarted = false;
+    const updateCapabilities = () => {
+        const generation = ++capabilityGeneration;
+        selectedManifest = null;
+        playBtn.hidden = downloadLink.hidden = privateLabel.hidden = downloadNote.hidden = sessionSection.hidden = modeBadge.hidden = true;
+        playNote.textContent = '';
+        statusMsg.textContent = 'Checking this version…';
+        viewCodeLink.href = `/view.html?${new URLSearchParams({ game: gameId, sha: versionSelect.value })}`;
+        makeGet(`${gamePath}/local-manifest?${new URLSearchParams({ ref: versionSelect.value })}`).then(raw => {
             if (generation !== capabilityGeneration) return;
-            const manifest = JSON.parse(_manifest);
+            const manifest = JSON.parse(raw);
             selectedManifest = manifest;
-            statusMsg.textContent = manifest.localPlayable ? '' : (manifest.reason || 'This version cannot run in the browser');
-            if (manifest.localPlayable) {
-                playBtn.style.display = 'block';
+            statusMsg.textContent = manifest.localPlayable ? '' : (manifest.reason || 'This version cannot run in the browser. You can still explore its source code.');
+            playBtn.hidden = !manifest.localPlayable;
+            downloadLink.hidden = downloadNote.hidden = !manifest.downloadable;
+            privateLabel.hidden = !(manifest.multiplayer && manifest.localPlayable);
+            modeBadge.hidden = false;
+            modeBadge.textContent = manifest.multiplayer ? 'Multiplayer' : (manifest.localPlayable ? 'Solo' : 'Source available');
+            playHeading.textContent = manifest.localPlayable ? (manifest.multiplayer ? 'Start your own room' : 'Play this game') : 'Explore this version';
+            playBtn.textContent = manifest.multiplayer ? 'Start a room' : 'Play in browser';
+            playNote.textContent = manifest.multiplayer && manifest.localPlayable
+                ? 'Your browser hosts the game. Public rooms appear here for anyone to join, or choose invite only and share a link. Keep your game tab open while others play.'
+                : (manifest.localPlayable ? 'Runs right in your browser. No install needed.' : '');
+            downloadNote.textContent = 'Download a single HTML file to keep and open in your browser.' + (manifest.multiplayer ? ' Multiplayer sharing needs an internet connection.' : '');
+            downloadLink.textContent = manifest.downloadSizeBytes ? `Download game (${formatBytes(manifest.downloadSizeBytes)})` : 'Download game';
+            downloadLink.href = `${gamePath}/download?${new URLSearchParams({ format: 'rtc2', ref: versionSelect.value })}`;
+            sessionSection.hidden = !manifest.multiplayer;
+            if (manifest.multiplayer && !roomsStarted) {
+                roomsStarted = true;
+                loadGameSessions(gameId, sessionList);
             }
-            if (manifest.downloadable) {
-                downloadLink.style.display = 'block';
-                downloadLink.textContent = manifest.downloadSizeBytes ? `Download (${formatBytes(manifest.downloadSizeBytes)})` : 'Download';
-                downloadCountLine.style.display = 'block';
-                updateDownloadHref();
-            }
-            if (manifest.multiplayer) {
-                stats.style.display = '';
-                sessionSection.style.display = '';
-                if (manifest.localPlayable) privateLabel.style.display = 'block';
-            }
-        }).catch(err => {
+        }).catch(() => {
             if (generation !== capabilityGeneration) return;
-            console.error('local-manifest check failed', err);
-            statusMsg.textContent = 'Unable to load this game version. Refresh to try again.';
+            clearChildren(statusMsg);
+            statusMsg.appendChild(document.createTextNode('Unable to check this version. '));
+            const retry = discoveryElement('button', 'discovery-button small', 'Try again');
+            retry.type = 'button';
+            retry.onclick = updateCapabilities;
+            statusMsg.appendChild(retry);
         });
-        };
-        versionSelect.onchange = () => {
-            viewCodeLink.href = `/view.html?game=${gameId}&sha=${versionSelect.value}`;
+    };
+    versionSelect.onchange = updateCapabilities;
+    playBtn.onclick = () => {
+        if (!selectedManifest?.localPlayable || !versionSelect.value) return;
+        fetch(`${gamePath}/play`, { method: 'POST' }).catch(() => {});
+        const params = new URLSearchParams({ localGame: gameId, ref: versionSelect.value });
+        if (selectedManifest.multiplayer && privateCheck.checked) params.set('private', '1');
+        window.open(`/play.html?${params}`, '_blank', 'noopener');
+    };
+    const loadVersions = () => {
+        statusMsg.textContent = 'Loading published versions…';
+        makeGet(`${gamePath}/published-versions`).then(raw => {
+            const publishedVersions = JSON.parse(raw).versions || [];
+            if (!publishedVersions.length) {
+                meta.textContent = statusMsg.textContent = 'This game has no published versions yet.';
+                return;
+            }
+            clearChildren(versionSelect);
+            publishedVersions.forEach((v, i) => {
+                const option = document.createElement('option');
+                option.value = v.commitSha;
+                const date = v.publishedAt ? new Date(v.publishedAt).toLocaleDateString() : 'Undated';
+                option.textContent = `${i === 0 ? 'Latest · ' : ''}${date} · ${v.commitSha.slice(0, 7)}`;
+                versionSelect.appendChild(option);
+            });
+            meta.textContent = `${publishedVersions.length} published version${publishedVersions.length === 1 ? '' : 's'}.`;
+            versionSelect.disabled = false;
+            viewCodeLink.hidden = false;
             updateCapabilities();
-        };
-        updateCapabilities();
-        sessionSection.style.display = '';
-        loadGameSessions(gameId, sessionList);
-
-        playBtn.onclick = () => {
-            if (!versionSelect.value || !selectedManifest?.localPlayable) return;
-            // Local plays count toward the game's download total (fire-and-forget)
-            fetch(`${API_URL}/games/${gameId}/play`, { method: 'POST' }).catch(() => {});
-            window.open(`/play.html?localGame=${encodeURIComponent(gameId)}&ref=${encodeURIComponent(versionSelect.value)}${privateCheck.checked ? '&private=1' : ''}`, '_blank');
-        };
-
-    }).catch(err => {
-        versionLabel.innerHTML = 'Failed to load versions';
-        versionCountLine.textContent = 'Version info unavailable';
-        console.error(err);
-    });
-
+        }).catch(() => {
+            clearChildren(statusMsg);
+            statusMsg.appendChild(document.createTextNode('Published versions are unavailable. '));
+            const retry = discoveryElement('button', 'discovery-button small', 'Try again');
+            retry.type = 'button';
+            retry.onclick = loadVersions;
+            statusMsg.appendChild(retry);
+        });
+    };
+    loadVersions();
     return container;
 };
 
@@ -867,22 +761,22 @@ const loadGameSessions = (gameId, listEl) => watchRooms(listEl, async () => {
         const data = JSON.parse(await makeGet(`${API_URL}/rooms?gameId=${encodeURIComponent(gameId)}`));
         listEl.innerHTML = '';
         if (!data.rooms.length) {
-            listEl.textContent = 'No public sessions right now. Press Play to start one.';
+            listEl.textContent = 'No open rooms right now. Rooms appear here when a player hosts a public game.';
             return;
         }
         data.rooms.forEach(room => {
             const row = document.createElement('div');
-            row.style = 'display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px;';
+            row.className = 'active-session-row';
             const info = document.createElement('span');
             info.textContent = `${room.playerCount}/${room.maxPlayers} players · version ${room.versionId.slice(0, 7)}`;
             const join = document.createElement('a');
-            join.textContent = room.joinable ? 'Join' : 'Full';
-            if (room.joinable) { join.href = roomPlayUrl(room); join.target = '_blank'; }
+            join.textContent = room.joinable ? 'Join room' : 'Room full';
+            if (room.joinable) { join.href = roomPlayUrl(room); join.target = '_blank'; join.rel = 'noopener'; }
             else join.setAttribute('aria-disabled', 'true');
             join.className = 'session-join';
             row.appendChild(info); row.appendChild(join); listEl.appendChild(row);
         });
-    } catch (err) { listEl.textContent = 'Public sessions are unavailable. Refresh to try again.'; }
+    } catch (err) { listEl.textContent = 'Open rooms could not be loaded. We’ll check again shortly.'; }
 });
 
 const renderDevProfile = (devId, devInfo) => {
@@ -1309,9 +1203,8 @@ const navigateToDeveloperResources = () => {
     window.location.assign('/developers.html');
 };
 
-const handleDownload = (stable) => {
-    const path = stable ? '/latest/stable' : '/latest';
-    showModal('download', path);
+const handleDownload = () => {
+    window.location.assign('/self-hosting.html#download');
 };
 
 window.handleDownload = handleDownload;
@@ -1336,12 +1229,8 @@ const listTags = (limit = 10, offset = 0) => new Promise((resolve, reject) => {
     }); 
 });
 
-const searchGames = (query, limit = 10, offset = 0) => new Promise((resolve, reject) => {
-    const gameUrl = `${API_PROTOCOL}://${API_HOST}:${API_PORT}/games?query=${query}&page=${page}&limit=${limit}`;
-    makeGet(gameUrl).then((_games) => {
-        resolve(JSON.parse(_games));
-    });
-});
+const searchGames = (query, limit = 10, offset = 0, featured = null, includeNsfw = false) =>
+    getAllGames(limit, offset, featured, includeNsfw, query);
 
 window.searchGames = searchGames;
 
@@ -1402,16 +1291,121 @@ const renderGames = (games) => {
     }
 };
 
-const getAllGames = (limit = 10, offset = 0, featured = null, includeNsfw = false) => new Promise((resolve, reject) => {
-    const featuredParam = featured ? '&featured=true' : '';
-    const nsfwParam = includeNsfw ? '&includeNsfw=true' : '';
-    const gamesUrl = `${API_PROTOCOL}://${API_HOST}:${API_PORT}/games?limit=${limit}&offset=${offset}${featuredParam}${nsfwParam}`;
-    makeGet(gamesUrl).then((games) => {
-        resolve(JSON.parse(games));
+const getAllGames = (limit = 10, offset = 0, featured = null, includeNsfw = false, query = '') => {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    if (featured) params.set('featured', 'true');
+    if (includeNsfw) params.set('includeNsfw', 'true');
+    if (query) params.set('query', query);
+    return makeGet(`${API_URL}/games?${params}`).then(raw => {
+        const data = JSON.parse(raw);
+        if (!Array.isArray(data.games)) throw new Error('Invalid game listing');
+        return data;
     });
-});
+};
 
 window.getAllGames = getAllGames;
+
+// Search, filters, and pagination share one request path and a bookmarkable URL.
+window.initCatalog = () => {
+    const search = document.getElementById('search-box');
+    const featured = document.getElementById('featured-filter');
+    const nsfw = document.getElementById('nsfw-filter');
+    const grid = document.getElementById('catalog');
+    const status = document.getElementById('catalog-status');
+    const pagination = document.getElementById('catalog-pagination');
+    const reset = document.getElementById('catalog-reset');
+    const refreshRooms = () => {
+        const section = document.getElementById('active-sessions');
+        if (section) loadActiveSessions(section, document.getElementById('active-sessions-list'), 6, () => nsfw.checked);
+    };
+    const pageSize = 12;
+    let page = 1, generation = 0, timer;
+    const readLocation = () => {
+        const params = new URLSearchParams(window.location.search);
+        const requestedPage = Number(params.get('page'));
+        page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+        search.value = params.get('query') || '';
+        featured.checked = params.get('featured') === 'true';
+        nsfw.checked = params.get('includeNsfw') === 'true';
+    };
+    const writeLocation = mode => {
+        const params = new URLSearchParams();
+        if (search.value.trim()) params.set('query', search.value.trim());
+        if (featured.checked) params.set('featured', 'true');
+        if (nsfw.checked) params.set('includeNsfw', 'true');
+        if (page > 1) params.set('page', String(page));
+        const queryString = params.toString();
+        const url = `${window.location.pathname}${queryString ? '?' + queryString : ''}`;
+        if (url !== window.location.pathname + window.location.search) window.history[mode === 'push' ? 'pushState' : 'replaceState'](null, '', url);
+    };
+    const refresh = (historyMode = 'replace') => {
+        clearTimeout(timer);
+        const requestGeneration = ++generation;
+        writeLocation(historyMode);
+        clearChildren(grid);
+        clearChildren(pagination);
+        grid.setAttribute('aria-busy', 'true');
+        status.textContent = 'Finding games…';
+        reset.hidden = !(search.value || featured.checked || nsfw.checked);
+        getAllGames(pageSize, (page - 1) * pageSize, featured.checked, nsfw.checked, search.value.trim()).then(data => {
+            if (requestGeneration !== generation) return;
+            const total = Number(data.total) || 0;
+            const pageCount = Math.max(1, Math.ceil(total / pageSize));
+            if (page > pageCount) { page = pageCount; refresh(); return; }
+            grid.setAttribute('aria-busy', 'false');
+            status.textContent = `${total} game${total === 1 ? '' : 's'}${search.value.trim() ? ` matching “${search.value.trim()}”` : ''}${featured.checked ? ' · Featured' : ''}`;
+            if (!data.games.length) {
+                const empty = discoveryElement('div', 'discovery-empty');
+                empty.appendChild(discoveryElement('h2', '', 'No games found'));
+                empty.appendChild(discoveryElement('p', '', 'Try another search or clear your filters to explore more games.'));
+                grid.appendChild(empty);
+                return;
+            }
+            data.games.forEach(game => grid.appendChild(renderGameCard(game)));
+            if (pageCount === 1) return;
+            const addPageButton = (label, nextPage, disabled) => {
+                const button = discoveryElement('button', 'discovery-button small', label);
+                button.type = 'button';
+                button.disabled = disabled;
+                button.onclick = () => { page = nextPage; refresh('push'); status.focus(); };
+                pagination.appendChild(button);
+            };
+            addPageButton('Previous', page - 1, page === 1);
+            pagination.appendChild(discoveryElement('span', '', `Page ${page} of ${pageCount}`));
+            addPageButton('Next', page + 1, page === pageCount);
+        }).catch(() => {
+            if (requestGeneration !== generation) return;
+            grid.setAttribute('aria-busy', 'false');
+            status.textContent = 'Games could not be loaded.';
+            const empty = discoveryElement('div', 'discovery-empty');
+            empty.appendChild(discoveryElement('p', '', 'The game catalog is unavailable right now. Try loading it again.'));
+            const retry = discoveryElement('button', 'discovery-button primary', 'Try again');
+            retry.type = 'button';
+            retry.onclick = () => refresh();
+            empty.appendChild(retry);
+            grid.appendChild(empty);
+        });
+    };
+    search.oninput = () => {
+        ++generation; // Invalidate the previous request during the debounce, too.
+        clearTimeout(timer);
+        clearChildren(grid);
+        clearChildren(pagination);
+        grid.setAttribute('aria-busy', 'true');
+        status.textContent = 'Finding games…';
+        page = 1;
+        timer = setTimeout(() => refresh(), 250);
+    };
+    document.getElementById('catalog-search').onsubmit = event => { event.preventDefault(); page = 1; refresh(); };
+    featured.onchange = () => { page = 1; refresh('push'); };
+    nsfw.onchange = () => { page = 1; refresh('push'); refreshRooms(); };
+    reset.onclick = () => { search.value = ''; featured.checked = nsfw.checked = false; page = 1; refresh('push'); refreshRooms(); search.focus(); };
+    window.addEventListener('popstate', () => { readLocation(); refresh(); refreshRooms(); });
+    readLocation();
+    refresh();
+    refreshRooms();
+};
+
 
 const getPublicAssets = (limit = 10, offset = 0, query = '', type = '') => new Promise((resolve, reject) => {
     const params = new URLSearchParams({
@@ -1448,56 +1442,105 @@ const showDeveloperProfile = (devId) => {
 
 window.showDeveloperProfile = showDeveloperProfile;
 
-const showGamePage = (gameId) => {
-    const contentEl = document.getElementById('content');
-    clearChildren(contentEl);
-    contentEl.appendChild(loaderBlack());
-    makeGet(`${API_URL}/games/${gameId}`).then((_gameDetails) => { 
-        clearChildren(contentEl);
-        const gameDetails = JSON.parse(_gameDetails);
-        const gamePage = renderGamePage(gameId, gameDetails);
-        contentEl.appendChild(gamePage);
-        contentEl.removeAttribute('hidden');
-    }); 
+const showGamePage = gameId => {
+    const content = document.getElementById('content');
+    clearChildren(content);
+    content.appendChild(discoveryElement('p', 'discovery-shell discovery-status', 'Loading game…'));
+    const failed = () => {
+        clearChildren(content);
+        const state = discoveryElement('div', 'discovery-shell discovery-empty');
+        state.appendChild(discoveryElement('h1', '', 'Game unavailable'));
+        state.appendChild(discoveryElement('p', '', 'This game could not be loaded. Try again or find another game to explore.'));
+        const back = discoveryElement('a', 'discovery-button primary', 'Browse games');
+        back.href = '/catalog.html';
+        state.appendChild(back);
+        if (gameId) {
+            const retry = discoveryElement('button', 'discovery-button', 'Try again');
+            retry.type = 'button';
+            retry.onclick = () => showGamePage(gameId);
+            state.appendChild(retry);
+        }
+        content.appendChild(state);
+    };
+    if (!gameId) { failed(); return; }
+    return makeGet(`${API_URL}/games/${encodeURIComponent(gameId)}`).then(raw => {
+        const data = JSON.parse(raw);
+        if (!data.game) throw new Error('Game not found');
+        clearChildren(content);
+        document.title = `${data.game.name || 'Game'} — Homegames`;
+        content.appendChild(renderGamePage(gameId, data));
+        content.removeAttribute('hidden');
+        if (window.location.hash === '#play') document.getElementById('play').scrollIntoView({ block: 'nearest' });
+    }).catch(failed);
 };
 
-// Inline Play uses the same browser host as the game page.
-// Uses the play capabilities the list endpoint returns (captured at publish),
-// so cards need no extra requests.
-const playGameInline = (game) => {
-    if (!game.latestPublishedSha) return;
-    fetch(`${API_URL}/games/${game.id}/play`, { method: 'POST' }).catch(() => {});
-    window.open(`/play.html?localGame=${encodeURIComponent(game.id)}&ref=${encodeURIComponent(game.latestPublishedSha)}`, '_blank');
+// Retained for callers outside the shared cards; multiplayer setup happens
+// on the detail page so visibility is chosen before the room is registered.
+const playGameInline = game => {
+    if (!game.latestPublishedSha || !game.localPlayable || game.multiplayer == null) return;
+    if (game.multiplayer) {
+        window.location.assign(`/game.html?id=${encodeURIComponent(game.id)}#play`);
+        return;
+    }
+    fetch(`${API_URL}/games/${encodeURIComponent(game.id)}/play`, { method: 'POST' }).catch(() => {});
+    window.open(`/play.html?${new URLSearchParams({ localGame: game.id, ref: game.latestPublishedSha })}`, '_blank', 'noopener');
 };
 window.playGameInline = playGameInline;
 
-// Front-page "Active Sessions" — the top few live browser sessions by player
-// count, each with a join link. Only published-game sessions are shown
-// (studio/dev preview sessions have no gameId). The section element stays
-// hidden unless there's at least one session, so an empty platform doesn't
-// advertise itself.
-const loadActiveSessions = (sectionEl, listEl, limit = 3) => watchRooms(sectionEl, async () => {
-    try {
-        const data = JSON.parse(await makeGet(`${API_URL}/rooms?limit=${limit}`));
-        listEl.innerHTML = '';
-        if (!data.rooms.length) { sectionEl.hidden = true; return; }
-        data.rooms.forEach(room => {
-            const row = document.createElement('div'); row.className = 'active-session-row';
-            const info = document.createElement('div'); info.className = 'session-info';
-            const name = document.createElement('a'); name.className = 'session-name';
-            name.textContent = room.name; name.href = `/game.html?id=${encodeURIComponent(room.gameId)}`;
-            const players = document.createElement('div'); players.className = 'session-players';
-            players.textContent = `${room.playerCount}/${room.maxPlayers} players · version ${room.versionId.slice(0, 7)}`;
-            info.appendChild(name); info.appendChild(players); row.appendChild(info);
-            const join = document.createElement('a'); join.className = 'session-join';
-            join.textContent = room.joinable ? 'Join' : 'Full';
-            if (room.joinable) { join.href = roomPlayUrl(room); join.target = '_blank'; }
-            else join.setAttribute('aria-disabled', 'true');
-            row.appendChild(join); listEl.appendChild(row);
-        });
-        sectionEl.hidden = false;
-    } catch (err) { listEl.innerHTML = ''; sectionEl.hidden = true; }
-});
+// Room discovery uses catalog artwork and maturity metadata. A room whose
+// listing cannot be checked is omitted until a later refresh succeeds.
+const sessionGameCache = new Map();
+const getSessionGame = gameId => {
+    const cached = sessionGameCache.get(gameId);
+    if (cached && cached.expires > Date.now()) return cached.promise;
+    const promise = makeGet(`${API_URL}/games/${encodeURIComponent(gameId)}`)
+        .then(raw => JSON.parse(raw)?.game || null)
+        .catch(() => { sessionGameCache.delete(gameId); return null; });
+    sessionGameCache.set(gameId, { promise, expires: Date.now() + 60000 });
+    if (sessionGameCache.size > 64) sessionGameCache.delete(sessionGameCache.keys().next().value);
+    return promise;
+};
+
+const loadActiveSessions = (sectionEl, listEl, limit = 3, includeNsfw = () => false) => {
+    // Clear rows immediately when preferences change, even during an in-flight
+    // poll, so previously opted-in mature artwork cannot linger on screen.
+    clearChildren(listEl);
+    sectionEl.hidden = true;
+    return watchRooms(sectionEl, async () => {
+        try {
+            const data = JSON.parse(await makeGet(`${API_URL}/rooms?limit=${limit}`));
+            const entries = await Promise.all(data.rooms.map(async room => ({ room, game: await getSessionGame(room.gameId) })));
+            clearChildren(listEl);
+            const rooms = entries.filter(({ game }) => game && (!game.nsfw || includeNsfw()));
+            rooms.forEach(({ room, game }) => {
+                const row = discoveryElement('div', 'active-session-row');
+                const thumb = discoveryElement('div', 'session-thumb', '🎮');
+                if (game.thumbnail) {
+                    const img = document.createElement('img');
+                    img.alt = game.name || room.name || 'Game thumbnail';
+                    img.onerror = () => { thumb.textContent = '🎮'; };
+                    img.src = `${API_URL}/assets/${encodeURIComponent(game.thumbnail)}`;
+                    clearChildren(thumb);
+                    thumb.appendChild(img);
+                }
+                row.appendChild(thumb);
+                const info = discoveryElement('div', 'session-info');
+                const name = discoveryElement('a', 'session-name', game.name || room.name);
+                name.href = `/game.html?id=${encodeURIComponent(room.gameId)}`;
+                const players = discoveryElement('div', 'session-players', `${room.playerCount}/${room.maxPlayers} players · version ${room.versionId.slice(0, 7)}`);
+                info.appendChild(name);
+                info.appendChild(players);
+                row.appendChild(info);
+                const join = discoveryElement('a', 'session-join', room.joinable ? 'Join room' : 'Room full');
+                if (room.joinable) { join.href = roomPlayUrl(room); join.target = '_blank'; join.rel = 'noopener'; }
+                else join.setAttribute('aria-disabled', 'true');
+                row.appendChild(join);
+                listEl.appendChild(row);
+            });
+            sectionEl.hidden = rooms.length === 0;
+        } catch (err) { clearChildren(listEl); sectionEl.hidden = true; }
+    });
+};
 window.loadActiveSessions = loadActiveSessions;
 
 window.loadMap = () => {

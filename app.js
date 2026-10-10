@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const serveBuildDownload = require('./build-downloads');
 
 const PATH_MAP = {
     "/": {
@@ -59,6 +60,10 @@ const PATH_MAP = {
         path: "web/bundle.js",
         contentType: "text/javascript"
     },
+    "/downloads.js": {
+        path: "downloads.js",
+        contentType: "text/javascript"
+    },
     "/client.js": {
         path: "client.js",
         contentType: "text/javascript"
@@ -70,6 +75,8 @@ const PATH_MAP = {
 };
 
 const server = http.createServer((req, res) => {
+    const buildPath = req.url.split('?')[0];
+    if (serveBuildDownload(req, res, buildPath, process.env.HOMEGAMES_BUILDS_DIR || path.join(__dirname, 'builds'))) return;
     if (req.method === 'GET') {
             let requestPath = req.url;
 
@@ -248,4 +255,5 @@ const server = http.createServer((req, res) => {
     }
 });
 
-server.listen(81);
+if (require.main === module) server.listen(process.env.PORT || 81);
+module.exports = server;

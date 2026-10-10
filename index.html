@@ -2,43 +2,26 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>Homegames</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="Discover free, open-source games on Homegames. Find a game to play in your browser, host a room, or make something of your own.">
+        <title>Homegames — Discover open-source games</title>
         <link rel="stylesheet" href="app.css">
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
         <link rel="manifest" href="/site.webmanifest">
         <style>
             .landing-section {
-                max-width: 860px;
+                max-width: 1040px;
                 margin: 0 auto;
-                padding: 0 24px;
+                padding: 32px 24px;
             }
-
-            /* Header studio link — pinned right, logo stays centered */
-            #header { position: relative; }
-            .header-studio-link {
-                position: absolute;
-                right: 24px;
-                top: 50%;
-                transform: translateY(-50%);
-                background: #94D2E5;
-                color: #1a1a2e;
-                padding: 8px 18px;
-                border-radius: 8px;
-                text-decoration: none;
-                font-weight: bold;
-                font-size: 1em;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-                transition: background 0.15s;
-            }
-            .header-studio-link:hover { background: #7bc4db; }
 
             /* Hero */
             .hero {
                 text-align: center;
-                padding: 60px 24px 0;
+                padding: 44px 24px 8px;
             }
             .hero h1 {
-                font-size: 2.2em;
+                font-size: 2.7em;
                 font-weight: lighter;
                 margin: 0 0 12px;
                 line-height: 1.3;
@@ -48,6 +31,16 @@
                 color: #555;
                 margin: 0;
                 line-height: 1.6;
+            }
+            .hero .hero-intro {
+                max-width: 660px;
+                margin: 0 auto;
+            }
+            .hero .hero-note {
+                max-width: 620px;
+                margin: 0 auto;
+                font-size: 0.9em;
+                color: #666;
             }
             .section-cta {
                 display: flex;
@@ -83,13 +76,18 @@
 
             /* Active sessions */
             .active-sessions-section {
-                padding: 40px 0 0;
+                padding-top: 8px;
+                padding-bottom: 40px;
             }
             .active-sessions-section h2 {
                 font-weight: lighter;
-                text-align: center;
-                margin: 0 0 24px;
+                margin: 0 0 8px;
                 font-size: 1.5em;
+            }
+            .active-sessions-section > p {
+                margin: 0 0 20px;
+                color: #555;
+                line-height: 1.5;
             }
             .active-session-row {
                 display: flex;
@@ -153,80 +151,45 @@
             .active-session-row .session-join:hover { filter: brightness(0.95); }
 
             /* Featured games */
-            .featured-section {
-                padding: 40px 0;
+            .featured-heading {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: 12px;
+                margin-bottom: 20px;
             }
             .featured-section h2 {
                 font-weight: lighter;
-                text-align: center;
-                margin: 0 0 24px;
+                margin: 0;
                 font-size: 1.5em;
             }
-            .featured-grid {
-                display: grid;
-                grid-template-columns: repeat(3, 1fr);
-                gap: 16px;
-            }
-            .featured-card {
-                text-decoration: none;
-                color: inherit;
-                border: 1px solid #ddd;
-                border-radius: 8px;
-                overflow: hidden;
-                display: block;
-                transition: box-shadow 0.15s;
-            }
-            .featured-card:hover {
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            }
-            .featured-card img {
-                width: 100%;
-                height: 140px;
-                object-fit: cover;
-                display: block;
-                background: #eee;
-            }
-            .featured-card .placeholder {
-                width: 100%;
-                height: 140px;
-                background: #eee;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #aaa;
-                font-size: 2em;
-            }
-            .featured-card .card-body {
-                padding: 10px;
-            }
-            .featured-card .card-title {
+            .featured-heading > a {
                 font-weight: bold;
-                font-size: 1.05em;
+                text-underline-offset: 4px;
             }
-            .featured-card .card-desc {
-                font-size: 0.82em;
-                color: #777;
-                margin-top: 4px;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
-            .featured-card .card-play {
-                display: inline-block;
-                margin-top: 8px;
-                background: #A0EB5D;
-                color: #333;
-                padding: 6px 16px;
+            .featured-status {
+                grid-column: 1 / -1;
+                text-align: center;
+                color: #555;
+                padding: 28px 16px;
+                border: 1px dashed #b9c5a8;
                 border-radius: 8px;
-                font-size: 0.9em;
-                cursor: pointer;
             }
-            .featured-card .card-play:hover {
-                filter: brightness(0.95);
+            .featured-status p { margin: 0 0 12px; }
+            .featured-status button {
+                font: inherit;
+                background: #FFF78E;
+                color: #333;
+                border: 1px solid #b9ad4c;
+                border-radius: 6px;
+                padding: 8px 20px;
+                cursor: pointer;
             }
             /* Content sections (Developer Studio / Open Source) */
             .dev-section {
-                padding: 40px 0;
+                padding-top: 40px;
+                padding-bottom: 40px;
                 border-top: 1px solid #eee;
             }
             .dev-section h2 {
@@ -235,8 +198,7 @@
                 margin: 0 0 20px;
                 font-size: 1.5em;
             }
-            /* Wider than the 860px content column: centered on the page via
-               left 50% + translate, so the detailed screenshot gets room. */
+            /* Center the detailed studio screenshot with room beyond the text. */
             .studio-screenshot {
                 width: min(1080px, calc(100vw - 48px));
                 position: relative;
@@ -293,15 +255,18 @@
             }
 
             @media (max-width: 640px) {
-                .hero h1 { font-size: 1.6em; }
+                .hero { padding-top: 32px; }
+                .hero h1 { font-size: 2em; }
                 .section-cta { gap: 12px; }
                 .hero-cta { padding: 12px 24px; font-size: 1.1em; }
-                .featured-grid { grid-template-columns: 1fr; }
-                .header-studio-link { right: 12px; padding: 6px 12px; font-size: 0.85em; }
+                .landing-section { padding-left: 18px; padding-right: 18px; }
+                .active-session-row { gap: 10px; padding: 10px; }
+                .active-session-row .session-join { padding: 8px 14px; }
             }
         </style>
     </head>
-    <body>
+    <body class="discovery-page">
+        <a class="skip-link" href="#content">Skip to games</a>
         <div id="modal" class="fade-in" hidden>
             <div id="modal-content">
                 <div class="close clickable" onclick="hideModal()">X</div>
@@ -310,36 +275,47 @@
         </div>
         <div id="main">
             <div id="page-container">
-                <div id="header" class="clickable">
-                    <div onclick="goHome()" class="hg-button clickable" id="logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png" /></div>
-                    <a href="/studio.html" class="header-studio-link amateur">Developer Studio</a>
+                <div id="header">
+                    <nav class="discovery-nav" aria-label="Main navigation">
+                        <a class="discovery-brand" href="/"><img alt="Homegames home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png" /></a>
+                        <div class="discovery-links">
+                            <a href="/catalog.html">Browse games</a>
+                            <a href="/studio.html">Create a game</a>
+                            <a href="/self-hosting.html">Self-host</a>
+                        </div>
+                    </nav>
                 </div>
-                <div id="content">
+                <main id="content">
 
                     <!-- Hero -->
                     <div class="hero amateur">
-                        <h1>Homegames is an open-source game platform</h1>
-                        <p>Play, make and share games for free</p>
-                    </div>
-
-                    <!-- Active sessions — hidden until at least one live
-                         session loads, so an empty list never shows. -->
-                    <div class="landing-section active-sessions-section amateur" id="active-sessions" hidden>
-                        <h2>Active Multiplayer Sessions</h2>
-                        <div id="active-sessions-list"></div>
+                        <h1>Find your next game.</h1>
+                        <p class="hero-intro">Discover free, open-source games made with Homegames. Play browser-ready games on your own, or host a multiplayer room and share the link.</p>
+                        <div class="section-cta"><a href="/catalog.html" class="hero-cta games">Browse games</a></div>
+                        <p class="hero-note">Your browser hosts the room. Keep the host tab open while everyone plays.</p>
                     </div>
 
                     <!-- Games -->
                     <div class="landing-section featured-section amateur">
-                        <h2>Featured Games</h2>
-                        <div class="featured-grid" id="featured-grid">
-                            <div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 24px;">Loading...</div>
+                        <div class="featured-heading">
+                            <h2>Featured games</h2>
+                            <a href="/catalog.html">Browse all games →</a>
                         </div>
-                        <div class="section-cta"><a href="/catalog.html" class="hero-cta games">See All Games</a></div>
+                        <div class="game-grid" id="featured-grid" aria-busy="true">
+                            <div class="featured-status" role="status">Loading featured games…</div>
+                        </div>
+                    </div>
+
+                    <!-- Open rooms appear only while players are hosting. -->
+                    <div class="landing-section active-sessions-section amateur" id="active-sessions" hidden>
+                        <h2>Open rooms</h2>
+                        <p>Join a game already in progress. These public rooms are hosted by players in their browsers.</p>
+                        <div id="active-sessions-list"></div>
                     </div>
 
                     <!-- Developer Studio -->
                     <div class="landing-section dev-section amateur">
+                        <h2>Make something of your own</h2>
                         <div class="studio-screenshot" id="studio-screenshot">
                             <img src="https://api.homegames.io/assets/15c42c63ac3059db66644668c53cac7e" alt="The Homegames Studio editor">
                         </div>
@@ -355,9 +331,10 @@
                     <!-- Host it yourself -->
                     <div class="landing-section dev-section amateur">
                         <h2>Host It Yourself</h2>
-                        <p class="host-note">Run Homegames on a machine in your house — one download with nothing to install, for Windows, macOS, and Linux. Everyone on your network plays in their browser.</p>
+                        <p class="host-note">Run Homegames on a machine in your house. Download, extract, and launch — Node, Git, and Docker are not required. Supports Windows x64, macOS (Apple Silicon or Intel), and Linux x64. Everyone on your network plays in their browser.</p>
                         <div class="section-cta">
                             <a href="/builds/homegames.zip" class="hero-cta games" id="host-download-btn">⤓ Download the Latest</a>
+                            <a href="/self-hosting.html#download" class="hero-cta self-hosting">Download &amp; Setup Guide</a>
                             <a href="/self-hosting.html#old-builds" class="hero-cta github">Previous Versions</a>
                         </div>
                     </div>
@@ -393,28 +370,12 @@
                         <div class="email">joseph@homegames.io</div>
                     </div>
 
-                </div>
+                </main>
             </div>
         </div>
         <script src="bundle.js"></script>
+        <script src="/downloads.js"></script>
         <script>
-            // Version the download button from the manifest release.sh maintains.
-            // If it isn't reachable, the static latest-alias link stands as-is.
-            (async () => {
-                let manifest;
-                try {
-                    const res = await fetch('/builds/manifest.json');
-                    if (!res.ok) return;
-                    manifest = await res.json();
-                } catch (e) { return; }
-                if (!manifest || !Array.isArray(manifest.builds) || !manifest.builds.length) return;
-
-                const latest = manifest.builds.find(b => b.version === manifest.latest) || manifest.builds[0];
-                const btn = document.getElementById('host-download-btn');
-                btn.href = `/builds/homegames-${encodeURIComponent(latest.version)}.zip`;
-                btn.textContent = `⤓ Download v${latest.version}`;
-            })();
-
             loadActiveSessions(
                 document.getElementById('active-sessions'),
                 document.getElementById('active-sessions-list'),
@@ -422,68 +383,26 @@
             );
 
             const grid = document.getElementById('featured-grid');
-            getAllGames(6, 0, true).then((data) => {
-                const games = data.games || [];
-                grid.innerHTML = '';
-
-                if (games.length === 0) {
-                    grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 24px;">No featured games yet</div>';
-                    return;
+            const loadFeaturedGames = async () => {
+                grid.setAttribute('aria-busy', 'true');
+                grid.innerHTML = '<div class="featured-status" role="status">Loading featured games…</div>';
+                try {
+                    const data = await getAllGames(6, 0, true);
+                    const games = data.games || [];
+                    grid.replaceChildren();
+                    if (games.length === 0) {
+                        grid.innerHTML = '<div class="featured-status" role="status"><p>No featured games right now.</p><a href="/catalog.html">Explore the game library →</a></div>';
+                        return;
+                    }
+                    games.forEach(game => grid.appendChild(window.renderGameCard(game)));
+                } catch (err) {
+                    grid.innerHTML = '<div class="featured-status" role="status"><p>Featured games could not load. Try again in a moment.</p><button type="button" id="retry-featured">Try again</button></div>';
+                    document.getElementById('retry-featured').addEventListener('click', loadFeaturedGames);
+                } finally {
+                    grid.setAttribute('aria-busy', 'false');
                 }
-
-                games.forEach((game) => {
-                    const card = document.createElement('a');
-                    card.href = '/game.html?id=' + game.id;
-                    card.className = 'featured-card';
-
-                    if (game.thumbnail) {
-                        const img = document.createElement('img');
-                        img.src = window.API_URL + '/assets/' + game.thumbnail;
-                        img.alt = game.name;
-                        card.appendChild(img);
-                    } else {
-                        const ph = document.createElement('div');
-                        ph.className = 'placeholder';
-                        ph.textContent = '🎮';
-                        card.appendChild(ph);
-                    }
-
-                    const body = document.createElement('div');
-                    body.className = 'card-body';
-                    const title = document.createElement('div');
-                    title.className = 'card-title';
-                    title.textContent = game.name;
-                    body.appendChild(title);
-                    const desc = document.createElement('div');
-                    desc.className = 'card-desc';
-                    desc.textContent = game.description || 'No description available';
-                    body.appendChild(desc);
-
-                    // Inline play — multiplayer creates a hosted session, single
-                    // player opens a solo local session. Games published before
-                    // play capabilities were recorded have multiplayer: null and
-                    // get no button (card still links to the game page).
-                    if (game.latestPublishedSha && (game.multiplayer || game.localPlayable)) {
-                        const playBtn = document.createElement('div');
-                        playBtn.className = 'card-play';
-                        playBtn.textContent = 'Play';
-                        playBtn.onclick = (e) => {
-                            // The whole card is a link to the game page — keep
-                            // the button from navigating.
-                            e.preventDefault();
-                            e.stopPropagation();
-                            playGameInline(game, playBtn);
-                        };
-                        body.appendChild(playBtn);
-                    }
-
-                    card.appendChild(body);
-
-                    grid.appendChild(card);
-                });
-            }).catch(() => {
-                grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 24px;">Could not load games</div>';
-            });
+            };
+            loadFeaturedGames();
         </script>
     </body>
 </html>

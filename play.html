@@ -7,14 +7,11 @@
         <style>
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body { background: #000; height: 100vh; overflow: hidden; }
-            #game-container { width: 100vw; height: calc(100vh - 40px); height: calc(100dvh - 40px); }
-            nav { height: 40px; display: flex; align-items: center; padding: 0 14px; background: #242424; font: 14px system-ui; }
-            nav a { color: #FFF78E; }
-            #status { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #888; font-family: sans-serif; font-size: 1.2em; }
+            #game-container { width: 100vw; height: 100vh; height: 100dvh; }
+            #status { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(420px, 85vw); color: #b7bfb5; text-align: center; font: 16px/1.6 system-ui, sans-serif; }
         </style>
     </head>
     <body>
-        <nav><a href="/">⌂ Home</a></nav>
         <div id="game-container"></div>
         <div id="status">Connecting...</div>
     </body>
@@ -26,6 +23,17 @@
         const localGameId = params.get('localGame');
         const localRef = params.get('ref');
         const statusEl = document.getElementById('status');
+        const invitation = HomegamesClient.readInvitation();
+        const browseUrl = localGameId ? `/game.html?id=${encodeURIComponent(localGameId)}` : '/catalog.html';
+        let guestClient;
+        const pageFrame = HomegamesClient.createSessionFrame('game-container',
+            invitation ? 'Shared game' : 'Homegames', browseUrl, invitation ? {
+                getLink: () => guestClient.getShareLink(),
+                hintText: 'Scan to join this session. The host needs to keep their game open.',
+                onOpen: () => guestClient.inputHandler?.detach(),
+                onClose: () => { if (guestClient.rendering) guestClient.inputHandler?.attach(); },
+            } : null,
+            { status: invitation ? 'Connecting to host…' : 'Loading game…' });
 
         const showStatus = (text) => {
             statusEl.style.display = '';
@@ -40,11 +48,12 @@
             const manifestUrl = `${API_URL}/games/${encodeURIComponent(localGameId)}/local-manifest?ref=${encodeURIComponent(localRef)}`;
             const client = new HomegamesClient({
                     containerId: 'game-container',
-                    localHome: false,
+                    localHome: browseUrl,
                     loadLocalGame: async (_, options) => {
                         const game = await HomegamesClient.loadLocalGame({ manifestUrl,
                             gameKey: `catalog:${localGameId}`, versionId: localRef }, options);
                         document.title = `${game.name} — Homegames`;
+                        pageFrame.dispose();
                         return game;
                     },
                     share: game => ({
@@ -64,21 +73,28 @@
             client.startLocalGame({});
         };
 
-        const invitation = HomegamesClient.readInvitation();
         if (invitation) {
-            const client = new HomegamesClient({
-                containerId: 'game-container',
-                transport: HomegamesClient.createRtcTransport(invitation),
-                onReady: () => { statusEl.style.display = 'none'; },
-                onError: err => showStatus(err.message || 'Unable to join this game'),
-                onClose: () => { if (statusEl.style.display === 'none') showStatus('The host disconnected. Reopen the invitation to join again.'); },
+            const client = guestClient = new HomegamesClient({
+                containerId: pageFrame.containerId,
+                transport: HomegamesClient.createRtcTransport({ ...invitation,
+                    joinUrl: new URL('/play.html', window.location.href).href }),
+                onReady: () => { pageFrame.setStatus('Connected to host'); statusEl.style.display = 'none'; },
+                onError: err => { pageFrame.setStatus('Unable to join'); showStatus(err.message || 'Unable to join this game'); },
+                onClose: () => {
+                    if (statusEl.style.display === 'none') {
+                        pageFrame.setStatus('Session ended');
+                        showStatus('The host disconnected. Reopen the invitation to join again.');
+                    }
+                },
             });
             client.start();
             window.addEventListener('pagehide', () => client.stop());
         } else if (localGameId && localRef) {
             startLocal();
         } else {
-            showStatus('This game link has ended. Choose a game from Home to play.');
+            pageFrame.setStatus('Choose a game to play');
+            showStatus('This game link has ended. Browse the game library to find something to play.');
         }
+        window.addEventListener('pagehide', () => pageFrame.dispose());
     </script>
 </html>

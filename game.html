@@ -1,45 +1,29 @@
 <!DOCTYPE HTML>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <title>Homegames</title>
-        <link rel="stylesheet" href="/app.css">
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-        <link rel="manifest" href="/site.webmanifest">
-    </head>
-
-    <body>
-        <div id="modal" class="fade-in" hidden>
-            <div id="modal-content">
-                <div class="close clickable" onclick="hideModal()">X</div>
-                <div class="back"></div>
-                <div class="content"></div>
-            </div>
-        </div>
-        <div id="main">
-            <div id="page-container">
-                <div id="header">
-                    <div class="clickable" onclick="goHome()" class="hg-button" id="big-logo"><img alt="home" src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_big_resized.png"></img></div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Explore a game — Homegames</title>
+    <link rel="stylesheet" href="/app.css">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+</head>
+<body class="discovery-page">
+    <a class="skip-link" href="#content">Skip to game</a>
+    <div id="page-container">
+        <header id="header">
+            <nav class="discovery-nav" aria-label="Main navigation">
+                <a class="discovery-brand" href="/" aria-label="Homegames home"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png" alt="Homegames"></a>
+                <div class="discovery-links">
+                    <a href="/catalog.html">Browse games</a>
+                    <a href="/studio.html">Create a game</a>
+                    <a href="/self-hosting.html">Self-host</a>
                 </div>
-                <div id="content">
-                </div>
-            </div>
-        </div>
-    </body>
+            </nav>
+        </header>
+        <main id="content"></main>
+    </div>
     <script src="/bundle.js"></script>
-    <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const gameParam = urlParams.get('id');
-
-        if (gameParam) {
-            showGamePage(gameParam); 
-        } 
-    </script>
-    <style>
-        #content input {height: 40px; line-height: 40px; width: 20%; padding: 5px; margin-left: 2%; margin-right: 78%; margin-top: 1%}
-        #submit-button {margin-top: 1%; margin-left: 2%; text-decoration: underline;}
-        #podcast-content {height: 250px;}
-        #podcast-content ul {text-align: left; list-style-type: none;}
-    </style>
-
+    <script>showGamePage(new URLSearchParams(window.location.search).get('id'));</script>
+</body>
 </html>
