@@ -1,0 +1,452 @@
+{
+  "started": "2026-10-17",
+  "author": "Joseph Garcia",
+  "policy": "Use the maintainer's answers as page copy. Questions stay in this private editorial record and are never displayed on the website. Preserve wording; paragraph breaks, HTML escaping and relevant links are allowed. Ask before substantive shortening or rewriting. Existing unanswered copy is not approved just because it is already present.",
+  "sections": [
+    {
+      "id": "home-introduction",
+      "placements": [
+        "index.html .hero-intro",
+        "index.html meta description",
+        "about.html .about-intro p",
+        "about.html meta description"
+      ],
+      "question": "Imagine someone has just found Homegames and knows nothing about it: how would you describe what it is, who you made it for, and what you hope they get out of it?",
+      "answer": "Homegames is a free and open source platform that lets you play, make and share games without an account.",
+      "status": "applied"
+    },
+    {
+      "id": "home-studio",
+      "placements": [
+        "index.html Developer Studio paragraph"
+      ],
+      "question": "What do you want someone to know about making or changing a game with Homegames? Explain what they can do and why you think it's worth trying, in the words you'd want on the page.",
+      "answer": "Develop and preview your game in the browser and share it with friends when you're ready",
+      "status": "applied",
+      "notes": "Replaces the previous introductory sentence and generated feature bullet list. Screenshot and action links remain."
+    },
+    {
+      "id": "home-self-hosting",
+      "placements": [
+        "index.html Host It Yourself paragraph"
+      ],
+      "question": "Why would someone want to run Homegames on their own computer, and who is that option for? The download and setup links can handle the technical steps.",
+      "answer": "Running Homegames yourself gives you a dedicated game server easily joinable by people on your network via homegames.link",
+      "status": "applied",
+      "notes": "homegames.link is linked without changing the text. Live discovery and native release acceptance remain deployment gates."
+    },
+    {
+      "id": "home-about",
+      "placements": [
+        "index.html #about-heading following paragraph"
+      ],
+      "question": "How would you introduce yourself as the person behind the project, and what does Homegames mean to you? We'll use the About page afterward for the fuller story.",
+      "answer": "Homegames has gone through several phases over almost a decade of development. The goal has always been to make it easy for people to play and share simple games. At the moment, I think Homegames is in the most sustainable and solid place it's ever been and I think in some way that original goal has been achieved.",
+      "status": "applied"
+    },
+    {
+      "id": "about-story",
+      "placements": [
+        "about.html #people-heading section"
+      ],
+      "question": "How did Homegames begin, and what changed across those phases to bring it to the version you're releasing now?",
+      "answer": "The original inspiration for Homegames was Jackbox. \"Easily joinable social games from your phone that you play with people in your house\" was the goal at the start. After iterating on that idea over time, I ended up with user accounts, asset uploads, a searchable public catalog people could publish their own games to, and a lot more. It became unmanageable at a certain point, and ultimately I am not interested in hosting a service and dealing with all of the responsibility and costs of doing that. If the ultimate idea is to provide a useful tool to people for free, I want to reduce the dependence on me and the services I provide to keep this idea going. That is what led to the mostly P2P structure we have today, with a free hosted option available to people if they want.",
+      "status": "applied",
+      "clarification": "The maintainer clarified that free hosted option refers to the self-hosted server bundle/dashboard. Others may also host their own website or public server. Applied wording: a free self-hosted server bundle available to people if they want.",
+      "appliedAnswer": "The original inspiration for Homegames was Jackbox. \"Easily joinable social games from your phone that you play with people in your house\" was the goal at the start. After iterating on that idea over time, I ended up with user accounts, asset uploads, a searchable public catalog people could publish their own games to, and a lot more. It became unmanageable at a certain point, and ultimately I am not interested in hosting a service and dealing with all of the responsibility and costs of doing that. If the ultimate idea is to provide a useful tool to people for free, I want to reduce the dependence on me and the services I provide to keep this idea going. That is what led to the mostly P2P structure we have today, with a free self-hosted server bundle available to people if they want."
+    },
+    {
+      "id": "about-ownership",
+      "placements": [
+        "about.html #keep-heading section, excluding the factual license notice"
+      ],
+      "question": "Why does it matter to you that people can keep, change and share their games, and what do you want that to mean for someone using Homegames?",
+      "answer": "I don't want games to depend on homegames infrastructure or services. Providing downloadable game bundles playable offline in your browser and access to the source code makes the game last longer.",
+      "status": "applied",
+      "notes": "Source code is linked without changing the wording. The separate factual license notice remains."
+    },
+    {
+      "id": "about-contact",
+      "placements": [
+        "about.html #hello-heading section"
+      ],
+      "question": "What would you like people to get in touch about, and how would you like them to participate in Homegames?",
+      "answer": "Ask questions or give me feedback on the platform, games or anything else Homegames related",
+      "status": "applied"
+    }
+  ],
+  "finalReview": [
+    "Headings, buttons, page titles, link labels and image descriptions on the homepage and About page.",
+    "Factual license notice: preserve third-party notices and accurate scope while giving the maintainer a chance to review the wording.",
+    "Read both complete pages for repetition, transitions and layout once the answers are present."
+  ],
+  "laterCopyInventory": [
+    "Game card descriptions and each retained game's instructions, help, narrative and result text.",
+    "Studio welcome, examples, templates, export/save/offline guidance and error recovery.",
+    "Self-hosting, how-it-works, history and authoring documentation introductions.",
+    "Privacy, terms and download/release wording, checked against actual behavior.",
+    "Refresh the homepage Studio screenshot, which still depicts the older editor/runtime."
+  ],
+  "bodyCopyStatus": "All homepage/About interview sections applied and verified in the generated site at desktop and mobile widths.",
+  "verification": {
+    "date": "2026-10-17",
+    "evidence": "../homegames-core/docs/review-evidence/catalog-editing-2026-10-17/README.md",
+    "questionsPublished": false,
+    "editorialRecordShipped": false,
+    "substantiveEdit": "The maintainer clarified free hosted option as a free self-hosted server bundle."
+  },
+  "gameSections": [
+    {
+      "game": "lemonade-tycoon",
+      "id": "description",
+      "answer": "Fight lemons in the night and profit during the day",
+      "status": "applied",
+      "placements": [
+        "homegames-core/src/games/lemonade-tycoon/index.js static metadata",
+        "homegames-core/src/games/lemonade-tycoon/README.md introduction"
+      ]
+    },
+    {
+      "game": "lemonade-tycoon",
+      "id": "onboarding",
+      "answer": "doesnt feel like we need text to describe the game, they should get it by playing for a couple of minutes",
+      "status": "applied",
+      "notes": "No explanatory tutorial paragraph added; removed generated lobby tagline. Factual controls and feedback remain."
+    },
+    {
+      "game": "lemonade-tycoon",
+      "id": "customer-reactions",
+      "answer": "they should all be simple. \"wow that's great!\" \"pretty good\" \"nice\" \"cool\" \"i dont think so\" \"nope\" \"super gross\" \"i hate this\" and the best is \"yowzers\" and also \"wowzers\"",
+      "status": "applied",
+      "notes": "Best taste: yowzers/wowzers. Good: wow that's great! Acceptable: pretty good/nice/cool. Bad taste: super gross/i hate this. Price refusal: i dont think so/nope. Uses exact spelling and capitalization. Removed generated customer names and jokes; preferences use factual labels."
+    },
+    {
+      "game": "lemonade-tycoon",
+      "id": "boss-names",
+      "answer": "Keep these names",
+      "status": "approved unchanged",
+      "names": [
+        "King Lemon",
+        "Baron Citron",
+        "The Zestfather",
+        "Empress Rind",
+        "Grand Pulp Magnate",
+        "Lord Limoncello",
+        "Duke Meringue",
+        "The Final Squeeze"
+      ]
+    },
+    {
+      "game": "lemonade-tycoon",
+      "id": "victory-story",
+      "answer": "that text is fine",
+      "status": "approved unchanged",
+      "text": [
+        "\u2026but the whole time, he was reporting to [next boss]",
+        "and HIS army of lemons is riper and angrier."
+      ]
+    },
+    {
+      "game": "hot-potato",
+      "id": "description",
+      "answer": "Tap the potato to get it out of your hands before it explodes",
+      "status": "applied",
+      "placements": [
+        "homegames-core/src/games/hot-potato/index.js metadata",
+        "homegames-core/src/games/hot-potato/README.md introduction"
+      ]
+    },
+    {
+      "game": "hot-potato",
+      "id": "in-game-copy-and-scope",
+      "answer": "The potato demands at least two players. Don't need more words, it's just a simple fun in person game. If it doesnt click its obvious and people can back out. It's more of a demo but I want to keep it because its fun",
+      "status": "applied",
+      "appliedText": "The potato demands at least two players.",
+      "notes": "Waiting sentence wraps over two lines without changing words. Removed all holding/other-holder/result messages. Retain the simple in-person demo, original art/audio and automatic three-second replay. No score, elimination, tutorial or redesign added."
+    },
+    {
+      "game": "aquarium",
+      "id": "description",
+      "answer": "Manage an aquarium until it gets unreasonable",
+      "status": "applied",
+      "placements": [
+        "homegames-core/src/games/aquarium/index.js static metadata",
+        "homegames-core/src/games/aquarium/README.md introduction"
+      ]
+    },
+    {
+      "game": "aquarium",
+      "id": "title",
+      "answer": "Aquarium",
+      "status": "applied"
+    },
+    {
+      "game": "aquarium",
+      "id": "phone-shop",
+      "answer": "Use the larger shop",
+      "status": "applied",
+      "notes": "Full-width three-item shop, preserving the wide aquarium view."
+    },
+    {
+      "game": "aquarium",
+      "id": "event-copy",
+      "answer": "Use factual labels and bonuses",
+      "status": "applied",
+      "notes": "Removed event flavor phrases; show actual upgraded bite bonuses and plain unlock/reward labels."
+    },
+    {
+      "game": "aquarium",
+      "id": "creature-and-unlock-names",
+      "answer": "Keep these names",
+      "status": "approved unchanged",
+      "notes": "Creature names (Bubbles, Marble, Winston, Nori, Comet, etc.) and named species/unlocks such as Prism Ray, Orbital Sanctuary and Era Gate retained."
+    },
+    {
+      "game": "aquarium",
+      "id": "tick-rate",
+      "answer": "Use 30 Hz for Aquarium",
+      "status": "applied",
+      "notes": "30 Hz simulation and network updates. Elapsed-time behavior retained and compared with the 60 Hz implementation. Eight-player populated loopback traffic measured about 49 to 23 Mbps total host upload; constrained WAN/TURN and physical-device acceptance remain."
+    },
+    {
+      "game": "vegas-trail",
+      "id": "description",
+      "answer": "Travel from Tucson to Las Vegas and conquer foes along the way",
+      "status": "applied",
+      "placements": [
+        "homegames-core/src/games/vegas-trail/index.js metadata",
+        "homegames-core/src/games/vegas-trail/README.md introduction"
+      ]
+    },
+    {
+      "game": "vegas-trail",
+      "id": "ending",
+      "answer": "Finish at Las Vegas, with Play again (recommended)",
+      "status": "applied",
+      "notes": "End the shared 420-mile trip. Keep the victory sentence and remove the obsolete invitation to drive forever. Wins and all failures offer Play again."
+    },
+    {
+      "game": "vegas-trail",
+      "id": "existing-copy",
+      "answer": "Keep the existing writing",
+      "status": "approved unchanged",
+      "notes": "Opening story, landmarks, stranger dialogue and music credit retained; opening reflowed for smaller screens."
+    },
+    {
+      "game": "vegas-trail",
+      "id": "shop-quantities",
+      "answer": "Sell the configured bundles (recommended)",
+      "status": "applied",
+      "notes": "Each purchase gives the configured amount; bundle size and cost are visible before purchase."
+    },
+    {
+      "game": "hangman",
+      "id": "description",
+      "answer": "Classic hangman",
+      "status": "applied",
+      "placements": [
+        "homegames-core/src/games/hangman/index.js metadata",
+        "homegames-core/src/games/hangman/README.md introduction"
+      ]
+    },
+    {
+      "game": "hangman",
+      "id": "drawing",
+      "answer": "Keep optional drawing (recommended)",
+      "status": "applied",
+      "notes": "Separate Play and Draw your own choices. Retain the six cumulative stages, with Undo, Clear and Use original controls. Custom art also works in solo/random rounds."
+    },
+    {
+      "game": "hangman",
+      "id": "results",
+      "answer": "Keep the existing results and scores",
+      "status": "approved unchanged",
+      "notes": "R.I.P, killed-by attribution and Score/Kills retained; all eight rows fit, with explicit Scores and Next round controls."
+    },
+    {
+      "game": "hangman",
+      "id": "random-puzzles",
+      "answer": "Use familiar words and phrases (recommended)",
+      "status": "applied",
+      "notes": "Retained 492 of 822 existing entries, preserving their wording/order. Custom answers remain available."
+    },
+    {
+      "game": "swish",
+      "id": "description",
+      "answer": "made with squish",
+      "status": "applied",
+      "placements": [
+        "homegames-core/src/games/swish/index.js metadata",
+        "homegames-core/src/games/swish/README.md introduction"
+      ]
+    },
+    {
+      "game": "swish",
+      "id": "scene-rate",
+      "answer": "Use 30 scene updates per second (recommended)",
+      "status": "applied",
+      "notes": "Continuous scene updates run at30Hz; physics remains60Hz with elapsed-time substeps and wall-clock round timing. Direct controls and lifecycle changes remain immediate."
+    },
+    {
+      "game": "moonbounce",
+      "id": "description",
+      "answer": "Perhaps you have played a similar game before",
+      "status": "applied",
+      "placements": [
+        "homegames-core/src/games/moonbounce/index.js metadata",
+        "homegames-core/src/games/moonbounce/README.md introduction"
+      ]
+    },
+    {
+      "game": "moonbounce",
+      "id": "checkpoints",
+      "answer": "Keep completed-board checkpoints",
+      "status": "applied",
+      "notes": "Completed boards, medals, records and settings persist; reopening restarts the selected board."
+    },
+    {
+      "game": "moonbounce",
+      "id": "game-copy",
+      "answer": "Use factual text; keep names",
+      "status": "applied",
+      "notes": "Keep world, board, character and trophy names; simplify decorative prose to factual goals and controls."
+    },
+    {
+      "game": "moonbounce",
+      "id": "phone-layout",
+      "answer": "Improve labels and recommend landscape",
+      "status": "applied",
+      "notes": "Larger labels and a landscape recommendation; wide board retained."
+    },
+    {
+      "game": "facet",
+      "id": "description",
+      "answer": "Match jewels and gems to make them go away",
+      "status": "applied",
+      "placements": [
+        "homegames-core/src/games/facet/index.js metadata",
+        "homegames-core/src/games/facet/README.md introduction"
+      ]
+    },
+    {
+      "game": "facet",
+      "id": "game-copy-and-phone",
+      "answer": "Keep names; simplify text; recommend landscape",
+      "status": "applied",
+      "notes": "Names retained; factual copy and larger controls, paginated achievements, landscape guidance."
+    },
+    {
+      "game": "facet",
+      "id": "saved-game-replacement",
+      "answer": "One saved game, with replacement confirmation",
+      "status": "applied",
+      "notes": "One unfinished game across Journey, Zen and Rush. New games and active retries ask before replacing it."
+    },
+    {
+      "game": "tumble-tower",
+      "section": "catalog-description",
+      "question": "How would you describe Tumble Tower to someone deciding whether to play?",
+      "answer": "Set up the blocks and knock them over",
+      "status": "applied",
+      "placements": [
+        "homegames-core/src/games/tumble-tower/index.js metadata.description"
+      ]
+    },
+    {
+      "game": "tumble-tower",
+      "section": "custom-build-and-sound",
+      "question": "Should Tumble Tower remember the most recent custom build and sound preference, or stay a fresh playground each session?",
+      "answer": "Remember the custom build and sound setting (recommended)",
+      "status": "applied",
+      "notes": "Save a rebuildable custom design, without projectile/velocity state. Presets preserve the design, PLAY records the rebuild layout, and Clear empties it."
+    },
+    {
+      "game": "tumble-tower",
+      "section": "game-copy-and-phone",
+      "question": "Replace decorative messages with factual feedback, keep them, or have the maintainer write replacements? Enlarge labels and recommend landscape on phones?",
+      "answer": "Use factual feedback, larger labels and landscape guidance (recommended)",
+      "status": "applied"
+    },
+    {
+      "game": "fleetfall",
+      "section": "catalog-description",
+      "question": "How would you describe Fleetfall to someone deciding whether to play?",
+      "answer": "Conquer the galaxy and guide your dudes",
+      "status": "applied"
+    },
+    {
+      "game": "fleetfall",
+      "section": "map-and-match-persistence",
+      "question": "Should Fleetfall keep matches disposable and remember only the selected map, or add solo match save/resume?",
+      "answer": "Fresh matches; remember the map (recommended)",
+      "status": "applied"
+    },
+    {
+      "game": "fleetfall",
+      "section": "simultaneous-panels",
+      "question": "Preserve six simultaneous flight panels with larger labels and landscape guidance, or redesign around one selected flight?",
+      "answer": "Keep simultaneous panels; improve labels and guidance (recommended)",
+      "status": "applied"
+    },
+    {
+      "game": "fleetfall",
+      "section": "solo-defeat",
+      "question": "End solo runs immediately after the final planet and fleet are lost, while eliminated multiplayer players spectate?",
+      "answer": "End solo runs on defeat (recommended)",
+      "status": "applied"
+    },
+    {
+      "game": "fleetfall",
+      "section": "rejoining",
+      "question": "Should rejoining players spectate until the next match, or add host-approved faction reclaim?",
+      "answer": "Rejoining players spectate until the next match (recommended)",
+      "status": "applied"
+    },
+    {
+      "game": "weed-smoke-willie",
+      "section": "catalog-description",
+      "question": "How would you describe Weed Smoke Willie to someone deciding whether to play?",
+      "answer": "Supply your underwater customers with what they need",
+      "status": "applied"
+    },
+    {
+      "game": "weed-smoke-willie",
+      "section": "run-ending",
+      "question": "Finish at $1,000,000 or keep the third tier going?",
+      "answer": "should keep going with high score after time limit (10 minutes max)",
+      "status": "applied",
+      "notes": "Ten-minute wall-clock limit begins with first gameplay input. Tier three continues until time or bankruptcy; the results show total and best, with Play again."
+    },
+    {
+      "game": "weed-smoke-willie",
+      "section": "persistence",
+      "question": "Save/resume the current run, or fresh runs with only the best total remembered?",
+      "answer": "Fresh runs; remember the best total (recommended)",
+      "status": "applied",
+      "notes": "Best sales total and sound preference saved. No current-run save."
+    },
+    {
+      "game": "weed-smoke-willie",
+      "section": "third-tier-threshold",
+      "question": "Lower the third-tier cash threshold from $250,000 to $50,000 for the ten-minute format?",
+      "answer": "Use $50,000 for the third tier (recommended)",
+      "status": "applied",
+      "notes": "Tier two stays at $5,000. Existing costs, base values and combo rules retained."
+    },
+    {
+      "game": "house-band",
+      "section": "catalog-description",
+      "question": "How would you describe House Band to someone deciding whether to play?",
+      "answer": "Make music by yourself or with friends",
+      "status": "applied"
+    },
+    {
+      "game": "house-band",
+      "section": "audio-listeners",
+      "question": "Keep one chosen speaker, or let each person enable sound on their own device?",
+      "answer": "Let each person enable sound",
+      "status": "applied",
+      "notes": "First device starts with sound enabled; each joining device opts in. Sound toggles affect only that device. Shared track mutes still affect the arrangement. Listeners are not sample-synchronized over the network."
+    }
+  ]
+}

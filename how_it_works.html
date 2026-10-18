@@ -3,168 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Homegames — How it works</title>
+    <meta name="description" content="How Homegames works: playing in your browser, inviting friends, saving progress, making games in Studio, and hosting a server at home.">
+    <title>How it works — Homegames</title>
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="manifest" href="/site.webmanifest">
-    <style>
-        @font-face { font-family: 'amateur'; src: url('/amateur.ttf'); }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        :root {
-            --bg-primary: #1a1a2e;
-            --bg-secondary: #16213e;
-            --bg-deep: #0a0a1a;
-            --bg-hover: #1a1a3e;
-            --border: #333;
-            --border-light: #444;
-            --text-primary: #eee;
-            --text-secondary: #aaa;
-            --text-muted: #888;
-            --accent-green: #A0EB5D;
-            --accent-blue: rgba(148, 210, 229, 255);
-            --accent-red: rgba(241, 112, 111, 255);
-            --accent-yellow: rgba(255, 247, 142, 255);
-            --logo-color: rgba(241, 112, 111, 255);
-            --code-bg: #0a0a1a;
-        }
-
-        body.light {
-            --bg-primary: #fbfff2;
-            --bg-secondary: #f0f4e8;
-            --bg-deep: #e8ecdf;
-            --bg-hover: #eef2e5;
-            --border: #ccc;
-            --border-light: #bbb;
-            --text-primary: #333;
-            --text-secondary: #555;
-            --text-muted: #777;
-            --accent-green: #4a9e2f;
-            --accent-blue: rgba(100, 170, 200, 255);
-            --accent-red: rgba(220, 90, 90, 255);
-            --accent-yellow: rgba(160, 150, 40, 255);
-            --logo-color: rgba(220, 90, 90, 255);
-            --code-bg: #f4f7ec;
-        }
-
-        body {
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.65;
-        }
-
-        #docs-header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 0 20px; height: 48px;
-            background: var(--bg-secondary); border-bottom: 1px solid var(--border);
-            position: sticky; top: 0; z-index: 10;
-        }
-        #docs-header .logo { font-family: 'amateur', monospace; font-size: 1.15em; color: var(--logo-color); text-decoration: none; }
-        #docs-header nav { display: flex; align-items: center; gap: 18px; font-size: 0.9em; }
-        #docs-header nav a { color: var(--accent-blue); text-decoration: none; }
-        #docs-header nav a:hover { text-decoration: underline; }
-        #theme-toggle { cursor: pointer; color: var(--text-muted); background: none; border: none; font-size: 0.9em; font-family: inherit; }
-
-        #layout { display: flex; max-width: 1200px; margin: 0 auto; align-items: flex-start; }
-
-        #sidebar {
-            width: 250px; flex-shrink: 0;
-            position: sticky; top: 48px;
-            max-height: calc(100vh - 48px); overflow-y: auto;
-            padding: 28px 8px 40px 20px;
-            font-size: 0.88em;
-        }
-        #sidebar .toc-group { color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; font-size: 0.78em; margin: 18px 0 6px; }
-        #sidebar a { display: block; color: var(--text-secondary); text-decoration: none; padding: 3px 8px; border-radius: 4px; }
-        #sidebar a:hover { background: var(--bg-hover); color: var(--text-primary); }
-
-        main {
-            flex: 1; min-width: 0;
-            padding: 32px 40px 120px;
-        }
-
-        main h1 { font-family: 'amateur', monospace; font-size: 2.2em; color: var(--logo-color); margin-bottom: 4px; line-height: 1.2; }
-        main .subtitle { color: var(--text-secondary); margin-bottom: 36px; font-size: 1.05em; }
-        main h2 {
-            font-family: 'amateur', monospace; font-size: 1.6em; color: var(--accent-green);
-            margin: 56px 0 14px; padding-top: 14px; border-top: 1px solid var(--border);
-        }
-        main h3 { font-size: 1.12em; color: var(--text-primary); margin: 30px 0 10px; }
-        main p { margin: 12px 0; color: var(--text-primary); max-width: 76ch; }
-        main ul, main ol { margin: 12px 0 12px 26px; max-width: 74ch; }
-        main li { margin: 6px 0; }
-        main a { color: var(--accent-blue); }
-        main strong { color: var(--text-primary); }
-
-        code {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-            font-size: 0.88em;
-            background: var(--code-bg);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 1px 5px;
-        }
-        pre {
-            background: var(--code-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 14px 16px;
-            overflow-x: auto;
-            margin: 14px 0;
-            max-width: 860px;
-        }
-        pre code { background: none; border: none; padding: 0; font-size: 0.85em; line-height: 1.55; }
-
-        .callout {
-            border-left: 4px solid var(--accent-yellow);
-            background: var(--bg-secondary);
-            border-radius: 0 8px 8px 0;
-            padding: 12px 16px;
-            margin: 16px 0;
-            max-width: 820px;
-        }
-        .callout.tip { border-left-color: var(--accent-green); }
-        .callout p { margin: 6px 0; }
-
-        table { border-collapse: collapse; margin: 14px 0; font-size: 0.92em; }
-        th, td { border: 1px solid var(--border); padding: 7px 12px; text-align: left; vertical-align: top; }
-        th { background: var(--bg-secondary); }
-
-        @media (max-width: 820px) {
-            #sidebar { display: none; }
-            main { padding: 24px 16px 100px; }
-            #docs-header nav { gap: 12px; }
-        }
-
-        /* Long guides remain navigable on narrow screens. */
-        main h2, main h3 { scroll-margin-top: 110px; }
-        main code { overflow-wrap: anywhere; }
-        pre code { overflow-wrap: normal; }
-        table { display: block; max-width: 100%; overflow-x: auto; }
-        .mobile-toc { display: none; }
-        @media (max-width: 820px) {
-            #docs-header { height: auto; min-height: 48px; flex-wrap: wrap; gap: 8px; padding: 10px 16px; }
-            #docs-header nav { flex-wrap: wrap; column-gap: 14px; row-gap: 6px; }
-            .mobile-toc { display: block; margin-bottom: 24px; padding: 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; }
-            main th, main td { min-width: 160px; }
-            .mobile-toc summary { cursor: pointer; color: var(--accent-green); font-weight: 600; }
-            .mobile-toc a { display: block; padding: 4px 0; }
-            .mobile-toc .toc-group { margin-top: 12px; color: var(--text-muted); }
-            #ask-form { flex-wrap: wrap; }
-            #ask-input { min-width: 0; }
-        }
-    </style>
+    <link rel="stylesheet" href="/app.css">
+    <link rel="stylesheet" href="/docs.css">
 </head>
 <body>
-    <div id="docs-header">
-        <a class="logo" href="/">Homegames</a>
-        <nav>
-            <a href="/docs.html">Make games</a>
-            <a href="/self-hosting.html">Self-hosting</a>
-            <a href="/studio.html">Developer Studio</a>
-            <button id="theme-toggle">Light</button>
-        </nav>
-    </div>
+    <!-- site-header -->
+    <!-- docs-nav -->
 
     <div id="layout">
         <aside id="sidebar">
@@ -180,13 +28,13 @@
             <a href="#sessions">Where games run</a>
             <div class="toc-group">The platform</div>
             <a href="#pieces">The services</a>
-            <a href="#studio">Accounts &amp; Studio</a>
-            <a href="#publishing">Publishing &amp; safety</a>
+            <a href="#studio">Browser projects &amp; Studio</a>
+            <a href="#publishing">Game packs</a>
             <a href="#your-network">Homegames on your network</a>
             <a href="#open-source">Open source map</a>
         </aside>
 
-        <main>
+        <main id="content">
             <details class="mobile-toc">
                 <summary>On this page</summary>
             <div class="toc-group">Overview</div>
@@ -201,8 +49,8 @@
             <a href="#sessions">Where games run</a>
             <div class="toc-group">The platform</div>
             <a href="#pieces">The services</a>
-            <a href="#studio">Accounts &amp; Studio</a>
-            <a href="#publishing">Publishing &amp; safety</a>
+            <a href="#studio">Browser projects &amp; Studio</a>
+            <a href="#publishing">Game packs</a>
             <a href="#your-network">Homegames on your network</a>
             <a href="#open-source">Open source map</a>
 
@@ -212,58 +60,61 @@
                 This guide explains which option to choose, what gets saved, and how the pieces fit together.</p>
 
             <h2 id="what">What is Homegames?</h2>
-            <p>Homegames is an open-source platform for making, publishing, and playing JavaScript games.
+            <p>Homegames is an open-source platform for making, sharing, and playing JavaScript games.
                 Players use a browser; game authors use the Squish game framework. A game can run inside
                 one browser tab or on a server shared by several players. Each connected device provides
                 its own screen and input. Controls depend on the game: touch, mouse, keyboard, and supported
                 gamepads are available, but a keyboard-only game still needs a keyboard.</p>
             <ul>
-                <li><strong>Play now:</strong> open the <a href="/catalog.html">catalog</a>, pick a game,
-                    and choose a play mode. You do not need a developer account.</li>
-                <li><strong>Make something:</strong> open <a href="/studio.html">Developer Studio</a>,
-                    choose a template, and try the local preview as a guest. Follow the
-                    <a href="/docs.html">game-making guide</a> to save and publish it.</li>
+                <li><strong>Play now:</strong> open <a href="/catalog.html">Browse games</a>, pick a game,
+                    and press <strong>Play</strong>. You don't need an account.</li>
+                <li><strong>Make something:</strong> open <a href="/studio.html">Studio</a>,
+                    choose <strong>New game</strong> or <strong>Import game</strong>, and press Play to try it. No account is needed to edit, save,
+                    export or share. Follow the <a href="/docs.html">game-making guide</a>.</li>
                 <li><strong>Host at home:</strong> run the Homegames server on one computer and let other
-                    devices on your LAN connect. See <a href="/self-hosting.html">self-hosting</a>.</li>
+                    devices on your network connect. See <a href="/self-hosting.html">self-hosting</a>.</li>
             </ul>
 
             <h2 id="playing">Choose how to play</h2>
             <table>
                 <tr><th>Action</th><th>Where the game runs</th><th>Multiplayer</th></tr>
-                <tr><td><strong>Play</strong></td><td>Your browser tab, after downloading the selected version and its assets</td>
-                    <td>Public multiplayer games appear in session lists automatically. Use Share for a QR invitation.</td></tr>
-                <tr><td><strong>Join</strong></td><td>The existing host's browser</td><td>You join that same game over WebRTC.</td></tr>
-                <tr><td><strong>Download</strong></td><td>A single HTML file with the runtime, game, and declared assets included</td>
-                    <td>Open the file and use Share to invite players over RTC. Downloaded games are unlisted.</td></tr>
+                <tr><td><strong>Play</strong></td><td>Your browser tab, after downloading its game pack</td>
+                    <td>Use Invite for a private link or QR code; there is no public room list.</td></tr>
+                <tr><td><strong>Join</strong></td><td>The host's browser</td><td>You join that same game over a direct connection.</td></tr>
+                <tr><td><strong>Download game pack</strong></td><td>A ZIP with editable source, manifest, assets and license notices</td>
+                    <td>Import the pack in Studio to edit, play or export a standalone HTML player.</td></tr>
                 <tr><td><strong>Self-host Homegames</strong></td><td>A dashboard on your home server; Play runs games in your browser</td>
                     <td>Household sessions appear on that dashboard. Host with WebSocket is available as a separate option.</td></tr>
             </table>
-            <p>The game's rules determine whether it is playable alone. Games requiring the retired
-                <code>contentGenerator</code> service cannot use browser Play or Download.</p>
-            <p>Play fetches the game first. Download gives you an HTML file you can reopen without the website;
-                multiplayer sharing still needs internet access for signaling and, when needed, a relay.</p>
-            <p>The version dropdown selects the published commit used by Play, Download, and View Source.
-                Join connects to the version already running. Publishing a newer version does not update active games.</p>
+            <p>The game's rules determine whether it is playable alone.</p>
+            <p>Play downloads the game pack first and keeps a copy in your browser, so the game also works offline.
+                The player and Studio can download a standalone HTML copy you can open without the website.
+                Automatic invitations use our connection server and may need a relay. Manual connection can exchange
+                offers/answers without Homegames signaling when both players have a player already loaded
+                or downloaded; it still depends on a reachable network path.</p>
+            <p>The website build selects the included games and generates their HTML pages and downloadable packs. Browsing and downloading work without JavaScript; playing and editing need it. Updating the website does not change already-running games.</p>
 
             <h3 id="sharing">Play together and share a session</h3>
             <ol>
-                <li>Open a game's page and choose a published version.</li>
-                <li>Press <strong>Play</strong> to host a new game, or <strong>Join</strong> for an existing public session.</li>
-                <li>Press <strong>Share</strong> below the canvas. Friends can scan the QR code or open its invitation link.</li>
+                <li>Open a game from <a href="/catalog.html">Browse games</a>.</li>
+                <li>Press <strong>Play</strong> to start the game in your browser.</li>
+                <li>Press <strong>Invite</strong> in the bar above the game. Friends can scan the QR code or open the invitation link.</li>
             </ol>
             <p>Keep the host tab open and awake. Closing it ends the game for everyone. Returning Home from a guest
                 leaves only that guest; returning Home from the host ends its session.</p>
-            <p><strong>Private</strong> hides a website game from public discovery. Anyone with its invitation can
-                still join, inside or outside the house. Changing visibility keeps the same game and invitation.</p>
-            <p>Studio Share adds players to the current preview without restarting it. Draft previews and downloaded
+            <p>Invitations are private links. Anyone with the invitation can join while the host remains available, inside or outside the house. There are no public rooms.</p>
+            <p>Invite in a Studio preview adds players without restarting the preview. Previews and downloaded
                 games are unlisted. Invitations last only while the host is available; games cannot be pinned or moved between hosts.</p>
+            <p>Automatic invitations currently disconnect peers if their signaling connection ends, even
+                though gameplay goes directly between browsers. Manual pairing is a separate path without that signaling
+                connection. Automatic rooms allow at most 17 participants including the host; games can set a lower limit.</p>
 
             <h3 id="progress">Progress, identity, and downloads</h3>
             <p>A running session is temporary. Progress survives only if the game implements saving.
-                Local games use browser storage; clearing site data or switching browser, device, or
+                Games you play on the website save in browser storage; clearing site data or switching browser, device, or
                 website address can leave you without that save. A downloaded HTML file is a copy of the
-                game, not an export of your current progress. Browser storage for local files also varies
-                by browser. Homegames does not provide automatic account-based save synchronization.</p>
+                game, not an export of your current progress: use <strong>Download save</strong> and
+                <strong>Load save</strong> to move progress. Homegames does not sync saves between devices.</p>
             <p>A home server can save game data on disk. A server with disk saves disabled can send
                 saves to connected browsers instead; restoring them also requires the launch flow to
                 supply the saved data. Do not assume that reopening any hosted join link restores an old
@@ -273,22 +124,17 @@
 
             <h3 id="player-help">When play does not work</h3>
             <ul>
-                <li><strong>Invalid or expired share link:</strong> return to the game page and join a
-                    current session, or ask its creator for a fresh session link.</li>
-                <li><strong>Disconnected / connection error:</strong> the session may have ended, the server
-                    may be unavailable, or the network may block its WebSocket connection. Reload the game
-                    page to check available sessions.</li>
-                <li><strong>A game starts but no tab opens:</strong> allow the site's game tab or use the
-                    “Your game is ready” link shown on the game page.</li>
-                <li><strong>“One session at a time”:</strong> session creation is limited to one request
-                    per 30 seconds per public IP. People sharing a connection share that limit. Join an
-                    existing session or wait for the countdown.</li>
-                <li><strong>No sound:</strong> click, tap, or press a key in the game to unlock browser
-                    audio. Check the device volume and, on a home server, your sound setting.</li>
-                <li><strong>No controls on a phone:</strong> check the game's instructions and source.
-                    Keyboard and controller support are implemented by each game.</li>
-                <li><strong>Report a game issue:</strong> include its name, selected version, play mode,
-                    device/browser, and what you did before the problem. The game page has a report form.</li>
+                <li><strong>Invalid/expired invitation:</strong> check that the host still has the game open,
+                    or ask for a new invitation. Private rooms need the complete invitation link.</li>
+                <li><strong>Connection error:</strong> check that the host is still connected. Some networks
+                    block direct connections and need a relay. A self-hosted WebSocket game instead needs access to its server port.</li>
+                <li><strong>Missing project or progress:</strong> use the same browser/profile/address;
+                    restore the project ZIP and compatible save file if browser data was cleared.</li>
+                <li><strong>No sound:</strong> interact with the game to unlock browser audio and check volume.</li>
+                <li><strong>No phone controls:</strong> the game must implement touch or compatible input.</li>
+                <li><strong>Report a game issue:</strong> email <a href="mailto:joseph@homegames.io">joseph@homegames.io</a>
+                    or post in the <a href="https://discord.gg/h8VBmyGhBm">Discord</a> with the game's name,
+                    your browser/device and what happened.</li>
             </ul>
 
             <h2 id="scene-tree">Games describe a scene tree</h2>
@@ -298,35 +144,36 @@
                 declared aspect ratio. The framework handles drawing the scene and delivering input.</p>
             <p>When game code changes a node, it notifies the framework. In a hosted session, one game
                 instance receives input from every connected player and produces the visual state for each
-                screen. <code>playerIds</code> can select which players see a node, but authors must account
-                for spectator and fallback frames when designing hidden-information games. The
-                <a href="/docs.html#players">multiplayer guide</a> explains those limits.</p>
+                screen. <code>playerIds</code> selects the audience of a node and its descendants. The runtime
+                filters every recipient, including spectators, before delivery. Authors still validate
+                actions and keep unrevealed state out of the tree; asset bytes may be shared room-wide.
+                See the <a href="/docs.html#players">multiplayer guide</a>.</p>
 
             <h2 id="squish">Squish: from game state to screen</h2>
             <p>Squish serializes the scene into binary frames containing coordinates, text, colors, and
                 asset references. The browser's <code>homegames-client</code> decodes those frames and
                 renders to a canvas. Images, sounds, and fonts arrive in separate asset bundles. Hosted
                 input travels back as JSON messages tagged with the connection's player ID.</p>
-            <p>A game pins a Squish version in its import and <code>metadata().squishVersion</code>.
-                Both the server and the browser bundle must support it. An older version is supported only
-                while that deployment includes it; an unknown-version fallback is not a compatibility
-                guarantee. The tutorial uses <code>squish-142</code>.</p>
+            <p>A game chooses its Squish version through its import, for example
+                <code>require('squish-150')</code>; don't repeat it in metadata. Both the server and the
+                browser must support that version. The current website, Studio and server all run
+                Squish 1.5.0 (<code>squish-150</code>).</p>
 
             <h2 id="sessions">Where games run</h2>
             <h3>Local sessions</h3>
             <p>The browser loads the game's CommonJS files, creates the game instance, runs its Squish
                 serializer, and renders the result in the same tab. No game server is needed for this loop.
-                Studio uses this path for fast previews and can add a second simulated player for testing.</p>
+                Studio runs this inside a sandboxed frame and supports real guests through Invite.</p>
             <p>Write to the shared game API rather than browser globals or Node built-ins. Local and
                 hosted execution have different environments: local platform services are empty, while
-                hosted games receive the services the server provides. Local preview alone does not prove
-                that a game will run on a server or pass publishing checks.</p>
-            <h3>Hosted sessions</h3>
+                hosted games receive the services the server provides. A game that works in a local preview
+                still needs testing before you rely on it on a self-hosted server.</p>
+            <h3>Optional Node/WebSocket sessions</h3>
             <p><strong>Homenames</strong>, the session-management HTTP service in
                 <code>homegames-core</code>, creates and lists sessions. The shared session manager allocates
                 a port and starts the game in Docker when available. Running it as a plain child process
                 requires the host to enable the fork option. Players connect directly to that session's
-                WebSocket; the website API is not forwarding every game frame.</p>
+                WebSocket; no Homegames website service forwards game frames.</p>
             <p>Game logic runs on the host, but authors still need to validate moves: check whose turn it
                 is, whether a player owns the affected object, and whether an action is allowed. Centralized
                 game state does not make arbitrary client input trustworthy.</p>
@@ -334,54 +181,46 @@
             <h2 id="pieces">The services behind the product</h2>
             <table>
                 <tr><th>Piece</th><th>Responsibility</th></tr>
-                <tr><td><strong>homegamesio</strong></td><td>This website: catalog, game and developer pages,
-                    player, source viewer, Studio, and documentation</td></tr>
-                <tr><td><strong>API</strong></td><td>Accounts and email verification, game metadata, comments,
-                    assets, Studio requests, published versions, and starting catalog sessions</td></tr>
-                <tr><td><strong>Forgejo + MongoDB</strong></td><td>Forgejo stores game files and Git history;
-                    MongoDB stores accounts, catalog records, asset data, and job status</td></tr>
+                <tr><td><strong>homegamesio</strong></td><td>This static website: game pages and packs, the game player, Studio and these guides</td></tr>
+                <tr><td><strong>API</strong> (api.homegames.io)</td><td>The connection server for invitations and shared game copies, and certificate requests from self-hosted servers</td></tr>
                 <tr><td><strong>homegames-core + homegames-common</strong></td><td>Dashboard, session lifecycle,
                     game loading, input routing, saves, and the Homenames service</td></tr>
-                <tr><td><strong>Publishing worker</strong></td><td>The separate <code>api/worker.js</code>
-                    process consumes publishing jobs from RabbitMQ and validates submitted commits</td></tr>
-                <tr><td><strong>Background worker</strong></td><td>The <code>worker</code> repository handles
-                    certificate requests, docs questions, and AI game edits through separate job queues</td></tr>
                 <tr><td><strong>homegames.link</strong></td><td>Discovery and redirects for home servers;
                     DNS registration for their LAN addresses</td></tr>
             </table>
+            <p>There are no accounts, no game database and no publishing service. Games, projects and saves live in each player's browser or on a self-hosted server.</p>
 
-            <h3 id="studio">Accounts and Studio</h3>
-            <p>Guest Studio work is a browser draft. Sign up with a display name, email, and password,
-                verify the emailed code, then use <strong>Save Version</strong> to store it in your account.
-                Creation, saving, restoring, uploads, and publishing are verification-gated. Logging in
-                accepts your display name or email. Use the login screen's password-reset flow if needed.</p>
-            <p>A saved version and a published version are different. Saving writes to Git history;
-                publishing submits a selected commit to validation. A multi-file save currently writes
-                files sequentially and may produce several commits, so select the final successful version
-                when publishing. Archiving a game hides it from your main Studio list; it does not unpublish
-                versions from the public catalog.</p>
-            <p>Studio offers AI editing in its interface, but the server must separately enable it and
-                have a working background worker. When available, an AI edit is a queued job that saves a
-                new version; review and test it before publishing. The docs question box is a separate
-                service and may be disabled or busy independently. Its answers are generated guidance,
-                not a live inspection of your game.</p>
+            <h3 id="studio">Browser projects and Studio</h3>
+            <p>Studio saves source and media in your browser (IndexedDB). <strong>New game</strong> starts
+                from a template, and <strong>Import game</strong> adds a game from a ZIP or HTML file as a
+                separate project. Edits stay in your working copy until you press <strong>Save</strong>
+                (or Cmd/Ctrl+S), which stores the game and adds a snapshot to <strong>History</strong>.
+                You can open any snapshot to look at it, and <strong>Restore</strong> brings it back into
+                the editor. None of this requires an account.</p>
+            <p>Keep backups: browser storage can be cleared or evicted, and there is no cloud sync.
+                <strong>Settings → Download backup</strong> saves every Studio project with its history in
+                one file, and Export ZIP saves a single game. Snapshots and progress are separate.
+                Download save/Load save transfers compatible progress for games that implement saving.
+                Another tab's conflicting write or a quota failure is shown instead of claiming the game was saved.</p>
+            <p>Studio's <strong>Learn</strong> menu has interactive examples, a getting-started guide, the
+                game API reference and code snippets.</p>
 
-            <h2 id="publishing">Publishing and content checks</h2>
-            <p>A verified author submits a saved commit with a game description, thumbnail, substantive
-                README, and changes beyond the starter template. The publishing worker checks metadata,
-                the GPLv3 license text, repository size, and JavaScript imports and operations. It then
-                starts a Docker validation run with networking disabled, serializes the scene, and exercises
-                sample player joins, input, ticks, and disconnects.</p>
-            <p>A passing commit becomes a published version and makes the game eligible for catalog
-                listings. Featured placement is chosen separately by an administrator. Automated checks
-                are a short smoke test; authors still need to test the game's rules, long-running behavior,
-                controls, and multiplayer experience. See the <a href="/docs.html#publishing">publishing checklist</a>.</p>
-            <p>The catalog hides games flagged as NSFW unless its filter includes them. Image uploads
-                are classified when the classifier is available; this is not a guarantee that every upload
-                has been reviewed. An asset's <strong>Publish to catalog</strong> setting controls discovery,
-                not download permissions: assets are retrievable by ID even when unlisted.</p>
-            <p>Published game submissions must include GPLv3 license text. Platform repositories have
-                their own license files and package metadata; check the specific repository when reusing code.</p>
+            <h2 id="publishing">Portable game packs</h2>
+            <p>Export ZIP contains the selected project files and an integrity inventory. Download HTML
+                contains a playable copy and runtime. Both include authored media; neither includes full
+                source history or current game progress. Send files to give someone their own copy,
+                use <strong>Share a copy</strong> to send it straight to their browser, or use
+                <strong>Invite</strong> to bring them into your current game.</p>
+            <p>Portable validation checks structure, imports, runtime compatibility and media. Studio and
+                downloaded HTML run game code in a sandboxed frame that can't reach Studio's storage. That
+                is not a CPU limit or a guarantee of code quality. Test controls, rules, saves and multiple players.</p>
+            <p>The games on this website are chosen when the site is built. <strong>Edit this game</strong>
+                saves an editable copy in your browser; exporting it creates a pack you can share directly.
+                It doesn't add the game to the website.</p>
+            <p>Homegames-authored code and media are <a href="/license.txt">MIT licensed</a>.
+                Keep copyright, license and attribution notices when sharing or changing them.
+                Third-party material and imported projects retain their own terms. Playable HTML
+                includes the runtime notices, and source ZIPs preserve the project's notices.</p>
 
             <h2 id="your-network">Homegames on your network</h2>
             <p>One computer runs the dashboard and shared sessions. Other devices open that computer's
@@ -392,16 +231,15 @@
                     port with homegames.link over an outbound WebSocket. The service matches visitors and
                     servers by their observed public IP, then redirects the browser to the LAN server.</li>
                 <li><strong>HTTPS:</strong> when enabled, the server generates its TLS key locally and
-                    sends a certificate signing request to the API. A background job obtains a certificate
+                    sends a certificate signing request to the API, which obtains a certificate
                     for the network's homegames.link hostname. The hostname points at the private LAN address.</li>
                 <li><strong>Connectivity:</strong> discovery is not a tunnel or relay. Friends outside
-                    your LAN cannot reach a private address merely because they have its link. Use a hosted
-                    website session for ordinary internet play.</li>
+                    your LAN cannot reach a private address merely because they have its link. Use a browser invitation for internet play; it connects through a separate path.</li>
             </ul>
-            <p>Game WebSocket traffic goes directly between the LAN devices and your server. Discovery,
-                certificate issuance, catalog browsing, uncached asset downloads, and configured error
-                reporting can still contact online services. Offline play requires the necessary game
-                files and assets to be available locally.</p>
+            <p>For Node-hosted games, WebSocket traffic goes directly to your server. Browser-hosted games
+                connect the host tab and guests directly. Discovery, certificate requests and error
+                reporting (when you turn them on) contact online services. Offline play needs the
+                game's files and assets to be on the server.</p>
             <p>Follow <a href="/self-hosting.html">the self-hosting guide</a> for downloads, explicit
                 configuration, firewall ports, backups, and troubleshooting.</p>
 
@@ -410,16 +248,15 @@
                 you want to change; older repository descriptions may describe superseded components.</p>
             <table>
                 <tr><th>Repository</th><th>Start here</th></tr>
-                <tr><td><code>homegamesio</code></td><td><code>client.js</code>, <code>studio.js</code>, <code>play.html</code></td></tr>
-                <tr><td><code>homegames-api</code> (local folder <code>api</code>)</td><td><code>router.js</code>, <code>handlers.js</code>, <code>studio-handlers.js</code>, <code>worker.js</code></td></tr>
+                <tr><td><code>homegamesio</code></td><td><code>scripts/build-site.js</code>, <code>game-app.js</code>, <code>studio-portable.js</code>, <code>studio-project-store.js</code></td></tr>
+                <tr><td><code>api</code></td><td><code>index.js</code>, <code>connection-api.js</code>, <code>connection-service.js</code></td></tr>
                 <tr><td><code>homegames-core</code></td><td><code>game_server.js</code>, <code>src/Homenames.js</code>, <code>src/dashboard/</code></td></tr>
-                <tr><td><code>homegames-common</code></td><td><code>game-session.js</code>, <code>game-session-manager.js</code>, <code>local-play.js</code>, <code>save-games.js</code></td></tr>
+                <tr><td><code>homegames-common</code></td><td><code>portable-project.js</code>, <code>portable-saves.js</code>, <code>session-runtime.js</code>, <code>rtc-signaling.js</code></td></tr>
                 <tr><td><code>homegames-client</code></td><td><code>src/local-session.js</code>, <code>src/renderer.js</code>, <code>src/input.js</code></td></tr>
                 <tr><td><code>squish</code></td><td>The scene model and serializer; published as <code>squishjs</code></td></tr>
                 <tr><td><code>homepad</code></td><td>Gamepad normalization and input mappings used by the client and runtime</td></tr>
                 <tr><td><code>homegames</code></td><td><code>index.js</code> supervises core; <code>build-bundle.js</code> packages the server and runtimes</td></tr>
                 <tr><td><code>homegames.link</code></td><td><code>server.js</code> handles discovery and redirects</td></tr>
-                <tr><td><code>worker</code></td><td><code>index.js</code>, <code>lib/</code>, and <code>llm/</code> handle background jobs</td></tr>
                 <tr><td><code>homegames-web</code></td><td>Separate browser host retained in the source; current core also serves its own client</td></tr>
             </table>
             <p>Browse the <a href="https://github.com/homegamesio" target="_blank" rel="noopener">Homegames GitHub organization</a>.
@@ -427,23 +264,7 @@
                 <a href="mailto:joseph@homegames.io">joseph@homegames.io</a>.</p>
         </main>
     </div>
+    <!-- site-footer -->
 
-    <script>
-        (() => {
-            const btn = document.getElementById('theme-toggle');
-            const apply = (light) => {
-                document.body.classList.toggle('light', light);
-                btn.textContent = light ? 'Dark' : 'Light';
-            };
-            let light = false;
-            try { light = localStorage.getItem('hg-studio-theme') === 'light'; } catch (e) {}
-            apply(light);
-            btn.onclick = () => {
-                light = !light;
-                apply(light);
-                try { localStorage.setItem('hg-studio-theme', light ? 'light' : 'dark'); } catch (e) {}
-            };
-        })();
-    </script>
 </body>
 </html>

@@ -2,10 +2,13 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Homegames Studio</title>
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-        <link rel="manifest" href="/site.webmanifest">
+        <link rel="manifest" href="/studio.webmanifest">
+        <meta name="theme-color" content="#1a1a2e">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-title" content="Homegames Studio">
         <style>
             @font-face { font-family: 'amateur'; src: url('/amateur.ttf'); }
             * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -31,7 +34,7 @@
                 --accent-blue: rgba(148, 210, 229, 255);
                 --accent-red: rgba(241, 112, 111, 255);
                 --accent-yellow: rgba(255, 247, 142, 255);
-                --logo-color: var(--logo-color);
+                --logo-color: #eee;
                 --badge-head-bg: #A0EB5D;
                 --badge-head-text: #1a1a2e;
                 --scrollbar-track: #1a1a2e;
@@ -95,6 +98,15 @@
             /* App shell */
             #studio-app { display: none; flex-direction: column; height: 100vh; height: 100dvh; }
 
+            /* Present from the first paint, before scripts or saved data load. */
+            .studio-loading #studio-app, .studio-loading dialog { visibility: hidden; }
+            #studio-loading { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 24px; background: var(--bg-primary); color: var(--text-secondary); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+            #studio-loading[hidden] { display: none; }
+            .studio-loading-track { width: 120px; height: 3px; overflow: hidden; border-radius: 3px; background: var(--border); }
+            .studio-loading-track::after { content: ''; display: block; width: 40%; height: 100%; border-radius: inherit; background: var(--accent-green); animation: studio-loading-slide 1.2s ease-in-out infinite alternate; }
+            @keyframes studio-loading-slide { from { transform: translateX(0); } to { transform: translateX(150%); } }
+            @media (prefers-reduced-motion: reduce) { .studio-loading-track::after { animation: none; width: 100%; } }
+
             #studio-header { display: flex; justify-content: space-between; align-items: center; padding: 0 16px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); height: 44px; flex-shrink: 0; }
             #studio-header .logo { font-size: 1.1em; color: var(--logo-color); cursor: pointer; text-decoration: none; }
             #studio-header .user-info { color: var(--text-dim); font-size: 0.85em; }
@@ -116,7 +128,6 @@
             .blade-content { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
 
             /* Blade 1 — games list (the opening screen) */
-            #blade-games .blade-content { overflow-y: auto; align-items: center; padding: 40px 16px; }
             #games-pane { width: min(560px, 100%); display: flex; flex-direction: column; }
             #games-pane-header { color: var(--text-dim); font-size: 0.8em; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
             #new-game-btn { padding: 12px 16px; cursor: pointer; color: var(--accent-green); font-weight: bold; font-size: 0.95em; border: 2px dashed var(--border-light); border-radius: 8px; text-align: center; margin-bottom: 14px; }
@@ -593,13 +604,10 @@
                 #studio-header .user-info { font-size: 0.75em; }
                 #studio-header .mode-btn { padding: 5px 12px; font-size: 0.8em; letter-spacing: 0.5px; }
                 #studio-header > div { gap: 8px; }
-                /* Assets moves into the mobile menu grid, so the header button goes too */
-                #docs-link, #guide-btn, #snippets-btn, #header-asset-btn, #studio-header a[href="/"] { display: none; }
 
                 /* Blades: no strips on mobile — the active blade fills the screen,
                    the mobile tab bar switches between them */
                 .blade.strip { display: none; }
-                #blade-games .blade-content { padding: 16px 10px; }
                 #game-blade-body { padding: 12px 8px; }
                 #game-blade-header { flex-wrap: wrap; padding: 8px 10px; }
 
@@ -732,108 +740,27 @@
                 .asset-modal-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; padding: 10px; }
                 .asset-modal-card-preview { height: 100px; }
             }
-            /* ===== Analog control redesign ===== */
-            /* Big tactile header button (ASSETS — opens the asset workspace). */
-            .mode-btn {
-                font-family: inherit; font-size: 0.95em; font-weight: bold;
-                text-transform: uppercase; letter-spacing: 1.5px;
-                padding: 6px 26px; color: var(--text-secondary);
-                background: var(--bg-deep);
-                border: 2px solid var(--border-light); border-radius: 7px;
-                box-shadow: inset 0 -3px 0 rgba(0,0,0,0.35), 0 2px 0 rgba(0,0,0,0.2);
-                cursor: pointer; transition: transform .05s, color .1s, background .1s, border-color .1s;
-            }
-            .mode-btn:hover { color: var(--text-primary); border-color: var(--accent-blue); }
-            .mode-btn:active { transform: translateY(2px); box-shadow: inset 0 2px 5px rgba(0,0,0,0.4); }
-
-            /* Tactile, clearly-labeled treatment for the primary action buttons. */
-            .clone-btn, .preview-toggle, #save-btn, .modal-btn,
-            .asset-modal-action-btn, .asset-modal-tab, #settings-panel .copy-btn, #settings-panel .download-btn {
-                text-transform: uppercase; letter-spacing: 0.6px; font-weight: bold;
-                box-shadow: inset 0 -2px 0 rgba(0,0,0,0.28);
-                transition: transform .05s, box-shadow .05s;
-            }
-            .clone-btn:active, .preview-toggle:active, #save-btn:active, .modal-btn:active,
-            .asset-modal-action-btn:active, .asset-modal-tab:active {
-                transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
-            }
-            /* a touch more presence on the chunky ones */
-            .clone-btn { padding: 5px 13px; border-radius: 6px; }
-            .asset-modal-action-btn { padding: 7px 16px; border-radius: 6px; }
-            #save-btn { box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3); }
-            #save-btn:disabled { box-shadow: none; }
-            .modal-btn { box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3); padding: 11px; }
-
-            /* Per-game dashboard — every game action as a big labeled button, in one row. */
-            .game-dashboard { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-            .dash-btn {
-                font-family: inherit; font-size: 0.82em; font-weight: bold;
-                text-transform: uppercase; letter-spacing: 0.6px;
-                padding: 7px 13px; color: var(--text-secondary); white-space: nowrap;
-                background: var(--bg-deep); border: 2px solid var(--border-light); border-radius: 6px;
-                box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3); cursor: pointer;
-                transition: transform .05s, color .1s, border-color .1s, background .1s;
-            }
-            .dash-btn:hover { color: var(--text-primary); border-color: var(--accent-blue); }
-            .dash-btn:active { transform: translateY(2px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.35); }
-            .dash-btn.active { color: var(--badge-head-text); background: var(--accent-blue); border-color: var(--accent-blue); }
-            .dash-btn.publish { color: var(--accent-green); border-color: var(--accent-green); }
-            .dash-btn.publish:hover { background: var(--accent-green); color: var(--badge-head-text); }
-            .dash-btn.danger { color: var(--accent-red); border-color: rgba(241,112,111,0.5); }
-            .dash-btn.danger:hover { background: var(--accent-red); color: #fff; }
-            .dash-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
-            /* Assets workspace — big labeled creation buttons matching the Games dashboard. */
-            .asset-create-btn {
-                font-size: 0.92em; padding: 9px 18px; border-radius: 7px;
-                font-weight: bold; text-transform: uppercase; letter-spacing: 0.6px;
-                border: 2px solid var(--border-light); background: var(--bg-deep); color: var(--text-secondary);
-                box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3); cursor: pointer; white-space: nowrap;
-                transition: transform .05s, color .1s, border-color .1s, background .1s;
-            }
-            .asset-create-btn:hover { color: var(--text-primary); border-color: var(--accent-green); }
-            .asset-create-btn:active { transform: translateY(2px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.35); }
         </style>
+        <link rel="stylesheet" href="/studio-portable.css">
+        <link rel="stylesheet" href="/studio-examples.css">
+        <link rel="stylesheet" href="/studio-ui.css">
+        <link rel="stylesheet" href="/chatgpt-guide.css">
     </head>
-    <body>
+    <body class="studio-loading">
+        <script>try { document.body.classList.toggle('light', localStorage.getItem('hg-studio-theme') === 'light'); } catch (_) {}</script>
+        <div id="studio-loading" role="status" aria-live="polite">
+            <img src="/assets/homegames-logo.png" width="56" height="56" alt="">
+            <span>Opening Studio…</span>
+            <div class="studio-loading-track" aria-hidden="true"></div>
+        </div>
         <div id="error-banner" role="alert">
             <span id="error-banner-msg"></span>
             <button id="error-banner-close" title="Dismiss">✕</button>
         </div>
-        <div id="studio-login">
-            <h1>Homegames Studio</h1>
+        <div id="studio-login" hidden></div>
+        <noscript><style>#studio-loading { display: none; }</style><p>Studio needs JavaScript to edit and save games in this browser. You can still <a href="/catalog.html">browse games and download their packs</a>.</p></noscript>
 
-            <!-- Shown when the signup gate opens from guest mode -->
-            <div id="signup-gate-msg" style="display:none;"></div>
-
-            <!-- Login form -->
-            <div id="login-form" class="auth-form">
-                <input type="text" id="login-username" placeholder="Display name or email" autocomplete="username">
-                <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
-                <input type="submit" class="login-btn" value="Log in" id="login-btn">
-                <div class="login-error" id="login-error"></div>
-                <div class="auth-toggle">Don't have an account? <a id="show-signup">Sign up</a></div>
-                <div class="auth-toggle"><a href="/reset-password">Forgot password?</a></div>
-            </div>
-
-            <!-- Signup form (hidden by default) -->
-            <div id="signup-form" class="auth-form" style="display: none;">
-                <input type="text" id="signup-username" placeholder="Display name" autocomplete="username">
-                <input type="email" id="signup-email" placeholder="Email" autocomplete="email">
-                <input type="password" id="signup-password" placeholder="Password" autocomplete="new-password">
-                <input type="password" id="signup-password-confirm" placeholder="Confirm password" autocomplete="new-password">
-                <div class="tos-row">
-                    <input type="checkbox" id="signup-tos">
-                    <label for="signup-tos">I agree to the <a href="/terms" target="_blank">Terms of Service</a></label>
-                </div>
-                <input type="submit" class="login-btn" value="Sign up" id="signup-btn">
-                <div class="login-error" id="signup-error"></div>
-                <div class="auth-toggle">Already have an account? <a id="show-login">Log in</a></div>
-            </div>
-
-            <div class="auth-toggle"><a id="signup-gate-back">← Back to the studio</a></div>
-        </div>
-
-        <div id="studio-app">
+        <div id="studio-app" inert aria-busy="true">
             <div id="verify-banner" style="display:none;background:#cc8800;color:#fff;padding:8px 16px;text-align:center;font-size:0.9em;">
                 Enter the code we emailed you to publish &amp; upload:
                 <input id="verify-code" type="text" inputmode="numeric" maxlength="6" placeholder="123456" style="width:90px;padding:2px 6px;margin:0 4px;border-radius:4px;border:none;text-align:center;letter-spacing:2px;">
@@ -842,25 +769,49 @@
                 <span id="resend-status" style="margin-left:8px;"></span>
             </div>
             <div id="studio-header">
-                <span class="logo" id="logo-btn">Homegames Studio</span>
-                <button id="header-asset-btn" class="mode-btn" title="Asset Manager">Assets</button>
-                <div style="display:flex;align-items:center;gap:16px;">
-                    <a id="docs-link" href="/docs.html" target="_blank" rel="noopener" style="font-size:0.85em;color:#94d2e6;text-decoration:none;" title="How to make games — human-friendly docs">Docs</a>
-                    <span id="guide-btn" class="clickable" style="font-size:0.85em;color:#94d2e6;cursor:pointer;" title="squish.js authoring guide — copy as LLM context">Guide</span>
-                    <span id="snippets-btn" class="clickable" style="font-size:0.85em;color:#94d2e6;cursor:pointer;" title="Copy-paste building blocks for common game pieces">Snippets</span>
-                    <a href="/" style="color:var(--text-muted);font-size:0.85em;text-decoration:none;">homegames.io</a>
-                    <span id="admin-btn" style="display:none;cursor:pointer;font-size:0.85em;color:var(--accent-red);font-weight:bold;" title="Admin panel">Admin</span>
-                    <span id="theme-toggle" class="clickable" style="cursor:pointer;font-size:0.85em;color:var(--text-muted);" title="Toggle light/dark mode">Light</span>
-                    <span class="user-info" id="user-info" style="cursor:pointer;" title="Profile settings"></span>
-                    <button id="profile-settings-btn" title="Profile settings" style="background:none;border:none;cursor:pointer;font-size:0.85em;font-family:inherit;color:var(--text-muted);padding:0;">Settings</button>
-                    <button id="header-signin-btn" style="display:none;">Sign in</button>
+                <button type="button" class="logo" id="logo-btn" aria-label="Homegames Studio"><img src="/assets/homegames-logo.png" width="30" height="30" alt="">Homegames <span>Studio</span></button>
+                <nav class="studio-workspace-nav" aria-label="Studio workspace">
+                    <button type="button" id="studio-games-open" aria-haspopup="dialog" aria-controls="studio-games" aria-expanded="false">Games <span aria-hidden="true">⌄</span></button>
+                    <button id="header-asset-btn" class="mode-btn">Assets</button>
+                </nav>
+                <div class="studio-header-tools">
+                    <details id="studio-learn-menu" class="studio-menu">
+                        <summary>Learn</summary>
+                        <div class="studio-menu-panel">
+                            <button type="button" data-chatgpt-guide aria-haspopup="dialog">Use with ChatGPT<small>Get the guide and a starter prompt.</small></button>
+                            <button id="examples-open" disabled>Interactive examples<small>Change a game and see what happens.</small></button>
+                            <a id="docs-link" href="/docs.html" target="_blank" rel="noopener">Getting started<small>Learn how to make your first game.</small></a>
+                            <button type="button" id="guide-btn">Game API guide<small>Browse the API or copy the full reference.</small></button>
+                            <button type="button" id="snippets-btn">Code snippets<small>Ready-to-adapt code for common game features.</small></button>
+                            <a href="/" class="studio-menu-secondary">Visit homegames.io ↗</a>
+                        </div>
+                    </details>
+                    <button type="button" id="studio-settings-open" class="studio-settings-button" aria-haspopup="dialog" aria-controls="studio-settings" aria-expanded="false">Settings</button>
+                    <span class="user-info" id="user-info" hidden></span>
                 </div>
             </div>
             <div id="studio-body">
-                <div class="blade expanded" id="blade-games">
-                    <div class="blade-strip" data-blade="games"><span class="blade-strip-label">My Games</span></div>
-                    <div class="blade-content">
-                        <div id="games-pane">
+                <div class="blade expanded" id="blade-editor">
+                    <div class="blade-content" id="main-content"></div>
+                </div>
+            </div>
+            <template id="studio-empty-template">
+                <div class="studio-empty-workspace"><img src="/assets/homegames-logo.png" width="64" height="64" alt=""><h1>Make something fun.</h1><button class="dash-btn" data-open-games>Choose a game</button></div>
+            </template>
+            <dialog id="studio-games" class="studio-dialog" aria-labelledby="studio-games-title">
+                <header class="storage-header"><h2 id="studio-games-title">Your games</h2><button class="dash-btn" id="studio-games-close" aria-label="Close games" autofocus>✕</button></header>
+                <div class="storage-body" id="games-pane">
+                    <section id="portable-library">
+                        <div class="studio-game-picker-tools"><input id="portable-search" type="search" aria-label="Search your games" placeholder="Search your games…"><button id="portable-new" class="dash-btn publish" disabled>New game</button><button id="portable-import" class="dash-btn" disabled>Import game</button></div>
+                        <input id="portable-zip-input" type="file" accept=".html,.htm,.zip,.homegame,text/html,application/zip">
+                        <p id="studio-games-error" role="alert"></p>
+                        <section id="portable-template-picker" hidden>
+                            <div class="game-dashboard"><h2>Start with…</h2><button id="portable-template-close" class="dash-btn" aria-label="Close templates">✕</button></div>
+                            <div id="portable-template-list"></div>
+                        </section>
+                        <div id="portable-project-list" aria-label="Saved games"></div>
+                        <button id="portable-recover" class="studio-text-button" hidden>Recover previous draft</button>
+                    </section>
                             <div id="games-pane-header">My Games</div>
                             <div id="new-game-btn">+ New Game</div>
                             <div id="game-list-controls">
@@ -876,212 +827,38 @@
                                 <span id="game-page-info"></span>
                                 <button type="button" id="game-page-next">Next &rsaquo;</button>
                             </div>
-                        </div>
-                    </div>
                 </div>
-                <div class="blade hidden" id="blade-game">
-                    <div class="blade-strip" data-blade="game"><span class="blade-strip-label" id="blade-game-label">Game</span></div>
-                    <div class="blade-content">
-                        <div id="game-blade-header">
-                            <div id="game-blade-title"></div>
-                            <div id="game-blade-tabs">
-                                <button type="button" class="dash-btn active" id="game-tab-versions">Versions</button>
-                                <button type="button" class="dash-btn" id="game-tab-settings">Settings</button>
-                            </div>
-                        </div>
-                        <div id="game-blade-body">
-                            <div id="game-versions-view">
-                                <div id="version-list"></div>
-                                <div id="version-panel-footer"></div>
-                            </div>
-                            <div id="settings-panel"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="blade hidden" id="blade-editor">
-                    <div class="blade-strip" data-blade="editor"><span class="blade-strip-label" id="blade-editor-label">Editor</span></div>
-                    <div class="blade-content" id="main-content"></div>
-                </div>
-            </div>
+            </dialog>
             <div id="mobile-bar">
                 <button type="button" id="mobile-action-btn" class="hidden"></button>
-                <button type="button" id="mobile-menu-btn">Menu</button>
+                <button type="button" id="mobile-menu-btn">Panels</button>
             </div>
             <div id="mobile-menu">
                 <div id="mobile-menu-grid">
-                    <button type="button" class="mmenu-tile" data-page="games"><span>Games</span><span class="mmenu-sub">Pick or create a game</span></button>
-                    <button type="button" class="mmenu-tile" data-page="versions"><span>Versions</span><span class="mmenu-sub">History &amp; settings</span></button>
                     <button type="button" class="mmenu-tile" data-page="code"><span>Code</span><span class="mmenu-sub">Edit the game</span></button>
+                    <button type="button" class="mmenu-tile" data-page="history"><span>History</span><span class="mmenu-sub">Your saved snapshots</span></button>
                     <button type="button" class="mmenu-tile" data-page="files"><span>Files</span><span class="mmenu-sub">Browse &amp; add files</span></button>
                     <button type="button" class="mmenu-tile" data-page="preview"><span>Preview</span><span class="mmenu-sub">Play your game</span></button>
-                    <button type="button" class="mmenu-tile" data-page="assets"><span>Assets</span><span class="mmenu-sub">Images &amp; sounds</span></button>
                 </div>
             </div>
         </div>
 
-        <div class="modal-overlay" id="guide-modal">
-            <div class="modal-box" style="width:820px;max-width:calc(100vw - 32px);max-height:85vh;display:flex;flex-direction:column;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                    <h2 style="margin:0;">squish.js authoring guide</h2>
-                    <span id="guide-close" style="cursor:pointer;font-size:1.2em;color:#888;">✕</span>
-                </div>
-                <p style="color:#888;font-size:0.85em;margin:0 0 8px;">The full context document for writing Homegames games. Copy it into your own LLM to help it write or modify games.</p>
-                <pre id="guide-content" style="flex:1;overflow:auto;background:#11131a;color:#cdd2dc;padding:12px;border-radius:6px;white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,monospace;margin:0;">Loading…</pre>
-                <div class="modal-buttons" style="margin-top:10px;">
-                    <a class="modal-btn secondary" id="guide-open" href="/authoring-guide.md" target="_blank" rel="noopener" style="text-decoration:none;">Open raw</a>
-                    <button class="modal-btn primary" id="guide-copy">Copy to clipboard</button>
-                </div>
+        <dialog id="guide-modal" class="studio-dialog studio-learn-dialog" aria-labelledby="guide-title">
+            <header class="storage-header"><h2 id="guide-title">Game API guide</h2><button id="guide-close" class="dash-btn" aria-label="Close API guide" autofocus>✕</button></header>
+            <div class="learn-browser">
+                <nav class="learn-sidebar" aria-label="API topics"><input id="guide-search" type="search" placeholder="Find an API or topic…" aria-label="Search API guide"><div id="guide-topics" class="learn-topics"></div></nav>
+                <article id="guide-content" class="learn-content" tabindex="0"></article>
             </div>
-        </div>
-
-        <div class="modal-overlay" id="snippets-modal">
-            <div class="modal-box" style="width:820px;max-width:calc(100vw - 32px);max-height:85vh;display:flex;flex-direction:column;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                    <h2 style="margin:0;">Snippets</h2>
-                    <span id="snippets-close" style="cursor:pointer;font-size:1.2em;color:#888;">✕</span>
-                </div>
-                <p style="color:#888;font-size:0.85em;margin:0 0 8px;">Copy-paste building blocks for common game pieces. Each one drops into a game as-is.</p>
-                <div id="snippets-list" style="flex:1;overflow:auto;"></div>
+            <footer class="learn-footer"><a class="dash-btn" href="/docs.html" target="_blank" rel="noopener">Getting started ↗</a><a class="dash-btn" id="guide-open" href="/authoring-guide.md" target="_blank" rel="noopener">Full reference ↗</a><button class="dash-btn" id="guide-copy" disabled>Copy full reference</button></footer>
+        </dialog>
+        <dialog id="snippets-modal" class="studio-dialog studio-learn-dialog" aria-labelledby="snippets-title">
+            <header class="storage-header"><h2 id="snippets-title">Code snippets</h2><button id="snippets-close" class="dash-btn" aria-label="Close snippets" autofocus>✕</button></header>
+            <p class="learn-intro">Start from a Blank game. Paste each block where shown; merge imports and existing methods.</p>
+            <div class="learn-browser">
+                <nav class="learn-sidebar" aria-label="Snippet topics"><input id="snippets-search" type="search" placeholder="What do you want to make?" aria-label="Search snippets"><div id="snippets-list" class="learn-topics"></div></nav>
+                <article id="snippets-content" class="learn-content" tabindex="0"></article>
             </div>
-        </div>
-
-        <div class="modal-overlay" id="new-game-modal">
-            <div class="modal-box">
-                <h2>New Game</h2>
-                <input type="text" id="new-game-name" placeholder="Game name">
-                <input type="text" id="new-game-desc" placeholder="Description (optional)">
-                <label style="color:#888;font-size:0.8em;margin-top:4px;">Template</label>
-                <select id="new-game-template" style="padding:8px;background:#16213e;color:#eee;border:1px solid #444;border-radius:4px;font-family:inherit;font-size:14px;width:100%;max-width:300px;">
-                    <option value="blank">Blank — An empty game with a minimal starting point</option>
-                </select>
-                <div id="new-game-ai-prompt-wrap" style="display:none;">
-                    <label style="color:#888;font-size:0.8em;margin-top:8px;display:block;">Describe your game</label>
-                    <textarea id="new-game-ai-prompt" placeholder="e.g. A two-player game where potatoes race across a field, dodging falling rocks" style="width:100%;min-height:90px;resize:vertical;font-family:inherit;font-size:0.9em;padding:8px;background:var(--bg-deep);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);"></textarea>
-                    <p style="margin:4px 0 0;font-size:0.75em;color:var(--text-dim);">The AI writes the first version of your game. It can take up to an hour — you'll review the code before saving.</p>
-                    <div class="ai-image-attach">
-                        <div class="ai-image-thumbs" id="new-game-image-thumbs"></div>
-                        <button type="button" class="ai-image-add" id="new-game-image-add">+ Attach image</button>
-                        <span class="ai-image-hint">Optional — a sketch of what the game should look like (up to 3).</span>
-                        <input type="file" id="new-game-image-input" accept="image/*" multiple style="display:none;">
-                    </div>
-                    <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:0.85em;color:var(--text-secondary);cursor:pointer;">
-                        <input type="checkbox" id="new-game-email-notify" style="margin:0;"> Email me when it's done
-                    </label>
-                </div>
-                <div class="modal-error" id="new-game-error"></div>
-                <div class="modal-buttons">
-                    <button class="modal-btn secondary" id="new-game-cancel">Cancel</button>
-                    <button class="modal-btn primary" id="new-game-create">Create</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal-overlay" id="profile-modal" style="z-index:110;">
-            <div class="modal-box" style="width:420px;max-width:calc(100vw - 32px);">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                    <h2 style="margin:0;">Profile Settings</h2>
-                    <span id="profile-modal-close" class="clickable" style="font-size:1.2em;color:var(--text-muted);">✕</span>
-                </div>
-
-                <label style="color:var(--text-dim);font-size:0.8em;">Profile Image</label>
-                <div style="display:flex;gap:8px;align-items:center;margin:5px 0;">
-                    <img id="profile-image-preview" style="width:40px;height:40px;border-radius:4px;object-fit:cover;display:none;border:1px solid var(--border-light);" />
-                    <input type="file" id="profile-image-input" accept="image/*" style="flex:1;font-size:0.85em;" />
-                </div>
-                <div id="profile-image-status" style="font-size:0.75em;color:var(--text-dim);min-height:16px;"></div>
-
-                <label style="color:var(--text-dim);font-size:0.8em;margin-top:8px;">About (max 200 chars)</label>
-                <textarea id="profile-desc-input" maxlength="200" rows="3" placeholder="Tell players a bit about yourself"></textarea>
-                <div id="profile-desc-count" style="font-size:0.75em;color:var(--text-dim);text-align:right;">0 / 200</div>
-
-                <label style="color:var(--text-dim);font-size:0.8em;margin-top:4px;">BTC Address</label>
-                <input type="text" id="btc-address-input" placeholder="Your Bitcoin address" />
-
-                <label style="color:var(--text-dim);font-size:0.8em;margin-top:8px;">Password</label>
-                <div id="pw-change-start">
-                    <button type="button" class="modal-btn secondary" id="pw-change-btn" style="width:100%;">Change password</button>
-                </div>
-                <div id="pw-change-form" style="display:none;">
-                    <input type="text" id="pw-change-code" placeholder="Code from email" autocomplete="one-time-code" />
-                    <input type="password" id="pw-change-new" placeholder="New password (min 8 characters)" autocomplete="new-password" />
-                    <button type="button" class="modal-btn primary" id="pw-change-submit" style="width:100%;margin-top:5px;">Set new password</button>
-                </div>
-                <div id="pw-change-status" style="font-size:0.75em;color:var(--text-dim);min-height:16px;"></div>
-
-                <div class="modal-error" id="profile-modal-error"></div>
-                <div class="modal-buttons">
-                    <button type="button" class="modal-btn secondary" id="profile-modal-cancel">Cancel</button>
-                    <button type="button" class="modal-btn primary" id="profile-modal-save">Save</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal-overlay" id="asset-detail-modal" style="z-index:110;">
-            <div class="modal-box" style="width:480px;max-width:calc(100vw - 32px);">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                    <h2 id="asset-detail-title" style="margin:0;">Asset</h2>
-                    <span id="asset-detail-close" class="clickable" style="font-size:1.2em;color:var(--text-muted);">✕</span>
-                </div>
-                <div id="asset-detail-preview"></div>
-                <div id="asset-detail-meta"></div>
-                <label style="color:var(--text-dim);font-size:0.8em;">Description (catalog, max 80 chars)</label>
-                <input type="text" id="asset-detail-desc" maxlength="80" placeholder="Short description">
-                <label style="color:var(--text-dim);font-size:0.8em;margin-top:8px;">Tags</label>
-                <div id="asset-detail-tags" class="asset-detail-tags"></div>
-                <div id="asset-detail-public-status"></div>
-                <div class="modal-error" id="asset-detail-error"></div>
-                <div class="modal-buttons">
-                    <button type="button" class="modal-btn secondary" id="asset-detail-open">Open file</button>
-                    <button type="button" class="modal-btn secondary" id="asset-detail-copy">Copy ID</button>
-                    <button type="button" class="modal-btn primary" id="asset-detail-use">Use in a game</button>
-                </div>
-                <div class="modal-buttons">
-                    <button type="button" class="modal-btn primary" id="asset-detail-publish">Publish to catalog</button>
-                    <button type="button" class="modal-btn secondary" id="asset-detail-save">Save description</button>
-                </div>
-                <div class="modal-buttons">
-                    <button type="button" class="modal-btn secondary" id="asset-detail-delete" style="background:rgba(241,112,111,0.9);color:#fff;">Delete asset</button>
-                    <button type="button" class="modal-btn secondary" id="asset-detail-dismiss">Close</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Asset delete confirmation modal -->
-        <div class="modal-overlay" id="asset-delete-confirm-modal" style="z-index:120;">
-            <div class="modal-box" style="width:400px;max-width:calc(100vw - 32px);">
-                <h2 style="color:var(--accent-red);margin-bottom:12px;">Delete Asset</h2>
-                <p id="asset-delete-confirm-text" style="color:var(--text-secondary);font-size:0.9em;line-height:1.5;margin-bottom:6px;"></p>
-                <p style="color:var(--text-dim);font-size:0.8em;margin-bottom:14px;">This cannot be undone.</p>
-                <div class="modal-error" id="asset-delete-confirm-error"></div>
-                <div class="modal-buttons">
-                    <button type="button" class="modal-btn secondary" id="asset-delete-confirm-cancel">Cancel</button>
-                    <button type="button" class="modal-btn primary" id="asset-delete-confirm-ok" style="background:rgba(241,112,111,0.9);color:#fff;">Delete</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal-overlay" id="llm-modal">
-            <div class="modal-box" style="width:520px;max-width:calc(100vw - 32px);">
-                <h2 id="llm-modal-title">Ask AI to edit your game</h2>
-                <p style="margin:0 0 8px;font-size:0.85em;color:var(--text-secondary);">Describe the change you want. The AI rewrites <code>index.js</code> — review the result and save it as a version when you're happy. Generation can take up to an hour.</p>
-                <textarea id="llm-prompt-input" placeholder="e.g. Make the potato explode faster and turn the background red" style="width:100%;min-height:90px;resize:vertical;font-family:inherit;font-size:0.9em;padding:8px;background:var(--bg-deep);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);"></textarea>
-                <div class="ai-image-attach">
-                    <div class="ai-image-thumbs" id="llm-image-thumbs"></div>
-                    <button type="button" class="ai-image-add" id="llm-image-add">+ Attach image</button>
-                    <span class="ai-image-hint">Optional — a sketch of what it should look like, or a screenshot of the bug (up to 3).</span>
-                    <input type="file" id="llm-image-input" accept="image/*" multiple style="display:none;">
-                </div>
-                <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:0.85em;color:var(--text-secondary);cursor:pointer;">
-                    <input type="checkbox" id="llm-email-notify" style="margin:0;"> Email me when it's done
-                </label>
-                <div class="modal-error" id="llm-modal-error"></div>
-                <div id="llm-modal-status" style="font-size:0.85em;color:var(--text-secondary);min-height:1.2em;"></div>
-                <div class="modal-buttons">
-                    <button type="button" class="modal-btn secondary" id="llm-modal-cancel">Cancel</button>
-                    <button type="button" class="modal-btn primary" id="llm-modal-submit">Generate</button>
-                </div>
-            </div>
-        </div>
+        </dialog>
 
         <div class="modal-overlay" id="new-file-modal">
             <div class="modal-box">
@@ -1127,15 +904,15 @@
         <!-- Admin modal -->
         <!-- Asset modal (full-screen) -->
         <div class="modal-overlay" id="asset-modal">
-            <div class="asset-modal-box">
+            <div class="asset-modal-box" role="dialog" aria-modal="true" aria-labelledby="asset-modal-title">
                 <div class="asset-modal-header">
-                    <h2 style="margin:0;color:var(--logo-color);">Assets</h2>
+                    <h2 id="asset-modal-title" style="margin:0;color:var(--logo-color);">Assets</h2>
                     <div class="asset-modal-header-actions">
                         <button type="button" class="asset-create-btn asset-modal-action-btn" id="asset-modal-upload-btn">Upload</button>
                         <button type="button" class="asset-create-btn asset-modal-action-btn" id="asset-modal-draw-btn">Draw</button>
                         <button type="button" class="asset-create-btn asset-modal-action-btn" id="asset-modal-record-btn">Record</button>
                         <button type="button" class="asset-create-btn asset-modal-action-btn" id="asset-modal-keyboard-btn">Keyboard</button>
-                        <span id="asset-modal-close" class="clickable" style="font-size:1.4em;color:var(--text-muted);marg-left:12px;">✕</span>
+                        <button type="button" id="asset-modal-close" class="asset-modal-action-btn" aria-label="Close assets">✕</button>
                     </div>
                 </div>
                 <div class="asset-modal-toolbar">
@@ -1145,23 +922,51 @@
                     </div>
                     <div class="asset-modal-filters">
                         <label id="asset-modal-nsfw-toggle" class="nsfw-toggle" style="display:none;"><input type="checkbox" id="asset-modal-nsfw-cb"><span>NSFW</span></label>
-                        <input type="text" id="asset-modal-search" placeholder="Search assets..." class="asset-modal-search">
-                        <select id="asset-modal-type-filter" class="asset-modal-type-filter">
+                        <input type="search" id="asset-modal-search" aria-label="Search assets" placeholder="Search assets..." class="asset-modal-search">
+                        <select id="asset-modal-type-filter" aria-label="Filter asset type" class="asset-modal-type-filter">
                             <option value="">All types</option>
                             <option value="image">Images</option>
                             <option value="audio">Audio</option>
+                            <option value="video">Videos</option>
                             <option value="font">Fonts</option>
+                            <option value="other">Other files</option>
                         </select>
                     </div>
                 </div>
+                <div class="asset-browser-options">
+                    <div class="asset-view-options" role="group" aria-label="Asset view">
+                        <button type="button" class="asset-modal-tab" id="asset-view-list" aria-pressed="true">List</button>
+                        <button type="button" class="asset-modal-tab" id="asset-view-grid" aria-pressed="false">Thumbnails</button>
+                    </div>
+                    <label>Sort by <select id="asset-sort" aria-label="Sort assets by" class="asset-modal-type-filter"><option value="name">Name</option><option value="type">Type</option><option value="date">Date added</option></select></label>
+                    <button type="button" id="asset-sort-direction" class="asset-modal-action-btn">Newest first ↓</button>
+                    <span id="asset-results-count" role="status" aria-live="polite"></span>
+                </div>
+                <p id="asset-picker-hint" hidden></p>
+                <p id="asset-library-feedback" role="status"></p>
                 <div id="asset-modal-drop-zone" class="asset-modal-drop-zone">Drop files here or click to upload</div>
-                <div id="asset-upload-notice" class="asset-upload-notice">Only upload files you own or are authorized to use. Uploaded assets become public — anyone can view them, and they may be bundled into game downloads that live forever.</div>
+                <div id="asset-upload-notice" class="asset-upload-notice">Assets are saved in this browser. Use Add assets in the game editor to include them in a game.</div>
                 <div id="asset-modal-scroll" class="asset-modal-scroll">
                     <div id="asset-modal-grid" class="asset-modal-grid"></div>
                     <div id="asset-modal-load-more" class="asset-modal-load-more"></div>
                 </div>
+                <footer id="asset-picker-footer" hidden>
+                    <span id="asset-picker-count" role="status" aria-live="polite">0 selected</span>
+                    <button type="button" class="dash-btn" id="asset-picker-cancel">Cancel</button>
+                    <button type="button" class="dash-btn" id="asset-picker-confirm" disabled>Add selected</button>
+                </footer>
             </div>
         </div>
+
+        <dialog id="asset-preview-dialog" aria-labelledby="asset-preview-title">
+            <header class="asset-preview-header"><div><h2 id="asset-preview-title"></h2><p id="asset-preview-details"></p></div><button type="button" class="dash-btn" id="asset-preview-close" aria-label="Close asset preview">✕</button></header>
+            <div id="asset-preview-content"></div>
+            <p id="asset-preview-status" role="status" aria-live="polite"></p>
+            <footer class="asset-preview-footer">
+                <button type="button" class="dash-btn" id="asset-preview-prev" aria-label="Previous asset">← Previous</button><span id="asset-preview-position"></span><button type="button" class="dash-btn" id="asset-preview-next" aria-label="Next asset">Next →</button>
+                <button type="button" class="dash-btn" id="asset-preview-size" aria-pressed="false">Actual size</button><button type="button" class="dash-btn" id="asset-preview-download">Download original</button>
+            </footer>
+        </dialog>
 
         <!-- Draw overlay -->
         <div class="draw-overlay" id="draw-overlay">
@@ -1188,7 +993,7 @@
                     <button class="draw-btn-clear" id="draw-clear">Clear</button>
                     <button class="draw-btn-cancel" id="draw-cancel">Cancel</button>
                     <button class="draw-btn-cancel" id="draw-download">Download</button>
-                    <button class="draw-btn-save" id="draw-save">Save</button>
+                    <button class="draw-btn-save" id="draw-save">Save to My Assets</button>
                 </div>
             </div>
         </div>
@@ -1214,7 +1019,7 @@
                 <div class="record-save-row" id="rec-save-row" style="display:none">
                     <button class="rec-btn-cancel" id="rec-cancel">Cancel</button>
                     <button class="rec-btn-cancel" id="rec-download">Download</button>
-                    <button class="rec-btn-save" id="rec-save">Save</button>
+                    <button class="rec-btn-save" id="rec-save">Save to My Assets</button>
                 </div>
             </div>
         </div>
@@ -1299,12 +1104,77 @@
                 <div class="keyboard-save-row" id="kbd-save-row" style="display:none">
                     <button class="kbd-btn-cancel" id="kbd-cancel">Close</button>
                     <button class="kbd-btn-cancel" id="kbd-download">Download</button>
-                    <button class="kbd-btn-save" id="kbd-save">Save song</button>
+                    <button class="kbd-btn-save" id="kbd-save">Save song to My Assets</button>
                 </div>
             </div>
         </div>
 
-        <script src="homegames-client.js"></script>
+        <dialog id="studio-examples" aria-labelledby="examples-heading">
+            <header class="examples-header"><div><h2 id="examples-heading">Make something happen</h2><p>Play with an idea, change it, then open your own copy in Studio. No code needed to start.</p></div><button id="examples-close" type="button" aria-label="Close examples">×</button></header>
+            <nav id="examples-nav" aria-label="Choose an example"></nav>
+            <div class="examples-body">
+                <section class="examples-notes"><p id="example-progress" class="example-eyebrow"></p><h3 id="example-title"></h3><p id="example-description"></p>
+                    <div class="example-task"><strong>1. Try it</strong><p id="example-hint"></p></div>
+                    <h4>2. Change it</h4><div id="example-controls"></div><p id="example-challenge"></p>
+                    <div class="example-reset-row"><button id="example-reset" class="dash-btn" type="button">Reset example</button><span>Changes restart this preview.</span></div>
+                    <details id="example-code-peek"><summary>See how it works</summary><p id="example-reference"></p><pre><code id="example-code"></code></pre></details>
+                </section>
+                <div id="example-preview" aria-label="Interactive example preview" aria-busy="false"></div>
+            </div>
+            <footer class="examples-footer"><div class="example-save-note"><strong>3. Make it yours</strong><p id="example-status" role="status"></p><button id="example-retry" class="dash-btn" hidden>Try again</button></div><div class="example-footer-actions"><button id="example-back" class="dash-btn">← Back</button><button id="example-next" class="dash-btn">Next example →</button><button id="example-copy" class="dash-btn publish" disabled>Open a copy in Studio</button></div></footer>
+        </dialog>
+        <input id="workspace-backup-input" type="file" accept=".homegames-backup,application/octet-stream" hidden>
+        <dialog id="studio-settings" class="studio-dialog" aria-labelledby="studio-settings-title">
+            <header class="storage-header"><h2 id="studio-settings-title">Settings</h2><button class="dash-btn" id="studio-settings-close" aria-label="Close settings" autofocus>✕</button></header>
+            <div class="storage-body">
+                <section class="studio-settings-theme"><label for="studio-theme">Appearance</label><select id="studio-theme"><option value="dark">Dark</option><option value="light">Light</option></select></section>
+                <section class="studio-settings-section" aria-labelledby="workspace-backup-title">
+                    <h3 id="workspace-backup-title">Backups</h3>
+                    <p class="storage-hint">Keep all your games, assets and history in one file, or move them to another device.</p>
+                    <div class="studio-backup-actions"><button class="dash-btn backup-primary" data-studio-backup disabled>↓ Download backup</button><button class="dash-btn" data-studio-restore disabled>↑ Restore backup</button></div>
+                    <p id="workspace-backup-status" role="status" aria-live="polite"></p>
+                    <a id="workspace-backup-download" class="dash-btn" hidden>Save backup file</a>
+                    <section id="workspace-backup-review" hidden>
+                        <h3 id="workspace-backup-file"></h3><p id="workspace-backup-date"></p><p id="workspace-backup-counts"></p>
+                        <p>This replaces the Studio in this browser with the backup. Your current Studio will be kept so you can undo the restore.</p>
+                        <button id="workspace-backup-confirm" class="dash-btn backup-primary">Restore backup</button>
+                    </section>
+                    <button id="workspace-backup-undo" class="dash-btn" hidden>Undo last restore</button>
+                </section>
+                <section id="studio-storage" class="studio-settings-section" aria-labelledby="studio-storage-title">
+                    <h3 id="studio-storage-title">Browser storage</h3>
+                    <p id="storage-usage" role="status">Checking storage…</p>
+                    <meter id="storage-meter" min="0" max="1" value="0" aria-label="Browser storage used" hidden></meter>
+                    <p id="portable-storage-status" role="status"></p>
+                    <details id="storage-details">
+                        <summary>Manage storage</summary>
+                        <div class="storage-actions"><button id="portable-persist" class="dash-btn" disabled>Keep browser storage</button><button id="storage-refresh" class="dash-btn" disabled>Refresh</button></div>
+                        <div class="storage-heading"><h3>Games</h3></div>
+                        <div id="storage-projects"></div>
+                        <div class="storage-heading"><h3>Assets</h3><button id="storage-assets" class="dash-btn" disabled>Manage assets</button></div>
+                        <p id="storage-assets-usage" class="storage-hint"></p>
+                    </details>
+                    <p id="storage-feedback" role="status"></p>
+                </section>
+                <p id="studio-offline-status" class="storage-hint" role="status">Preparing Studio for offline use…</p>
+            </div>
+        </dialog>
+        <script src="/site-config.js"></script>
+        <script src="/bundle.js"></script>
+        <script id="studio-runtime" src="homegames-client.js"></script>
+        <script src="/studio-project-store.js"></script>
+        <script src="/studio-project-import.js"></script>
+        <script src="/studio-update.js"></script>
+        <script src="/studio-offline.js"></script>
+        <script src="/studio-storage.js"></script>
+        <script src="/studio-backup-ui.js"></script>
+        <script src="/studio-assets.js"></script>
+        <script src="/studio-ui.js"></script>
+        <script src="/studio-snippets.js"></script>
+        <script src="/studio-learn.js"></script>
+        <script src="/chatgpt-guide.js"></script>
+        <script src="/studio-portable.js"></script>
+        <script src="/studio-examples.js"></script>
         <script src="studio.js"></script>
     </body>
 </html>

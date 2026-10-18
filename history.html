@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="The history of Homegames: from a drawing experiment in 2018 to games you can keep, share, and host yourself. A timeline told through the code.">
+  <meta name="theme-color" content="#f1706f">
+  <title>Homegames over time — A repository history</title>
+  <link rel="stylesheet" href="/app.css">
+  <style>
+    :root{--paper:#fbfff2;--ink:#232a23;--muted:#555;--line:#d4dacd;--coral:#f1706f;--blue:#94d2e5;--green:#a0eb5d;--yellow:#fff78e;--mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;--sans:'amateur',sans-serif}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:30px}body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.7 var(--sans)}a{color:inherit;text-underline-offset:4px}a:hover{text-decoration-thickness:2px}button{font:inherit;color:inherit;cursor:pointer}button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #245aab;outline-offset:5px}::selection{background:var(--yellow);color:var(--ink)}[hidden]{display:none!important}.wrap{max-width:1240px;margin:auto;padding-inline:48px}.skip{position:absolute;top:-100px;left:16px;z-index:20;background:var(--yellow);padding:10px}.skip:focus{top:10px}
+    .masthead{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-block:24px;border-bottom:1px solid var(--ink)}.brand{display:flex;align-items:center;gap:11px;text-decoration:none;font:bold 19px var(--mono);letter-spacing:-1px}.brand-mark{display:grid;grid-template-columns:8px 8px;gap:3px;transform:rotate(-8deg)}.brand-mark i{width:8px;height:8px;background:var(--ink)}.brand-mark i:nth-child(2){background:var(--coral)}.brand-mark i:nth-child(3){background:#537e32}.masthead nav{display:flex;gap:26px;font:12px var(--mono)}.masthead nav a{text-decoration:none}.masthead nav a:hover{text-decoration:underline}.masthead .current{padding-left:15px;border-left:1px solid var(--line)}
+    .eyebrow,.small-label{font:11px/1.6 var(--mono);text-transform:uppercase;letter-spacing:1.5px}.hero{position:relative;display:grid;grid-template-columns:1.05fr 1fr;gap:28px;align-items:center;padding-block:78px 65px}.hero h1{font-size:clamp(52px,5.6vw,76px);line-height:.98;letter-spacing:-4px;font-weight:800;margin:24px 0 30px}.hero h1 em{font-style:normal;position:relative;white-space:nowrap;z-index:0}.hero h1 em:after{content:"";position:absolute;z-index:-1;bottom:5px;left:0;right:0;height:20px;background:var(--green);transform:rotate(-2deg)}.hero .intro{font-size:19px;line-height:1.65;max-width:420px;color:var(--muted)}.hero .start{display:inline-flex;align-items:center;gap:35px;margin-top:15px;font:13px var(--mono);text-decoration:none;border-bottom:1px solid var(--ink);padding-bottom:9px}.hero-art{margin:0;position:relative}.hero-art svg{display:block;width:100%;height:auto;overflow:visible}.hero-art figcaption{font:10px/1.6 var(--mono);letter-spacing:.3px;text-align:right;color:var(--muted);margin-top:12px}.hero-art svg text{font-family:var(--mono);fill:var(--ink)}.hero-art .route{stroke-dasharray:5 7}
+    .prologue{display:grid;grid-template-columns:200px 1fr;gap:40px;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);padding:27px 0;margin-bottom:66px}.prologue p{margin:0;max-width:790px;font-size:20px;line-height:1.65}.prologue .small-label{padding-top:5px}.history-layout{display:grid;grid-template-columns:200px minmax(0,1fr);gap:40px;align-items:start}.chapter-nav{position:sticky;top:28px;padding:7px 0 30px}.chapter-nav .small-label{margin:0 0 20px}.chapter-nav ol{list-style:none;padding:0;margin:0}.chapter-nav li{margin:0 0 8px}.chapter-nav a{display:flex;gap:13px;align-items:center;font:12px/1.4 var(--mono);text-decoration:none;padding:10px 8px 10px 0;color:var(--muted);border-right:3px solid transparent}.chapter-nav a span{font-size:10px;color:var(--muted)}.chapter-nav a:hover,.chapter-nav a[aria-current="location"]{color:var(--ink);border-color:var(--ink);font-weight:bold}.chapter-nav .end-link{margin-top:28px;padding-top:20px;border-top:1px solid var(--line);max-width:168px}.chapter{padding-bottom:70px;scroll-margin-top:24px}.chapter+.chapter{border-top:1px solid var(--line);padding-top:50px}.chapter-head{display:flex;align-items:center;gap:18px;margin-bottom:22px}.chapter-num{font:12px var(--mono);display:grid;place-items:center;width:33px;height:33px;border:1px solid var(--ink);border-radius:50%;background:var(--chapter-color,var(--paper))}.chapter-date{font:12px var(--mono);letter-spacing:1px}.chapter h2{font-size:clamp(34px,4vw,49px);font-weight:750;line-height:1.1;letter-spacing:-2px;margin:0 0 23px;max-width:720px}.chapter-deck{font-size:19px;line-height:1.65;max-width:720px;color:var(--muted);margin-bottom:30px}.milestones{list-style:none;padding:0;margin:35px 0 0}.milestone{position:relative;padding:0 0 28px 28px;border-left:1px solid var(--line)}.milestone:last-child{padding-bottom:4px}.milestone:before{content:"";position:absolute;left:-4px;top:8px;width:7px;height:7px;background:var(--ink);border-radius:50%}.milestone time,.event-date{font:11px var(--mono);letter-spacing:.5px;color:var(--muted)}.milestone h3{font-size:21px;line-height:1.4;letter-spacing:-.5px;margin:7px 0 9px}.milestone p{max-width:660px;font-size:16px;margin:0 0 12px}.evidence{font:11px/1.7 var(--mono);color:var(--muted)}.evidence summary{cursor:pointer;width:fit-content;padding:3px 0}.evidence[open] summary{margin-bottom:8px}.evidence ul{padding-left:17px;margin:0;max-width:650px}.evidence li+li{margin-top:8px}.evidence a{overflow-wrap:anywhere}.evidence code{font-size:11px}.branch-note{font:11px var(--mono);display:inline-block;background:var(--yellow);padding:3px 6px;margin-left:4px;color:var(--ink)}
+    .artifact{border:1px solid var(--ink);background:#fffdf3;margin:30px 0;padding:22px 26px;position:relative}.artifact .small-label{display:block;margin-bottom:16px}.artifact blockquote{font:clamp(20px,2.5vw,29px)/1.4 var(--mono);letter-spacing:-1px;margin:0 0 14px}.artifact p{font-size:13px;color:var(--muted);margin:0;max-width:650px}.artifact-corner{position:absolute;top:-1px;right:-1px;width:25px;height:25px;background:var(--paper);border-left:1px solid var(--ink);border-bottom:1px solid var(--ink);clip-path:polygon(0 0,100% 100%,0 100%)}.architecture{background:var(--chapter-color);padding:26px 28px;margin:30px 0}.flow{display:flex;align-items:center;gap:13px;flex-wrap:wrap;margin:15px 0}.flow-node{background:var(--paper);border:1px solid var(--ink);padding:13px 17px;min-width:100px;font:13px/1.5 var(--mono)}.flow-node strong{display:block;font-size:16px}.flow-arrow{font-size:24px}.architecture .caption{font-size:13px;margin:10px 0 0;max-width:670px}.service-map{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}.service-map span{background:var(--paper);padding:7px 11px;border:1px solid var(--ink);font:11px var(--mono)}.margin-note{border-left:3px solid var(--coral);padding-left:18px;font-size:14px;color:var(--muted);margin:28px 0}.current-label{font:10px var(--mono);background:var(--ink);color:var(--paper);padding:6px 8px;margin-left:auto}.current-list{list-style:none;padding:0;margin:25px 0 32px}.current-list li{padding:16px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:150px 1fr;gap:15px;font-size:15px}.current-list strong{font:13px/1.7 var(--mono)}.current-list p{margin:0}
+    .outage{background:var(--ink);color:var(--paper);padding:30px;margin:34px 0}.outage .small-label{color:#bfd0c0}.outage h3{font-size:28px;line-height:1.2;letter-spacing:-1px;margin:12px 0 24px}.connection-sketch{display:grid;grid-template-columns:1fr 70px 1fr;align-items:center;gap:8px;margin-block:25px}.peer{border:1px solid #b5c6b7;padding:18px 12px;text-align:center;font:13px/1.6 var(--mono);background:#304c3e}.peer strong{display:block;color:var(--green);font-size:20px;margin-bottom:5px}.peer-line{text-align:center;font:10px var(--mono);color:var(--green)}.peer-line span{display:block;font-size:28px;margin-bottom:8px}.connection-service{border:1px dashed #b5c6b7;text-align:center;font:12px/1.7 var(--mono);padding:15px;color:var(--paper)}.connection-service:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:8px}.outage[data-offline="true"] .connection-service{color:#cfb5ab;border-color:#8f8274;text-decoration:line-through}.outage[data-offline="true"] .connection-service:before{background:var(--coral)}.outage-controls{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:24px}.outage button{color:var(--ink);background:var(--yellow);border:1px solid var(--yellow);padding:10px 15px;font:12px/1.6 var(--mono)}.outage button:hover{background:var(--paper)}.outage .sketch-label{font:10px/1.6 var(--mono);color:#bfd0c0;max-width:145px}.connection-explanation{min-height:145px;font-size:15px;line-height:1.65}.connection-explanation p{margin:0 0 14px}.outage .fine-print{font-size:12px;line-height:1.7;color:#c7d3c9;border-top:1px solid #617769;padding-top:16px;margin-bottom:0}.destination{border-top:1px solid var(--ink);padding:58px 0 48px}.destination h2{font-size:clamp(35px,5vw,60px);line-height:1.08;letter-spacing:-2.5px;margin:0 0 22px;max-width:740px}.destination p{max-width:660px;color:var(--muted)}.destination-links{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}.destination-links a{display:inline-flex;align-items:center;gap:24px;padding:13px 20px;border:1px solid var(--ink);font:13px var(--mono);text-decoration:none;background:var(--green)}.destination-links a:last-child{background:transparent}.destination-links a:hover{background:var(--yellow)}
+    .sources{border-top:1px solid var(--ink);padding:28px 0 42px;margin-top:35px}.sources h2{font:13px var(--mono);margin:0 0 17px}.sources p{font-size:13px;line-height:1.8;color:var(--muted);max-width:830px}.sources details{font-size:12px;color:var(--muted)}.sources summary{cursor:pointer}.sources ul{columns:2;column-gap:32px;padding-left:20px}.sources li{break-inside:avoid;margin:8px 0}.sources code{overflow-wrap:anywhere;font-size:11px}.footer{border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:20px;padding:22px 0 34px;font:11px/1.6 var(--mono);color:var(--muted)}.footer a{text-decoration:none}.footer a:hover{text-decoration:underline}
+    @media(min-width:1500px){.hero{padding-block:90px 85px}}@media(max-width:1000px){.wrap{padding-inline:30px}.history-layout,.prologue{grid-template-columns:150px minmax(0,1fr);gap:26px}.hero h1{letter-spacing:-3px}.hero{padding-block:60px 50px}.chapter-nav a{font-size:11px}.chapter-nav .end-link{max-width:130px}.hero .intro{font-size:17px}.connection-explanation{min-height:180px}}@media(max-width:720px){html{scroll-padding-top:85px}.wrap{padding-inline:22px}.masthead{padding-block:20px}.masthead nav{gap:16px}.masthead .current{display:none}.brand{font-size:17px}.hero{grid-template-columns:1fr;padding-block:48px 35px;gap:20px}.hero h1{font-size:clamp(42px,9.4vw,68px);letter-spacing:-4px;margin-block:20px 24px}.hero .intro{max-width:470px}.hero-art{max-width:470px;width:100%;margin:10px auto 0}.hero-art figcaption{font-size:9px}.prologue{display:block;padding-block:24px;margin-bottom:28px}.prologue .small-label{display:block;margin-bottom:13px}.prologue p{font-size:18px}.history-layout{display:block}.chapter-nav{z-index:5;background:var(--paper);top:0;margin-inline:-22px;padding:10px 22px;border-bottom:1px solid var(--line);margin-bottom:30px;box-shadow:0 5px 8px -8px var(--ink)}.chapter-nav>.small-label,.chapter-nav .end-link{display:none}.chapter-nav ol{display:flex;justify-content:space-between;gap:8px}.chapter-nav li{margin:0}.chapter-nav a{padding:8px 3px;border-right:0;border-bottom:2px solid transparent;font-size:10px;white-space:nowrap}.chapter-nav a span{display:none}.chapter{scroll-margin-top:85px;padding-bottom:40px}.chapter+.chapter{padding-top:32px}.chapter h2{font-size:37px;letter-spacing:-1.6px}.chapter-deck{font-size:17px}.milestone{padding-left:21px}.milestone h3{font-size:20px}.milestone p{font-size:15px}.architecture{padding:20px}.flow{gap:8px}.flow-node{min-width:85px;padding:10px 12px;font-size:11px}.flow-node strong{font-size:13px}.flow-arrow{font-size:20px}.artifact{padding:22px}.artifact blockquote{font-size:22px}.current-list li{grid-template-columns:1fr;gap:5px}.outage{padding:22px}.outage h3{font-size:26px}.connection-sketch{grid-template-columns:1fr 45px 1fr;gap:5px}.peer{padding:15px 7px;font-size:11px}.peer strong{font-size:16px}.connection-explanation{min-height:0}.outage-controls{align-items:flex-start;flex-direction:column}.outage .sketch-label{max-width:none}.current-label{font-size:8px}.chapter-date{font-size:11px;letter-spacing:0}.chapter-head{gap:12px}.sources ul{columns:1}.footer{font-size:10px}.destination{padding-top:38px}}
+    @media(max-width:380px){.chapter-nav{padding-inline:16px}.chapter-nav ol{gap:2px}.chapter-nav a{padding-inline:2px}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}@media print{body{font-size:11pt;background:white;color:black}.wrap{padding:0;max-width:none}.hero{padding:25px 0;grid-template-columns:1fr 1fr}.hero h1{font-size:58px}.chapter-nav,.skip,.outage-controls,.masthead nav,.destination-links{display:none!important}.history-layout{display:block}.prologue{margin-bottom:30px}.chapter{padding-bottom:20px}.chapter+.chapter{padding-top:25px}.chapter h2{font-size:28px}.chapter-deck{font-size:14px}.milestone,.artifact,.architecture,.outage{break-inside:avoid}.outage{background:#f5f5f5;color:black}.outage .small-label,.outage .fine-print,.peer strong,.peer-line,.connection-service{color:black}.peer{background:white}.connection-service{border-color:black}.chapter-num,.architecture{print-color-adjust:exact}.hero-art{max-width:360px}.footer{padding-bottom:0}}
+
+    /* Architecture snapshots: inline diagrams also work offline, without JS, and in print. */
+    .architecture-sequence{margin:0 0 72px;padding-bottom:48px;border-bottom:1px solid var(--ink);scroll-margin-top:24px}
+    .architecture-sequence h2{font-size:clamp(32px,4vw,48px);line-height:1.12;letter-spacing:-1.8px;margin:12px 0 20px}
+    .architecture-intro{max-width:830px;color:var(--muted);font-size:17px;margin:0 0 22px}
+    .architecture-controls{display:flex;flex-wrap:wrap;gap:8px;margin:25px 0 18px}
+    .architecture-controls button{background:transparent;border:1px solid var(--line);padding:10px 12px;font:12px/1.5 var(--mono)}
+    .architecture-controls button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+    .architecture-controls button:hover{border-color:var(--ink)}
+    .architecture-controls #architecture-show-all{margin-left:auto;border-style:dashed}
+    .architecture-legend{display:flex;flex-wrap:wrap;gap:10px 20px;font:11px/1.6 var(--mono);color:var(--muted);margin:0 0 18px}
+    .architecture-legend span{display:inline-flex;align-items:center;gap:7px}
+    .architecture-legend i{display:inline-block;width:13px;height:13px;border:1px solid var(--ink)}
+    .architecture-legend .solid,.architecture-legend .dashed{width:24px;height:0;border:0;border-top:2px solid var(--ink)}
+    .architecture-legend .dashed{border-top-style:dashed}
+    .architecture-stage{border:1px solid var(--line);background:#fffdf3;margin-top:20px;padding:28px;scroll-margin-top:30px}
+    .architecture-stage h3{font-size:clamp(25px,3vw,34px);letter-spacing:-1px;line-height:1.2;margin:10px 0 12px}
+    .architecture-stage .stage-deck{max-width:850px;font-size:16px;color:var(--muted);margin:0 0 18px}
+    .architecture-stage figure{margin:0}.diagram-scroll{overflow-x:auto;overscroll-behavior-x:contain;border:1px solid var(--line);background:var(--paper)}
+    .diagram-scroll:focus-visible{outline:3px solid #245aab;outline-offset:3px}
+    .diagram-scroll svg{display:block;width:100%;min-width:850px;height:auto;font-family:var(--sans);color:var(--ink)}
+    .diagram-zone{fill:#fffdf3;stroke:var(--line);stroke-dasharray:4 4}
+    .diagram-owner{font:11px var(--mono);letter-spacing:1px;fill:var(--muted)}
+    .diagram-node rect{stroke:var(--ink);stroke-width:1.4}.diagram-node.runtime rect{fill:var(--green)}.diagram-node.player rect{fill:var(--blue)}.diagram-node.storage rect{fill:var(--yellow)}.diagram-node.service rect{fill:#f7b3a6}
+    .diagram-node-title{font-size:17px;font-weight:700;fill:var(--ink)}.diagram-node-detail{font-size:14px;fill:var(--ink)}
+    .diagram-label{font-size:14px;fill:var(--ink)}.diagram-note{font-size:13px;fill:var(--muted)}
+    .diagram-edge{fill:none;stroke:var(--ink);stroke-width:1.6}.diagram-edge.setup{stroke-dasharray:5 5}
+    .diagram-hint{font:11px/1.6 var(--mono);color:var(--muted);margin:8px 0 0}
+    .architecture-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:22px;margin:24px 0 18px}
+    .architecture-facts div{border-top:2px solid var(--line);padding-top:12px}.architecture-facts dt{font:12px var(--mono);font-weight:bold;margin-bottom:7px}.architecture-facts dd{font-size:14px;line-height:1.65;margin:0}
+    .architecture-note{font-size:13px;line-height:1.7;color:var(--muted);border-left:3px solid var(--coral);padding-left:14px;margin:18px 0}
+    .architecture-variant{border-top:1px solid var(--line);padding-top:18px;margin:24px 0}.architecture-variant h4{font-size:17px;margin:0 0 10px}.architecture-variant p{font-size:14px;max-width:850px;margin:0 0 18px}
+    .architecture-stage .evidence ul{max-width:none}.architecture-status{font:11px var(--mono);color:var(--muted);margin:0}
+    .hero .architecture-link{display:block;font:12px var(--mono);margin-top:20px}
+    @media(max-width:720px){.architecture-sequence{margin-bottom:32px;padding-bottom:30px}.architecture-sequence h2{letter-spacing:-1px}.architecture-stage{padding:18px;margin-inline:-6px}.architecture-controls{gap:7px}.architecture-controls button{flex:1 0 29%;padding:9px 7px;font-size:11px}.architecture-controls #architecture-show-all{flex:1 0 100%;margin:0}.architecture-facts{grid-template-columns:1fr;gap:15px}.architecture-stage h3{font-size:27px}.architecture-legend{font-size:10px;gap:8px 14px}}
+    @media print{.architecture-controls,.architecture-status,.diagram-hint{display:none!important}.architecture-stage[hidden]{display:block!important}.architecture-stage{break-inside:avoid;padding:15px;margin-top:20px}.diagram-scroll{overflow:visible}.diagram-scroll svg{min-width:0;print-color-adjust:exact}.architecture-facts{grid-template-columns:repeat(3,1fr);gap:14px}.architecture-facts dd,.architecture-note{font-size:10pt}.architecture-sequence{margin-bottom:25px;padding-bottom:20px}.architecture-stage h3{font-size:24px}}
+
+    @font-face{font-family:amateur;src:url('/amateur.ttf')}
+    .hero{padding-block:48px 40px}.hero h1{font-size:clamp(38px,5vw,58px);font-weight:normal;line-height:1.2;letter-spacing:0}
+    .hero h1 em:after{display:none}.chapter h2,.architecture-sequence h2,.architecture-stage h3,.destination h2{letter-spacing:0;font-weight:normal}
+    .chapter h2{font-size:36px}.architecture-sequence h2{font-size:34px}.architecture-stage h3{font-size:28px}
+    .architecture-stage,.artifact,.outage,.architecture,.flow-node,.peer{border-radius:8px}
+    .architecture-stage,.artifact{background:var(--paper)}
+    .architecture-controls button,.destination-links a,.outage button{border-radius:6px;font-family:var(--sans);font-size:15px}
+    .architecture-controls button[aria-pressed="true"]{background:var(--blue);color:var(--ink);border-color:#649baa}
+    .architecture-controls button:hover{background:var(--yellow)}
+    .diagram-scroll svg{font-family:system-ui,sans-serif}
+    .outage{background:#1a1a2e}.peer{background:#16213e}
+    @media print{.site-header,.site-footer,.skip-link{display:none}.hero h1{font-size:38px}}
+  </style>
+</head>
+<body>
+  <!-- site-header -->
+  <div class="wrap">
+    <main id="content">
+      <section class="hero" aria-labelledby="page-title">
+        <div>
+          <div class="eyebrow">Repository history / 2018 → 2026</div>
+          <h1 id="page-title">Homegames,<br><em>over time.</em></h1>
+          <p class="intro">From a shared drawing prototype to a game framework, a hosted platform, and standalone games. Eight years of changes, traced through the repositories.</p>
+          <a class="start" href="#beginnings">Follow the history <span aria-hidden="true">↓</span></a>
+          <a class="architecture-link" href="#architecture-sequence">Explore the architecture →</a>
+        </div>
+        <figure class="hero-art">
+          <svg viewBox="0 0 520 440" role="img" aria-labelledby="journey-title journey-desc">
+            <title id="journey-title">From a computer at home to a game you can keep</title>
+            <desc id="journey-desc">An illustrated path connects the 2018 drawing prototype, a growing platform of services, and a portable HTML game shared between players in 2026.</desc>
+            <defs><pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#c9d1c1"/></pattern></defs>
+            <rect x="0" y="0" width="520" height="430" fill="url(#dots)"/>
+            <path d="M99 129 C95 223 342 104 384 183 S114 227 103 307 S293 410 376 350" fill="none" stroke="#243c32" stroke-width="2" class="route"/>
+            <g transform="translate(22 26) rotate(-5 70 65)">
+              <rect x="5" y="6" width="146" height="109" rx="4" fill="#243c32"/>
+              <rect width="146" height="109" rx="4" fill="#94d2e5" stroke="#243c32" stroke-width="2"/>
+              <rect x="12" y="12" width="122" height="77" fill="#f8faef" stroke="#243c32" stroke-width="1.5"/>
+              <path d="M29 69 Q49 27 67 58 T118 32" fill="none" stroke="#f1706f" stroke-width="5"/>
+              <circle cx="95" cy="67" r="8" fill="#a0eb5d" stroke="#243c32"/>
+              <path d="M65 110 V126 H43 M79 110 V126 H101 M43 126 H101" fill="none" stroke="#243c32" stroke-width="2"/>
+              <text x="169" y="29" font-size="11">2018</text><text x="169" y="47" font-size="10">Make a mark.</text>
+            </g>
+            <g transform="translate(244 154)">
+              <path d="M32 4 V-26 H110 V4 M71 50 V76 H-20 V58 M71 76 H154 V54" fill="none" stroke="#243c32" stroke-width="1.5"/>
+              <rect x="3" y="6" width="144" height="49" fill="#243c32"/>
+              <rect width="144" height="49" fill="#f1706f" stroke="#243c32" stroke-width="2"/>
+              <text x="72" y="30" text-anchor="middle" font-size="15" font-weight="bold">THE PLATFORM</text>
+              <rect x="-27" y="-40" width="75" height="25" fill="#fff78e" stroke="#243c32"/><text x="10" y="-23" text-anchor="middle" font-size="9">accounts</text>
+              <rect x="81" y="-40" width="80" height="25" fill="#fff78e" stroke="#243c32"/><text x="121" y="-23" text-anchor="middle" font-size="9">publishing</text>
+              <rect x="-59" y="53" width="78" height="25" fill="#fff78e" stroke="#243c32"/><text x="-20" y="70" text-anchor="middle" font-size="9">game servers</text>
+              <rect x="121" y="53" width="77" height="25" fill="#fff78e" stroke="#243c32"/><text x="159" y="70" text-anchor="middle" font-size="9">assets</text>
+            </g>
+            <g transform="translate(66 283) rotate(4 70 60)">
+              <path d="M5 5 H109 L136 32 V120 H5Z" fill="#243c32"/>
+              <path d="M0 0 H104 L131 27 V115 H0Z" fill="#a0eb5d" stroke="#243c32" stroke-width="2"/>
+              <path d="M104 0 V27 H131" fill="none" stroke="#243c32" stroke-width="2"/>
+              <text x="17" y="35" font-size="10">YOUR GAME</text><text x="17" y="73" font-size="30" font-weight="bold">.html</text>
+              <text x="17" y="97" font-size="9">keep · play · pass on</text>
+            </g>
+            <path d="M221 336 H297 M283 329 L298 336 L283 343" fill="none" stroke="#243c32" stroke-width="2"/>
+            <g transform="translate(317 295)">
+              <rect x="4" y="4" width="112" height="76" fill="#243c32"/>
+              <rect width="112" height="76" fill="#f8faef" stroke="#243c32" stroke-width="2"/>
+              <circle cx="36" cy="32" r="9" fill="#f1706f" stroke="#243c32"/><path d="M19 59 Q36 37 53 59" fill="#f1706f" stroke="#243c32"/>
+              <circle cx="78" cy="32" r="9" fill="#94d2e5" stroke="#243c32"/><path d="M61 59 Q78 37 95 59" fill="#94d2e5" stroke="#243c32"/>
+              <text x="56" y="99" text-anchor="middle" font-size="10">2026 → together</text>
+            </g>
+          </svg>
+          <figcaption>Local server → hosted platform → portable games</figcaption>
+        </figure>
+      </section>
+      <div class="prologue"><span class="small-label">Scope of this timeline</span><p>Major technical changes, with dates and commit references. The original aim was local social games on phones people already used. The current direction is standalone games that people can run and share, including multiplayer, beyond the life of the Homegames servers.</p></div>
+      <section class="architecture-sequence" id="architecture-sequence" aria-labelledby="architecture-title">
+        <div class="eyebrow">Six architecture snapshots</div>
+        <h2 id="architecture-title">Where does the game live?</h2>
+        <p class="architecture-intro">Follow the simulation, the files, and the connection between players. These are overlapping arrangements, not six clean replacements: the public demo and TLS work developed together, and self-hosting remained an option as hosted services grew.</p>
+        <div class="architecture-controls" id="architecture-controls" role="group" aria-label="Choose an architecture snapshot" hidden>
+          <button type="button" data-architecture="architecture-home" aria-controls="architecture-home" aria-pressed="false">01 Home server</button>
+          <button type="button" data-architecture="architecture-demo" aria-controls="architecture-demo" aria-pressed="false">02 Public demo</button>
+          <button type="button" data-architecture="architecture-tls" aria-controls="architecture-tls" aria-pressed="false">03 TLS + helpers</button>
+          <button type="button" data-architecture="architecture-platform" aria-controls="architecture-platform" aria-pressed="false">04 Hosted platform</button>
+          <button type="button" data-architecture="architecture-browser" aria-controls="architecture-browser" aria-pressed="false">05 Browser host</button>
+          <button type="button" data-architecture="architecture-portable" aria-controls="architecture-portable" aria-pressed="false">06 Portable + P2P</button>
+          <button type="button" id="architecture-show-all" aria-pressed="false" aria-controls="architecture-stages">Show all</button>
+        </div>
+        <p class="architecture-status" id="architecture-status" role="status" hidden></p>
+        <div class="architecture-legend" aria-label="Diagram legend">
+          <span><i style="background:var(--green)" aria-hidden="true"></i>Game runs here</span><span><i style="background:var(--blue)" aria-hidden="true"></i>Player client</span><span><i style="background:var(--yellow)" aria-hidden="true"></i>Stored files / records</span><span><i style="background:#f7b3a6" aria-hidden="true"></i>Supporting service</span><span><i class="solid" aria-hidden="true"></i>Live play / peer data</span><span><i class="dashed" aria-hidden="true"></i>Load / save / setup</span>
+        </div>
+        <div id="architecture-stages">
+          <article class="architecture-stage" id="architecture-home" aria-labelledby="architecture-home-title">
+            <div class="small-label">01 / 2018–2019</div>
+            <h3 id="architecture-home-title">A game server in your home.</h3>
+            <p class="stage-deck">One computer runs the game. Phones and other browsers draw its output and send input back.</p>
+            <figure>
+            <div class="diagram-scroll" tabindex="0" role="region" aria-label="A game server in your home. diagram, scroll horizontally on small screens">
+              <svg viewBox="0 0 1000 480" role="img" aria-labelledby="architecture-home-svg-title architecture-home-svg-desc">
+                <title id="architecture-home-svg-title">A game server in your home.</title><desc id="architecture-home-svg-desc">An app server serves the browser over HTTP. The browser exchanges scenes and input with a self-hosted Node game server over WebSocket. Source and authoritative game state live on the owner’s computer.</desc>
+                <defs><marker id="architecture-home-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse"><path d="M0 0 L7 3.5 L0 7Z" fill="#243c32"/></marker></defs>
+                <rect class="diagram-zone" x="20" y="35" width="310" height="350" rx="12"/><text x="40" y="63" class="diagram-owner" text-anchor="start">PLAYERS · AT HOME</text><rect class="diagram-zone" x="440" y="35" width="540" height="350" rx="12"/><text x="460" y="63" class="diagram-owner" text-anchor="start">YOUR COMPUTER · SELF-HOSTED</text><g class="diagram-node player"><rect x="50" y="245" width="250" height="100" rx="5"/><text x="66" y="274" class="diagram-node-title" text-anchor="start">Browser</text><text x="66" y="298" class="diagram-node-detail" text-anchor="start">Draw the scene</text><text x="66" y="317" class="diagram-node-detail" text-anchor="start">Send touch / key input</text></g><g class="diagram-node service"><rect x="490" y="100" width="235" height="80" rx="5"/><text x="506" y="129" class="diagram-node-title" text-anchor="start">App server</text><text x="506" y="153" class="diagram-node-detail" text-anchor="start">Serve the browser client</text></g><g class="diagram-node runtime"><rect x="490" y="245" width="235" height="100" rx="5"/><text x="506" y="274" class="diagram-node-title" text-anchor="start">Node game server</text><text x="506" y="298" class="diagram-node-detail" text-anchor="start">Run game logic</text><text x="506" y="317" class="diagram-node-detail" text-anchor="start">Keep shared session state</text></g><g class="diagram-node storage"><rect x="760" y="245" width="195" height="100" rx="5"/><text x="776" y="274" class="diagram-node-title" text-anchor="start">Game files</text><text x="776" y="298" class="diagram-node-detail" text-anchor="start">Source on disk</text></g><path class="diagram-edge setup" d="M490 140 H175 V245" marker-end="url(#architecture-home-arrow)"/><text x="310" y="124" class="diagram-label" text-anchor="middle">HTTP · load client</text><path class="diagram-edge" d="M300 295 H490" marker-end="url(#architecture-home-arrow)" marker-start="url(#architecture-home-arrow)"/><text x="395" y="273" class="diagram-label" text-anchor="middle">WebSocket</text><text x="395" y="325" class="diagram-label" text-anchor="middle">scene ↔ input</text><path class="diagram-edge setup" d="M760 295 H725" marker-end="url(#architecture-home-arrow)"/><text x="50" y="430" class="diagram-note" text-anchor="start">No hosted game service in this play path.</text>
+              </svg>
+            </div>
+              <figcaption class="diagram-hint">Scroll the diagram sideways on a narrow screen. Its connections are also described below.</figcaption>
+            </figure>
+            <dl class="architecture-facts"><div><dt>Game runs</dt><dd>Your Node server owns the shared simulation; browsers render it.</dd></div><div><dt>Files live</dt><dd>On the server’s disk. The July prototype sends pixels; by December 2018 it sends scene descriptions.</dd></div></dl>
+            <p class="architecture-note">Snapshot: the scene-based local arrangement at the end of 2018. Later dashboards and discovery build on it.</p>
+            <details class="evidence"><summary>Evidence behind this diagram</summary><ul><li><a href="https://github.com/homegamesio/homegames-core/commit/7fb185f41a28246b551bb9bb4a0396ae6392bf77">homegames-core · 7fb185f</a> — July 2018 drawing server and pixel buffer.</li><li><a href="https://github.com/homegamesio/homegames-core/commit/e991517afa9052e1194da58ecbd98da52f4b4fdf">homegames-core · e991517</a> — December 2018 scene serialization and browser rendering.</li></ul></details>
+          </article>
+          <article class="architecture-stage" id="architecture-demo" aria-labelledby="architecture-demo-title">
+            <div class="small-label">02 / Documented January 2019; TLS overlaps</div>
+            <h3 id="architecture-demo-title">picodeg.io puts the demo online.</h3>
+            <p class="stage-deck">The public demo moves the server out of the player’s home. Visitors can try Homegames without installing their own server.</p>
+            <figure>
+            <div class="diagram-scroll" tabindex="0" role="region" aria-label="picodeg.io puts the demo online. diagram, scroll horizontally on small screens">
+              <svg viewBox="0 0 1000 480" role="img" aria-labelledby="architecture-demo-svg-title architecture-demo-svg-desc">
+                <title id="architecture-demo-svg-title">picodeg.io puts the demo online.</title><desc id="architecture-demo-svg-desc">Visitors load a public web demo and connect to its Node game server. The operator supplies the source and runs the simulation. The first documented link is HTTP; the exact early TLS deployment is uncertain.</desc>
+                <defs><marker id="architecture-demo-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse"><path d="M0 0 L7 3.5 L0 7Z" fill="#243c32"/></marker></defs>
+                <rect class="diagram-zone" x="20" y="35" width="310" height="350" rx="12"/><text x="40" y="63" class="diagram-owner" text-anchor="start">PLAYERS · PUBLIC INTERNET</text><rect class="diagram-zone" x="440" y="35" width="540" height="350" rx="12"/><text x="460" y="63" class="diagram-owner" text-anchor="start">PICODEG.IO · PUBLIC DEMO</text><g class="diagram-node player"><rect x="50" y="245" width="250" height="100" rx="5"/><text x="66" y="274" class="diagram-node-title" text-anchor="start">Browser</text><text x="66" y="298" class="diagram-node-detail" text-anchor="start">Draw the scene</text><text x="66" y="317" class="diagram-node-detail" text-anchor="start">Send touch / key input</text></g><g class="diagram-node service"><rect x="490" y="100" width="235" height="80" rx="5"/><text x="506" y="129" class="diagram-node-title" text-anchor="start">Demo web app</text><text x="506" y="153" class="diagram-node-detail" text-anchor="start">Load the browser client</text></g><g class="diagram-node runtime"><rect x="490" y="245" width="235" height="100" rx="5"/><text x="506" y="274" class="diagram-node-title" text-anchor="start">Node game server</text><text x="506" y="298" class="diagram-node-detail" text-anchor="start">Run the demo</text><text x="506" y="317" class="diagram-node-detail" text-anchor="start">Keep shared session state</text></g><g class="diagram-node storage"><rect x="760" y="245" width="195" height="100" rx="5"/><text x="776" y="274" class="diagram-node-title" text-anchor="start">Demo source</text><text x="776" y="298" class="diagram-node-detail" text-anchor="start">Operator’s files</text></g><path class="diagram-edge setup" d="M490 140 H175 V245" marker-end="url(#architecture-demo-arrow)"/><text x="310" y="124" class="diagram-label" text-anchor="middle">Public URL · HTTP first</text><path class="diagram-edge" d="M300 295 H490" marker-end="url(#architecture-demo-arrow)" marker-start="url(#architecture-demo-arrow)"/><text x="395" y="273" class="diagram-label" text-anchor="middle">WebSocket</text><text x="395" y="325" class="diagram-label" text-anchor="middle">scene ↔ input</text><path class="diagram-edge setup" d="M760 295 H725" marker-end="url(#architecture-demo-arrow)"/><text x="50" y="430" class="diagram-note" text-anchor="start">Same game/server split; the operator hosts it for visitors.</text>
+              </svg>
+            </div>
+              <figcaption class="diagram-hint">Scroll the diagram sideways on a narrow screen. Its connections are also described below.</figcaption>
+            </figure>
+            <dl class="architecture-facts"><div><dt>Game runs</dt><dd>On the demo operator’s server. A public host is enough; this is not yet the later account, editor and publishing platform.</dd></div><div><dt>Files live</dt><dd>With the operator. The first README link is HTTP; later code explicitly supports certificates on picodeg.io.</dd></div></dl>
+            <p class="architecture-note">The maintainer recalls an improvised TLS setup, possibly after an HTTP-only start. The exact early proxy and deployment topology are unconfirmed; boxes here represent responsibilities, not a machine inventory.</p>
+            <details class="evidence"><summary>Evidence behind this diagram</summary><ul><li><a href="https://github.com/homegamesio/homegames-core/commit/d38f2ce11d9ad3e89525e15475eac92dad00fd97">homegames-core · d38f2ce</a> — January 5, 2019: README links the running Layer Test at http://picodeg.io.</li><li><a href="https://github.com/homegamesio/homegamesio/commit/cc9ca56abd0ec640c6533b0e43e8d7c6381b68be">homegamesio · cc9ca56</a> — November 2019 website describes the public demo.</li><li><a href="https://github.com/homegamesio/homegames-core/commit/4c4e13e37ac4bd9cdb085c65642824d95bc17b75">homegames-core · 4c4e13e</a> — December 2020: “working on picodegio”; loads key.pem/cert.pem for HTTPS.</li></ul></details>
+          </article>
+          <article class="architecture-stage" id="architecture-tls" aria-labelledby="architecture-tls-title">
+            <div class="small-label">03 / Experiments in 2019 · automation in 2020–2021</div>
+            <h3 id="architecture-tls-title">Secure transport, same game host.</h3>
+            <p class="stage-deck">HTTPS serves the client and WSS carries live play. Certificate and discovery services help a home server become reachable with a trusted name.</p>
+            <figure>
+            <div class="diagram-scroll" tabindex="0" role="region" aria-label="Secure transport, same game host. diagram, scroll horizontally on small screens">
+              <svg viewBox="0 0 1000 480" role="img" aria-labelledby="architecture-tls-svg-title architecture-tls-svg-desc">
+                <title id="architecture-tls-svg-title">Secure transport, same game host.</title><desc id="architecture-tls-svg-desc">A secure browser client connects directly to the self-hosted HTTPS and WSS game server. Local source and certificate keys stay on that computer. Optional homegames.link DNS and API/worker certificate services assist setup and renewal, not gameplay relay.</desc>
+                <defs><marker id="architecture-tls-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse"><path d="M0 0 L7 3.5 L0 7Z" fill="#243c32"/></marker></defs>
+                <rect class="diagram-zone" x="20" y="35" width="310" height="350" rx="12"/><text x="40" y="63" class="diagram-owner" text-anchor="start">PLAYERS · BROWSERS</text><rect class="diagram-zone" x="440" y="35" width="540" height="165" rx="12"/><text x="460" y="63" class="diagram-owner" text-anchor="start">OPTIONAL HOSTED INFRASTRUCTURE</text><rect class="diagram-zone" x="440" y="210" width="540" height="175" rx="12"/><text x="460" y="238" class="diagram-owner" text-anchor="start">YOUR COMPUTER</text><g class="diagram-node player"><rect x="50" y="245" width="250" height="100" rx="5"/><text x="66" y="274" class="diagram-node-title" text-anchor="start">Secure browser client</text><text x="66" y="298" class="diagram-node-detail" text-anchor="start">HTTPS page</text><text x="66" y="317" class="diagram-node-detail" text-anchor="start">Encrypted WebSocket</text></g><g class="diagram-node runtime"><rect x="490" y="245" width="235" height="100" rx="5"/><text x="506" y="274" class="diagram-node-title" text-anchor="start">HTTPS / WSS server</text><text x="506" y="298" class="diagram-node-detail" text-anchor="start">Run the game</text><text x="506" y="317" class="diagram-node-detail" text-anchor="start">Present TLS certificate</text></g><g class="diagram-node storage"><rect x="760" y="245" width="195" height="100" rx="5"/><text x="776" y="274" class="diagram-node-title" text-anchor="start">Local files</text><text x="776" y="298" class="diagram-node-detail" text-anchor="start">Source + TLS key</text></g><g class="diagram-node service"><rect x="490" y="80" width="465" height="100" rx="5"/><text x="506" y="109" class="diagram-node-title" text-anchor="start">Optional connection helpers</text><text x="506" y="133" class="diagram-node-detail" text-anchor="start">homegames.link discovery / DNS</text><text x="506" y="152" class="diagram-node-detail" text-anchor="start">API + worker certificate provisioning</text></g><path class="diagram-edge setup" d="M610 180 V245" marker-end="url(#architecture-tls-arrow)"/><text x="628" y="215" class="diagram-label" text-anchor="start">setup / renewal</text><path class="diagram-edge" d="M300 295 H490" marker-end="url(#architecture-tls-arrow)" marker-start="url(#architecture-tls-arrow)"/><text x="395" y="273" class="diagram-label" text-anchor="middle">HTTPS + WSS</text><text x="395" y="325" class="diagram-label" text-anchor="middle">scene ↔ input</text><path class="diagram-edge setup" d="M760 295 H725" marker-end="url(#architecture-tls-arrow)"/><text x="50" y="430" class="diagram-note" text-anchor="start">Helpers prepare the connection; gameplay goes to the game server.</text>
+              </svg>
+            </div>
+              <figcaption class="diagram-hint">Scroll the diagram sideways on a narrow screen. Its connections are also described below.</figcaption>
+            </figure>
+            <dl class="architecture-facts"><div><dt>Game runs</dt><dd>Still on the selected Node host. TLS encrypts transport; it does not move the simulation.</dd></div><div><dt>Shared services</dt><dd>Optional discovery, DNS and certificate provisioning. The TLS server can also load certificates supplied by its operator.</dd></div></dl>
+            <p class="architecture-note">This stage overlaps the public demo. The drawing combines the later helper-assisted self-hosting path; it does not claim all of these services existed in January 2019.</p>
+            <div class="architecture-variant">
+              <h4>Later variant: a public relay, December 2022</h4>
+              <p>A short code connects visitors to your running server. Both sides connect outward to the relay; in this mode it forwards live frames and input throughout the session. The game and its source stay on your machine.</p>
+              <div class="diagram-scroll" tabindex="0" role="region" aria-label="WebSocket relay variant diagram, scroll horizontally on small screens">
+                <svg viewBox="0 0 1000 210" role="img" aria-labelledby="architecture-relay-title architecture-relay-desc">
+                  <title id="architecture-relay-title">Self-hosted game, hosted WebSocket relay</title><desc id="architecture-relay-desc">A browser and a self-hosted Node game server connect to a public WebSocket relay. The relay assigns a short code and forwards scenes and input for the whole session. Unlike the later RTC signaling service, it remains in the live gameplay path.</desc>
+                  <defs><marker id="architecture-relay-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse"><path d="M0 0 L7 3.5 L0 7Z" fill="#243c32"/></marker></defs>
+                  <text x="40" y="35" class="diagram-owner">PLAYER DEVICE</text><text x="390" y="35" class="diagram-owner">HOSTED RELAY</text><text x="735" y="35" class="diagram-owner">YOUR COMPUTER</text>
+                  <g class="diagram-node player"><rect x="40" y="65" width="230" height="95" rx="5"/><text x="56" y="94" class="diagram-node-title">Guest browser</text><text x="56" y="118" class="diagram-node-detail">Join using short code</text><text x="56" y="137" class="diagram-node-detail">Render + send input</text></g>
+                  <g class="diagram-node service"><rect x="390" y="65" width="225" height="95" rx="5"/><text x="406" y="94" class="diagram-node-title">WebSocket relay</text><text x="406" y="118" class="diagram-node-detail">public.homegames.link</text><text x="406" y="137" class="diagram-node-detail">Forward live game traffic</text></g>
+                  <g class="diagram-node runtime"><rect x="735" y="65" width="230" height="95" rx="5"/><text x="751" y="94" class="diagram-node-title">Node game host</text><text x="751" y="118" class="diagram-node-detail">Run the game locally</text><text x="751" y="137" class="diagram-node-detail">Source on your disk</text></g>
+                  <path class="diagram-edge" d="M270 112 H390" marker-start="url(#architecture-relay-arrow)" marker-end="url(#architecture-relay-arrow)"/><text x="330" y="98" class="diagram-label" text-anchor="middle">WSS</text>
+                  <path class="diagram-edge" d="M615 112 H735" marker-start="url(#architecture-relay-arrow)" marker-end="url(#architecture-relay-arrow)"/><text x="675" y="98" class="diagram-label" text-anchor="middle">WSS</text>
+                  <text x="500" y="192" class="diagram-note" text-anchor="middle">The relay carries gameplay; certificate / DNS helpers above only assist setup.</text>
+                </svg>
+              </div>
+            </div>
+            <details class="evidence"><summary>Evidence behind this diagram</summary><ul><li><a href="https://github.com/homegamesio/homegames-core/commit/7ec0550bf0a582b5936e2b89f0988806bc65cae1">homegames-core · 7ec0550</a> — January 13, 2019: HTTPS/WSS experiment using localhost certificate files.</li><li><a href="https://github.com/homegamesio/homegames-core/commit/d76d7b68a09c1c5a58d3937d9ede54ea793332e6">homegames-core · d76d7b6</a> — February 2019: early SSL implementation removed.</li><li><a href="https://github.com/homegamesio/homegames-core/commit/c977074996df2234348dea20e02686e2cff7b001">homegames-core · c977074</a> — December 2020: account-aware certificate provisioning for the socket server.</li><li><a href="https://github.com/homegamesio/homegames-core/commit/92ad6389e49d166426a62a6d4f8118666c9ee455">homegames-core · 92ad638</a> — January 2021: DNS verification and more complete HTTPS startup.</li><li><a href="https://github.com/homegamesio/ws-relay/commit/b00a1c987b0c1edf2e41e61d0efa2c292cf31df1">ws-relay · b00a1c9</a> and <a href="https://github.com/homegamesio/homegames-core/commit/4595a542e74c404c3d8beb134981d483e9779ef6">homegames-core · 4595a54</a> — December 28, 2022: short-code relay, TLS socket support and Core’s outbound public connection.</li></ul></details>
+          </article>
+          <article class="architecture-stage" id="architecture-platform" aria-labelledby="architecture-platform-title">
+            <div class="small-label">04 / Services grow in 2021–2024 · snapshot: spring 2026</div>
+            <h3 id="architecture-platform-title">Creation and play become a platform.</h3>
+            <p class="stage-deck">Studio, source history, publishing and hosted sessions share a server-backed workflow. The browser is the interface; the platform holds the durable content and runs hosted games.</p>
+            <figure>
+            <div class="diagram-scroll" tabindex="0" role="region" aria-label="Creation and play become a platform. diagram, scroll horizontally on small screens">
+              <svg viewBox="0 0 1000 480" role="img" aria-labelledby="architecture-platform-svg-title architecture-platform-svg-desc">
+                <title id="architecture-platform-svg-title">Creation and play become a platform.</title><desc id="architecture-platform-svg-desc">Website and Studio use the content API over HTTPS. The API reads and writes Forgejo source history and MongoDB records and submits background work. Session creation reaches hosted Core/Homenames; Core fetches source through the API. The game client exchanges live scene and input data directly with Core over WSS.</desc>
+                <defs><marker id="architecture-platform-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse"><path d="M0 0 L7 3.5 L0 7Z" fill="#243c32"/></marker></defs>
+                <rect class="diagram-zone" x="20" y="35" width="280" height="410" rx="12"/><text x="40" y="63" class="diagram-owner" text-anchor="start">PLAYER / CREATOR DEVICE</text><rect class="diagram-zone" x="340" y="35" width="640" height="410" rx="12"/><text x="360" y="63" class="diagram-owner" text-anchor="start">HOSTED HOMEGAMES PLATFORM</text><g class="diagram-node player"><rect x="45" y="105" width="230" height="90" rx="5"/><text x="61" y="134" class="diagram-node-title" text-anchor="start">Website + Studio</text><text x="61" y="158" class="diagram-node-detail" text-anchor="start">Edit / publish / browse</text></g><g class="diagram-node player"><rect x="45" y="325" width="230" height="90" rx="5"/><text x="61" y="354" class="diagram-node-title" text-anchor="start">Game client</text><text x="61" y="378" class="diagram-node-detail" text-anchor="start">Render + send input</text></g><g class="diagram-node service"><rect x="385" y="105" width="250" height="100" rx="5"/><text x="401" y="134" class="diagram-node-title" text-anchor="start">Content API</text><text x="401" y="158" class="diagram-node-detail" text-anchor="start">Accounts, catalog, assets</text><text x="401" y="177" class="diagram-node-detail" text-anchor="start">Source / revision access</text></g><g class="diagram-node runtime"><rect x="385" y="325" width="250" height="90" rx="5"/><text x="401" y="354" class="diagram-node-title" text-anchor="start">Hosted Core</text><text x="401" y="378" class="diagram-node-detail" text-anchor="start">Homenames / sessions</text><text x="401" y="397" class="diagram-node-detail" text-anchor="start">Node game processes</text></g><g class="diagram-node storage"><rect x="740" y="105" width="215" height="100" rx="5"/><text x="756" y="134" class="diagram-node-title" text-anchor="start">Persistent content</text><text x="756" y="158" class="diagram-node-detail" text-anchor="start">Forgejo: source history</text><text x="756" y="177" class="diagram-node-detail" text-anchor="start">MongoDB: records</text></g><g class="diagram-node service"><rect x="740" y="325" width="215" height="90" rx="5"/><text x="756" y="354" class="diagram-node-title" text-anchor="start">Queue + workers</text><text x="756" y="378" class="diagram-node-detail" text-anchor="start">Publishing / validation</text><text x="756" y="397" class="diagram-node-detail" text-anchor="start">Background jobs</text></g><path class="diagram-edge setup" d="M275 150 H385" marker-end="url(#architecture-platform-arrow)" marker-start="url(#architecture-platform-arrow)"/><text x="330" y="135" class="diagram-label" text-anchor="middle">HTTPS</text><path class="diagram-edge setup" d="M635 150 H740" marker-end="url(#architecture-platform-arrow)" marker-start="url(#architecture-platform-arrow)"/><text x="688" y="135" class="diagram-label" text-anchor="middle">read / write</text><path class="diagram-edge" d="M275 370 H385" marker-end="url(#architecture-platform-arrow)" marker-start="url(#architecture-platform-arrow)"/><text x="330" y="353" class="diagram-label" text-anchor="middle">WSS</text><path class="diagram-edge setup" d="M510 205 V325" marker-end="url(#architecture-platform-arrow)" marker-start="url(#architecture-platform-arrow)"/><text x="528" y="252" class="diagram-label" text-anchor="start">launch session</text><text x="528" y="274" class="diagram-label" text-anchor="start">fetch source</text><path class="diagram-edge setup" d="M635 180 H690 V370 H740" marker-end="url(#architecture-platform-arrow)"/><text x="708" y="291" class="diagram-label" text-anchor="start">jobs</text>
+              </svg>
+            </div>
+              <figcaption class="diagram-hint">Scroll the diagram sideways on a narrow screen. Its connections are also described below.</figcaption>
+            </figure>
+            <dl class="architecture-facts"><div><dt>Game runs</dt><dd>Hosted Core launches game sessions. Browsers connect to the chosen session over WSS; the content API is not the live frame relay.</dd></div><div><dt>Files live</dt><dd>Hosted source history, metadata and assets support editing and publishing. Background services perform validation and other jobs.</dd></div></dl>
+            <p class="architecture-note">This is a late snapshot of the hosted architecture, not one simultaneous launch. Earlier versions used different account, storage and publishing services; self-hosting continued alongside it.</p>
+            <details class="evidence"><summary>Evidence behind this diagram</summary><ul><li><a href="https://github.com/homegamesio/api/commit/eb03859f15f8152cba5729b764efd3bf603a7ae8">api · eb03859</a> — November 2024: MongoDB/RabbitMQ migration.</li><li><a href="https://github.com/homegamesio/homegamesio/commit/5109c220604b5c515484e4dc1424cea6b3e6876f">homegamesio · 5109c22</a> — March 2026: Studio editor and source history.</li><li><a href="https://github.com/homegamesio/api/commit/f26c5a298efd39f0fe11925cf5f893ee958a53b4">api · f26c5a2</a> — March 2026: Forgejo-backed project and revision operations.</li><li><a href="https://github.com/homegamesio/homegamesio/commit/1efdd32a6a6cc972bccd8431a495b8ee1f524458">homegamesio · 1efdd32</a> — April 2026: request a hosted session, then connect using its WebSocket URL.</li></ul></details>
+          </article>
+          <article class="architecture-stage" id="architecture-browser" aria-labelledby="architecture-browser-title">
+            <div class="small-label">05 / July–October 2026 · RTC integration October 3</div>
+            <h3 id="architecture-browser-title">The game host moves into a browser.</h3>
+            <p class="stage-deck">One player’s browser becomes the authoritative game host. Other players join over WebRTC, while the hosted catalog and source services still supply the game.</p>
+            <figure>
+            <div class="diagram-scroll" tabindex="0" role="region" aria-label="The game host moves into a browser. diagram, scroll horizontally on small screens">
+              <svg viewBox="0 0 1000 480" role="img" aria-labelledby="architecture-browser-svg-title architecture-browser-svg-desc">
+                <title id="architecture-browser-svg-title">The game host moves into a browser.</title><desc id="architecture-browser-svg-desc">The host browser loads the game from hosted content services and runs its simulation. A signaling service introduces host and guest. Scene, media and input then travel over WebRTC directly or through a configured TURN relay. Hosted source and publishing remain in this intermediate architecture.</desc>
+                <defs><marker id="architecture-browser-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse"><path d="M0 0 L7 3.5 L0 7Z" fill="#243c32"/></marker></defs>
+                <rect class="diagram-zone" x="20" y="240" width="310" height="205" rx="12"/><text x="40" y="268" class="diagram-owner" text-anchor="start">HOST BROWSER</text><rect class="diagram-zone" x="670" y="240" width="310" height="205" rx="12"/><text x="690" y="268" class="diagram-owner" text-anchor="start">GUEST BROWSER</text><g class="diagram-node service"><rect x="50" y="70" width="290" height="110" rx="5"/><text x="66" y="99" class="diagram-node-title" text-anchor="start">Hosted content services</text><text x="66" y="123" class="diagram-node-detail" text-anchor="start">API, catalog, source + assets</text><text x="66" y="142" class="diagram-node-detail" text-anchor="start">Accounts / publishing remain</text></g><g class="diagram-node service"><rect x="690" y="70" width="260" height="110" rx="5"/><text x="706" y="99" class="diagram-node-title" text-anchor="start">Signaling service</text><text x="706" y="123" class="diagram-node-detail" text-anchor="start">Introduce peers</text><text x="706" y="142" class="diagram-node-detail" text-anchor="start">Exchange SDP / ICE</text></g><g class="diagram-node runtime"><rect x="50" y="310" width="250" height="100" rx="5"/><text x="66" y="339" class="diagram-node-title" text-anchor="start">Browser game host</text><text x="66" y="363" class="diagram-node-detail" text-anchor="start">Run game + render</text><text x="66" y="382" class="diagram-node-detail" text-anchor="start">Keep live session state</text></g><g class="diagram-node player"><rect x="700" y="310" width="250" height="100" rx="5"/><text x="716" y="339" class="diagram-node-title" text-anchor="start">Guest renderer</text><text x="716" y="363" class="diagram-node-detail" text-anchor="start">Draw incoming scenes</text><text x="716" y="382" class="diagram-node-detail" text-anchor="start">Send player input</text></g><path class="diagram-edge setup" d="M175 180 V310" marker-end="url(#architecture-browser-arrow)"/><text x="195" y="218" class="diagram-label" text-anchor="start">load game</text><path class="diagram-edge setup" d="M690 125 H410 V275 H275 V310" marker-end="url(#architecture-browser-arrow)"/><text x="475" y="108" class="diagram-label" text-anchor="middle">room setup</text><path class="diagram-edge setup" d="M825 180 V310" marker-end="url(#architecture-browser-arrow)"/><text x="842" y="218" class="diagram-label" text-anchor="start">join</text><path class="diagram-edge" d="M300 360 H700" marker-end="url(#architecture-browser-arrow)" marker-start="url(#architecture-browser-arrow)"/><text x="500" y="336" class="diagram-label" text-anchor="middle">WebRTC · scene / media ↔ input</text><text x="500" y="387" class="diagram-note" text-anchor="middle">direct path or configured TURN relay</text>
+              </svg>
+            </div>
+              <figcaption class="diagram-hint">Scroll the diagram sideways on a narrow screen. Its connections are also described below.</figcaption>
+            </figure>
+            <dl class="architecture-facts"><div><dt>Game runs</dt><dd>In one player’s browser. Guests render scenes and send input; they do not run a second authoritative simulation.</dd></div><div><dt>Files live</dt><dd>Hosted source, assets and catalog still participate. Moving gameplay off Core happens before removing centralized content ownership.</dd></div></dl>
+            <p class="architecture-note">This transition explains why “peer-to-peer gameplay” did not yet mean “no content backend.” A commit date establishes implementation work, not a deployment date.</p>
+            <details class="evidence"><summary>Evidence behind this diagram</summary><ul><li><a href="https://github.com/homegamesio/homegames-common/commit/78b4eabf953ebd189ec92ab901f3633fd7215d24">homegames-common · 78b4eab</a> — October 3: shared RTC signaling implementation.</li><li><a href="https://github.com/homegamesio/homegamesio/commit/13a973729acd768da9ccbe5830677efb0479b1a8">homegamesio · 13a9737</a> — October 3: browser-hosted Play, Studio integration and HTML exports.</li><li><a href="https://github.com/homegamesio/api/commit/60c4667524b1f56e8dc7d6f72b8904d984614834">api · 60c4667</a> — October 3: hosted-game validation for RTC listing and sharing.</li><li><a href="https://github.com/homegamesio/homegamesio/commit/fd55ab5c52ef2f599b0eb1b8bd73f283a88551e5">homegamesio · fd55ab5</a> — October 9: catalog and public-room discovery remain part of the flow.</li></ul></details>
+          </article>
+          <article class="architecture-stage" id="architecture-portable" aria-labelledby="architecture-portable-title">
+            <div class="small-label">06 / Today · October 2026</div>
+            <h3 id="architecture-portable-title">Keep the game. Host the session.</h3>
+            <p class="stage-deck">The website distributes static tools and curated games. Your projects live on your device; portable files and peer transfers let them travel without a central game repository.</p>
+            <figure>
+            <div class="diagram-scroll" tabindex="0" role="region" aria-label="Keep the game. Host the session. diagram, scroll horizontally on small screens">
+              <svg viewBox="0 0 1000 480" role="img" aria-labelledby="architecture-portable-svg-title architecture-portable-svg-desc">
+                <title id="architecture-portable-svg-title">Keep the game. Host the session.</title><desc id="architecture-portable-svg-desc">Studio stores source locally and exports ZIP or standalone HTML. A host browser runs the game. The static site supplies tools and curated packs, and a narrow connection API exchanges room and connection metadata. Browsers exchange play data or copies through WebRTC, directly or via optional TURN. Local play uses saved files; manual pairing can bypass Homegames signaling. Self-hosted Node servers remain an alternative.</desc>
+                <defs><marker id="architecture-portable-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse"><path d="M0 0 L7 3.5 L0 7Z" fill="#243c32"/></marker></defs>
+                <rect class="diagram-zone" x="20" y="35" width="310" height="430" rx="12"/><text x="40" y="63" class="diagram-owner" text-anchor="start">YOUR DEVICE</text><rect class="diagram-zone" x="670" y="215" width="310" height="250" rx="12"/><text x="690" y="243" class="diagram-owner" text-anchor="start">FRIEND’S DEVICE</text><g class="diagram-node storage"><rect x="50" y="90" width="250" height="100" rx="5"/><text x="66" y="119" class="diagram-node-title" text-anchor="start">Your game files</text><text x="66" y="143" class="diagram-node-detail" text-anchor="start">Studio: browser storage</text><text x="66" y="162" class="diagram-node-detail" text-anchor="start">Export: ZIP / HTML</text></g><g class="diagram-node service"><rect x="385" y="65" width="230" height="100" rx="5"/><text x="401" y="94" class="diagram-node-title" text-anchor="start">Connection API</text><text x="401" y="118" class="diagram-node-detail" text-anchor="start">Private room / SDP / ICE</text><text x="401" y="137" class="diagram-node-detail" text-anchor="start">No game content store</text></g><g class="diagram-node service"><rect x="700" y="65" width="250" height="100" rx="5"/><text x="716" y="94" class="diagram-node-title" text-anchor="start">Static homegames.io</text><text x="716" y="118" class="diagram-node-detail" text-anchor="start">Client, Studio, curated packs</text><text x="716" y="137" class="diagram-node-detail" text-anchor="start">No account to play or edit</text></g><g class="diagram-node runtime"><rect x="50" y="275" width="250" height="100" rx="5"/><text x="66" y="304" class="diagram-node-title" text-anchor="start">Browser game host</text><text x="66" y="328" class="diagram-node-detail" text-anchor="start">Run game + render</text><text x="66" y="347" class="diagram-node-detail" text-anchor="start">Own the live session</text></g><g class="diagram-node player"><rect x="700" y="275" width="250" height="100" rx="5"/><text x="716" y="304" class="diagram-node-title" text-anchor="start">Friend’s browser</text><text x="716" y="328" class="diagram-node-detail" text-anchor="start">Render + send input</text><text x="716" y="347" class="diagram-node-detail" text-anchor="start">Receive / save a copy</text></g><path class="diagram-edge setup" d="M175 190 V275" marker-end="url(#architecture-portable-arrow)" marker-start="url(#architecture-portable-arrow)"/><text x="192" y="220" class="diagram-label" text-anchor="start">load / save</text><path class="diagram-edge setup" d="M435 165 V195 H275 V275" marker-end="url(#architecture-portable-arrow)"/><text x="500" y="189" class="diagram-label" text-anchor="middle">setup only</text><path class="diagram-edge setup" d="M565 165 V195 H655 V290 H700" marker-end="url(#architecture-portable-arrow)"/><path class="diagram-edge setup" d="M825 165 V275" marker-end="url(#architecture-portable-arrow)"/><text x="842" y="203" class="diagram-label" text-anchor="start">load client</text><path class="diagram-edge setup" d="M700 115 H650 V26 H175 V90" marker-end="url(#architecture-portable-arrow)"/><text x="440" y="19" class="diagram-label" text-anchor="middle">optional starting point: curated game packs</text><path class="diagram-edge" d="M300 315 H700" marker-end="url(#architecture-portable-arrow)" marker-start="url(#architecture-portable-arrow)"/><text x="500" y="293" class="diagram-label" text-anchor="middle">WebRTC · live play / copy transfer</text><g class="diagram-node service"><rect x="415" y="395" width="170" height="68" rx="5"/><text x="431" y="424" class="diagram-node-title" text-anchor="start">TURN relay</text><text x="431" y="448" class="diagram-node-detail" text-anchor="start">When required</text></g><path class="diagram-edge" d="M300 350 H360 V430 H415" marker-end="url(#architecture-portable-arrow)" marker-start="url(#architecture-portable-arrow)"/><path class="diagram-edge" d="M585 430 H640 V350 H700" marker-end="url(#architecture-portable-arrow)" marker-start="url(#architecture-portable-arrow)"/>
+              </svg>
+            </div>
+              <figcaption class="diagram-hint">Scroll the diagram sideways on a narrow screen. Its connections are also described below.</figcaption>
+            </figure>
+            <dl class="architecture-facts"><div><dt>Game runs</dt><dd>In the host browser, or an optional self-hosted Node server using the same package. The browser host must stay open; there is no automatic host migration.</dd></div><div><dt>Files live</dt><dd>Studio projects in IndexedDB; exported ZIP/HTML wherever you keep them. Recipients can save independent copies. Exports are not full Studio-history or progress backups.</dd></div><div><dt>Shared services</dt><dd>Static hosting and private signaling; optional STUN/TURN. Self-hosted HTTPS can still use homegames.link and certificate services, whose own database/queue needs remain separate.</dd></div></dl>
+            <p class="architecture-note">This is how homegames.io works today. Saved games can play locally without Homegames. Automatic rooms currently end if signaling disconnects; manual pairing is a separate path and some networks still need a relay. Play and copy have separate UI flows, but joined players can currently request source through the gameplay protocol.</p>
+            <details class="evidence"><summary>Evidence and limits</summary><ul><li>Implementation as of October 2026, some of it not yet pushed: <code>homegamesio/scripts/build-site.js</code>, <code>studio-project-store.js</code>, <code>game-app.js</code>; <code>homegames-common/portable-project.js</code>, <code>portable-html.js</code>, <code>rtc-signaling.js</code>; <code>homegames-client/src/rtc-copy.js</code>, <code>rtc-manual.js</code>; <code>api/index.js</code>.</li><li>Local audit: <code>homegames-core/docs/local-ownership-audit.md</code>. Remaining work includes execution isolation, play/copy permissions, workspace recovery, migration exports and release-device/network checks.</li></ul></details>
+          </article>
+        </div>
+        <noscript><p class="diagram-hint">All six diagrams are shown. No JavaScript is needed to read or save this sequence.</p></noscript>
+      </section>
+      <div class="history-layout">
+        <nav class="chapter-nav" aria-label="Timeline chapters">
+          <p class="small-label">Chapters</p>
+          <ol>
+            <li><a href="#beginnings"><span>01</span>2018–19</a></li>
+            <li><a href="#framework"><span>02</span>2020</a></li>
+            <li><a href="#ecosystem"><span>03</span>2021–22</a></li>
+            <li><a href="#platform"><span>04</span>2023–24</a></li>
+            <li><a href="#experiments"><span>05</span>2025</a></li>
+            <li><a href="#browser"><span>06</span>2026</a></li>
+            <li><a href="#portable"><span>07</span>Next</a></li>
+          </ol>
+          <a class="end-link" href="#sources">About the sources ↗</a>
+        </nav>
+        <div class="chapters">
+<section class="chapter" id="beginnings" aria-labelledby="beginnings-title" style="--chapter-color:var(--blue)"><div class="chapter-head"><span class="chapter-num">01</span><span class="chapter-date">2018–2019</span></div><h2 id="beginnings-title">Drawing, browsers,<br>and a home server.</h2><p class="chapter-deck">The earliest code sends a shared drawing to connected browsers. By the end of 2019, Homegames has a dashboard, separate game sessions, and a way to find the server on a local network.</p><div class="architecture"><span class="small-label">The early arrangement</span><div class="flow"><div class="flow-node"><strong>Home server</strong>shared game state</div><span class="flow-arrow" aria-hidden="true">↔</span><div class="flow-node"><strong>Browsers</strong>drawing + input</div></div><p class="caption">The game runs on a machine in the house. Connected browsers display it and send input back.</p></div><ol class="milestones">
+  <li class="milestone"><time datetime="2018-05-12">MAY–JULY 2018</time><h3>The repository starts; a drawing prototype follows.</h3>
+    <p>The first commit on May 12 contains a README and license. A prototype arrives in July. By July 22, a server keeps a 320 × 180 pixel buffer and broadcasts drawing changes to connected browsers over WebSocket.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/ebacc4e1b94a493cf8705344af59d39958a523b1">homegames-core · ebacc4e</a> — The earliest commit in the checked history; repository setup, not a working game.</li>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/7fb185f41a28246b551bb9bb4a0396ae6392bf77">homegames-core · 7fb185f</a> — July 4: the first substantive prototype.</li>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/6b0bf7fa1087b603b44dc3275dd990d21b0a4155">homegames-core · 6b0bf7f</a> — July 22: “basic drawing app”; shared pixel state and drawing input.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2018-12-30">DECEMBER 30, 2018</time><h3>Send a scene instead of a screenful of pixels.</h3>
+    <p>Squisher changes from a rendered pixel grid to a description of entities: their colors, positions, and sizes. The browser draws the scene. That division between game state and browser rendering becomes a central part of Homegames.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/e991517afa9052e1194da58ecbd98da52f4b4fdf">homegames-core · e991517</a> — The serialization and rendering changes are visible in the Squisher and browser code.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2019-02-10">FEBRUARY 10, 2019</time><h3>Find the server without typing its local address.</h3>
+    <p>The homegames.link service is documented as an optional way to find a Homegames server in the same household. A server registers its local address; the service redirects a browser to it. It is a discovery helper, not a tunnel to another network.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames.link/commit/787c6754165324f853b847a603b4b19834e34370">homegames.link · 787c675</a> — README describes registration over WebSocket and lookup by public IP.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2019-12-14">DECEMBER 14, 2019</time><h3>A dashboard connects the games.</h3>
+    <p>The dashboard lists games, starts sessions on allocated ports, and tracks those sessions. A Home button provides a route back. Homegames now has a shell around the individual games.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/b7acb9b079fcf22addfee66acb87654b09678ccc">homegames-core · b7acb9b</a> — “working dashboard plus working home button.” Author date is December 14; committer date is December 24 in the replayed history.</li>
+      </ul>
+    </details>
+  </li></ol>
+</section>
+<section class="chapter" id="framework" aria-labelledby="framework-title" style="--chapter-color:var(--yellow)"><div class="chapter-head"><span class="chapter-num">02</span><span class="chapter-date">2020</span></div><h2 id="framework-title">The framework<br>gets its own home.</h2><p class="chapter-deck">Rendering, game logic, and shared data structures begin to separate into reusable projects. The repository split makes the individual pieces easier to develop independently.</p><div class="artifact"><span class="artifact-corner" aria-hidden="true"></span><span class="small-label">Repository boundary / January 2020</span><blockquote>core → squish + web</blockquote><p>The new repositories contain pieces of an existing project. Their initial commits are not the beginning of Homegames.</p></div><ol class="milestones">
+  <li class="milestone"><time datetime="2020-01-15">JANUARY 15–16, 2020</time><h3>Squish and the browser client split out.</h3>
+    <p>Squish gains its own repository with GameNode, colors, serialization, and tests. The existing browser client moves into homegames-web. Core removes its embedded browser files and shared primitives.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/squish/commit/514ea6d82f8a20df16e33f600400bd9c2079071f">squish · 514ea6d</a> — January 15: framework implementation and tests.</li>
+        <li><a href="https://github.com/homegamesio/homegames-web/commit/cde82714368371707d7bd56f32250c4a5f6eef87">homegames-web · cde8271</a> — January 15: existing client starts its separate repository.</li>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/1ae8d9688c892f9a631b0d2b631fe16dd17ccbd7">homegames-core · 1ae8d96</a> — January 16: removes the extracted code from Core.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2020-03-19">MARCH 19, 2020</time><h3>Run the backend in Docker.</h3>
+    <p>Core adds a Dockerfile and instructions for running the Homegames backend in a container, connected to the browser client. This packages the server as a whole; containers for individual game sessions arrive later.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/71462fccee55b85da8892a26d9fe140e71f49ec9">homegames-core · 71462fc</a> — Adds the Dockerfile, build exclusions, and README instructions; later merged into Core main.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2020-03-27">MARCH 27, 2020</time> <span class="branch-note">BRANCH EXPERIMENT</span><h3>An early WebRTC experiment.</h3>
+    <p>A separate development branch adds peer-connection negotiation and data channels, using WebSocket for setup. It is an early experiment, not the browser-hosted multiplayer implementation added in 2026.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/7ebb8838562d8c836f8e4f23c1132ce48ccd0401">homegames-core · 7ebb883</a> — Found on archived web-rtc-node / game-thing remote branches; not an ancestor of the current Core HEAD.</li>
+        <li><a href="https://github.com/homegamesio/homegames-web/commit/cff4e023f5753722682fc3cf19138b6dec04ead1">homegames-web · cff4e02</a> — Matching browser-side RTC experiment.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2020-12-12">DECEMBER 12, 2020</time><h3>Platform plumbing becomes a shared library.</h3>
+    <p>homegames-common starts collecting HTTP, certificate, and account helpers. The game framework remains Squish; this library handles code needed across the surrounding platform.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-common/commit/75080740a8201ab2b165eec6f55f86595ea913af">homegames-common · 7508074</a> — Early shared helpers, described by the commit as working with homegames.io.</li>
+      </ul>
+    </details>
+  </li></ol>
+</section>
+<section class="chapter" id="ecosystem" aria-labelledby="ecosystem-title" style="--chapter-color:var(--coral)"><div class="chapter-head"><span class="chapter-num">03</span><span class="chapter-date">2021–2022</span></div><h2 id="ecosystem-title">A catalog, a launcher,<br>and more ways to play.</h2><p class="chapter-deck">Homegames grows the systems around the games: accounts, distribution, versions, validation, and remote connections. Local loading develops alongside those services.</p><div class="architecture"><span class="small-label">The growing platform</span><div class="service-map"><span>accounts</span><span>catalog</span><span>game versions</span><span>validation</span><span>downloads</span><span>relay</span></div><p class="caption">Separate services support finding, submitting, distributing, and connecting to games.</p></div><ol class="milestones">
+  <li class="milestone"><time datetime="2021-01-13">JANUARY–FEBRUARY 2021</time><h3>A combined launcher and website accounts.</h3>
+    <p>The homegames launcher starts Core and the browser server together. Website signup, login, and email confirmation follow in February, backed by the account service. The launcher is not yet an Electron application.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames/commit/8440f5079edc37c0d1d8ad39cd77be19827a3d66">homegames · 8440f50</a> — January 13: forks the installed Core and Web packages.</li>
+        <li><a href="https://github.com/homegamesio/gatekeeper/commit/318d01d867731a57fcd8af4617dff4fbb92953c8">gatekeeper · 318d01d</a> — December 2020 account handlers use Cognito for signup and confirmation.</li>
+        <li><a href="https://github.com/homegamesio/homegamesio/commit/c284bddb9637bc5761d32be300d308922b686091">homegamesio · c284bdd</a> — February 7: website signup/login interfaces and confirmation page.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2021-04-07">APRIL–JULY 2021</time><h3>The catalog gets a publishing workflow.</h3>
+    <p>The landlord service exposes searchable game records and versions. Homedome adds a pipeline that downloads a chosen GitHub commit, inspects its files, runs a tester, and contacts the repository owner for approval.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/landlord/commit/e377a8ff5dbfe755fc5728cf3792ed9652f9e08c">landlord · e377a8f</a> — April 7: game and version records, queries, submission approval codes.</li>
+        <li><a href="https://github.com/homegamesio/homedome/commit/6ff065ed44428839a5e03142d84e114fba2c4d5a">homedome · 6ff065e</a> — July 24: code download, index.js checks, strace-based inspection, and approval email. Some validation/publication functions remain stubs; this is not a security guarantee.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2021-08-21">AUGUST 21, 2021</time><h3>Pick a version of a game.</h3>
+    <p>The dashboard gains working version selection. The chosen version is passed through download and session launch, and downloaded versions are stored separately.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/4962801ca33294a5fa40dd7ff334f94532efafe9">homegames-core · 4962801</a> — “Game versions (#55)” connects version selection to download and execution.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2022-07-16">MAY–JULY 2022</time><h3>Load games from a local library.</h3>
+    <p>Downloaded-game storage and metadata expand in May. In July, Core can scan a configured local game directory and launch a custom game directly from a path. Games do not all have to begin with a catalog lookup.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/ccca7a7190b889d5799b3b010755ce0d0cf37755">homegames-core · ccca7a7</a> — May 24: downloaded-game storage and dashboard metadata.</li>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/132856129c37da580a55a655eb8cd5ab7f1d8c82">homegames-core · 1328561</a> — July 16: LOCAL_GAME_DIRECTORY scanning and START_PATH. Downloading itself predates these changes.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2022-12-28">DECEMBER 2022</time><h3>Controllers and remote invitations.</h3>
+    <p>Homepad supplies gamepad input. A WebSocket relay allows remote players to join a running server using a short code, forwarding game frames and player input. Multiplayer still passes through that relay.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/d383fddd45536e10f1c31f6b9e76b9ce46adcc8b">homegames-core · d383fdd</a> — December 21: Homepad-backed gamepad handling.</li>
+        <li><a href="https://github.com/homegamesio/ws-relay/commit/b00a1c987b0c1edf2e41e61d0efa2c292cf31df1">ws-relay · b00a1c9</a> — December 28: short-code server lookup, player mapping, and bidirectional relay.</li>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/4595a542e74c404c3d8beb134981d483e9779ef6">homegames-core · 4595a54</a> — December 28: public relay integration and spectator work.</li>
+      </ul>
+    </details>
+  </li></ol>
+</section>
+<section class="chapter" id="platform" aria-labelledby="platform-title" style="--chapter-color:var(--blue)"><div class="chapter-head"><span class="chapter-num">04</span><span class="chapter-date">2023–2024</span></div><h2 id="platform-title">More capabilities.<br>More self-hosting options.</h2><p class="chapter-deck">The platform gains a consolidated API, a desktop shell, and saved game data. Other changes improve offline behavior and let operators choose more of their own infrastructure.</p><ol class="milestones">
+  <li class="milestone"><time datetime="2023-01-02">JANUARY 2, 2023</time><h3>Local games survive failed network lookups.</h3>
+    <p>“Revive offline” adds fallbacks to local game details and search results. If a remote request fails, the dashboard can still show games it already has.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/6106078de66ed43271fc7e421e9583ecf63d6ed5">homegames-core · 6106078</a> — Local metadata and search fallback paths in “Revive offline (#75)”.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2023-03-25">MARCH 25, 2023</time><h3>Catalog and publishing gather behind one API.</h3>
+    <p>A single HTTP server wires together game and asset creation, public game/version data, publishing, and contact handling. The API becomes a common entry point for the platform’s services.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/api/commit/cdaf0010b628454bb2efcd460b167d2de1e1d59d">api · cdaf001</a> — Routes are connected here; the March 5 initial commit has fewer active routes.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2023-07-01">JULY–DECEMBER 2023</time><h3>Publishing tests move into a container.</h3>
+    <p>Homedome, the publishing-validation worker, adds a Docker path for downloading and testing submitted game code in July. A dedicated validation image is checked in during December. Containerized testing becomes part of the publishing pipeline.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homedome/commit/093dd044cfcae8058ba4241b1c04a53f3ebdd5cc">homedome · 093dd04</a> — July 1: the publish handler invokes dockerPoke and runs the submitted archive through a Docker container.</li>
+        <li><a href="https://github.com/homegamesio/homedome/commit/79825fcd84d8a8a7d15d0aef02aa5b56906a69a8">homedome · 79825fc</a> — December 28: adds Poker-Dockerfile with Node and strace. These early changes do not yet specify the network and resource restrictions added in 2026.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2023-07-10">JULY–AUGUST 2023</time><h3>Version 1.0, then an Electron shell.</h3>
+    <p>Core and the launcher are versioned 1.0.0 on July 10. On August 20, the launcher adds an Electron window and local HTML shell. These are distinct changes a month apart.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/7777fb30ccd4e16f171e72fe3cb0a00f651dc52c">homegames-core · 7777fb3</a> — July 10: Core 1.0.0.</li>
+        <li><a href="https://github.com/homegamesio/homegames/commit/1c8642c0b70c6c57fc669f66b430da55aa779991">homegames · 1c8642c</a> — July 10: launcher 1.0.0 and packaging targets.</li>
+        <li><a href="https://github.com/homegamesio/homegames/commit/a50fe0ce29af4ee0fa6ad1d4023f33c728f4aa6e">homegames · a50fe0c</a> — August 20: Electron BrowserWindow and local HTML.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2023-12-26">DECEMBER 26, 2023</time><h3>Games get persistent save data.</h3>
+    <p>Child sessions load and store local JSON data and pass saveGame and saveData to game constructors. A click-count example demonstrates restoring progress between sessions.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/314770df32da433b1dd1c844ad5241be821b9933">homegames-core · 314770d</a> — The session save contract and persistent counter example.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2024-02-22">FEBRUARY 22, 2024</time><h3>Games and developers get public pages.</h3>
+    <p>The website adds game pages with descriptions, creators, version counts, publication dates, and a way to try a game. Developer profiles collect a creator’s games and profile details, including a configurable QR code.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegamesio/commit/7f3fe1fe64b59699a0e1dbf7ad0807eaec7b50bf">homegamesio · 7f3fe1f</a> — Adds game.html, dev.html, routes, and the related website and profile controls. Earlier February 19 work survives on a separate development branch; this commit is in the current site ancestry.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2024-11-11">NOVEMBER 11–24, 2024</time><h3>More of the platform can be hosted elsewhere.</h3>
+    <p>The API moves users, assets, and game data toward MongoDB, and background jobs toward RabbitMQ, with local password handling. Core makes its API address configurable. The separate worker repository, started in September, adds certificate issuance and local-model content generation in November.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/api/commit/eb03859f15f8152cba5729b764efd3bf603a7ae8">api · eb03859</a> — November 11: “Support self hosted stuff”; MongoDB and RabbitMQ changes. Some AWS integrations remain.</li>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/141a1475c74f7193317bc1655b6264a522dd7497">homegames-core · 141a147</a> — November 12: configurable API_URL for dashboard requests.</li>
+        <li><a href="https://github.com/homegamesio/worker/commit/c205ce63e77514a6d68eef6afaff62e3d5b74406">worker · c205ce6</a> — November 24: ACME certificate requests and content generation through node-llama-cpp. The first queue consumer was committed September 15 at 8abc598; its publishing handler was still a stub.</li>
+      </ul>
+    </details>
+  </li></ol>
+</section>
+<section class="chapter" id="experiments" aria-labelledby="experiments-title" style="--chapter-color:var(--coral)">
+  <div class="chapter-head"><span class="chapter-num">05</span><span class="chapter-date">2025</span><span class="branch-note">BRANCH WORK</span></div>
+  <h2 id="experiments-title">Agent-assisted<br>game experiments.</h2>
+  <p class="chapter-deck">The 2025 history includes a concentrated run of game prototypes and experiments with agentic development. Lemonade, Thangs, and an expanding camera test carry assistant credits in their metadata; Cursor project rules and a ViewableGame guide appear alongside the code.</p>
+  <div class="artifact">
+    <span class="small-label">Preserved on a development branch</span>
+    <p><code style="overflow-wrap:anywhere">hot-potato-improvements-jan-2025</code></p>
+    <p>36 commits dated 2025, including 24 on July 19–20. These original commits are outside the current Core main ancestry. This chapter records the experiments without treating them as released features or assuming none of their code was reused later.</p>
+  </div>
+  <ol class="milestones">
+  <li class="milestone"><time datetime="2025-01-26">JANUARY 26, 2025</time><h3>Hot Potato updates start the branch’s year.</h3>
+    <p>Core adds Squish 1.3.6 and updates Hot Potato. The branch keeps its January name as later work moves into other games.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/4c0b706a2815e0bb2b98356a56efb7b26fc92a32">homegames-core · 4c0b706</a> — Adds the Squish version, updates the runtime map, and changes Hot Potato.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2025-07-06">JULY 6–16, 2025</time><h3>Lemonade, Cursor rules, and a survival prototype.</h3>
+    <p>A Lemonade Stand prototype implements ingredients, recipes, pricing, weather, and customer simulation. A Cursor project-structure rules file is committed the same day. On July 16, Thangs adds a block-based survival prototype with enemies, projectiles, and per-player camera views.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/25c27f9bf294cc53b35b997221fbfb7884fd3af8">homegames-core · 25c27f9</a> — July 6: Lemonade Stand implementation; metadata credits “Assistant”.</li>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/4e03ac65286e031a7b1d29380b61b5ae6dda338c">homegames-core · 4e03ac6</a> — July 6: .cursor/rules/project-structure.mdc is added.</li>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/41ff4423ecc9282c76c72223d6c9a27c2d7a40ac">homegames-core · 41ff442</a> — July 16: more Lemonade work and the new Thangs prototype, credited to “User &amp; Assistant”.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2025-07-19">JULY 19–22, 2025</time><h3>A camera test grows into a resource-and-combat game.</h3>
+    <p>Enhanced View Test begins with player movement and independent camera views. Over a dense run of revisions it gains resource gathering, combat, upgrades, and a lemonade-stand system. The code is then split into managers, systems, and configuration modules. A ViewableGame development guide documents view handling, coordinates, and rendering patterns.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/496afefcdc63214412a79a5d35525a3e8e0ee822">homegames-core · 496afef</a> — July 19: initial Enhanced View Test, marked isTest and credited to “Assistant”.</li>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/ee9670a18a24e40cfb96dc8b619689112d846deb">homegames-core · ee9670a</a> — July 19: adds the 767-line ViewableGame development guide.</li>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/4bed336af3b9660f5d81440cbee130059dd985dc">homegames-core · 4bed336</a> — July 20: extracts CombatSystem and CombatConfig.</li>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/adc5b25971a37f3bf23ae13930cd17be58403465">homegames-core · adc5b25</a> — July 20: extracts LemonadeStandSystem and LemonadeConfig.</li>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/b13281e085e2bfff8ed027b517e2f807feeae6c5">homegames-core · b13281e</a> — July 20: resource management and game-state changes.</li>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/2786bb8480279dd44031ab48f49cc1fa1849a86f">homegames-core · 2786bb8</a> — July 22: further game and lemonade-system revisions.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2025-10-19">OCTOBER 19–26, 2025</time><h3>Halloween becomes Halloween Words.</h3>
+    <p>A Halloween prototype is added on October 19 and replaced by Halloween Words on October 25. Further revisions add and adjust falling items, collision handling, images, and sound. The branch’s game experiments continue beyond the July burst.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/287f36c2983dee4222b854590c63fa31daa033a6">homegames-core · 287f36c</a> — October 19: adds src/games/halloween/index.js.</li>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/7fbc6d1a641cfe13e476183b38c8dd2e8e143f1f">homegames-core · 7fbc6d1</a> — October 25: removes Halloween and adds Halloween Words.</li>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/c9313bd4e6f51c131f43a1d7cebe67c4bc073d3a">homegames-core · c9313bd</a> — October 26: continued Halloween Words revisions; the game credits Joseph Garcia.</li>
+      </ul>
+    </details>
+  </li>
+  </ol>
+  <details class="evidence"><summary>Branch and authorship notes</summary>
+    <ul>
+      <li>All 36 commits are present in the locally available <code>origin/hot-potato-improvements-jan-2025</code> history; none is an ancestor of the checked-out Core <code>main</code> at <code>61a9f58</code>. Counts use unique commits with author dates in 2025, not lines of code or releases.</li>
+      <li>The maintainer recalls this as a period of agentic-development testing. The checked-in assistant credits and Cursor rules support that context; they do not identify which model wrote each change or establish a game's release status.</li>
+    </ul>
+  </details>
+</section>
+<section class="chapter" id="browser" aria-labelledby="browser-title" style="--chapter-color:var(--yellow)"><div class="chapter-head"><span class="chapter-num">06</span><span class="chapter-date">2026</span></div><h2 id="browser-title">Studio expands.<br>Games move into browsers.</h2><p class="chapter-deck">Editing, media creation, publishing, and debugging gather in Studio. Docker adds isolation to server-side game runs and publishing tests. Browser execution, downloadable HTML, and RTC then change where games can run.</p><div class="architecture"><span class="small-label">A different place to run the game</span><div class="flow"><div class="flow-node"><strong>Host browser</strong>simulation + display</div><span class="flow-arrow" aria-hidden="true">↔</span><div class="flow-node"><strong>Guest browsers</strong>RTC + player input</div></div><p class="caption">Connection signaling still uses a service. The host tab must remain open. The October 3 implementation is not yet independent of Homegames signaling.</p></div><ol class="milestones">
+  <li class="milestone"><time datetime="2026-03-28">MARCH 28, 2026</time><h3>Studio adds browser editing and version history.</h3>
+    <p>The first Studio implementation includes a game list, file tree, editor, saved versions, and restore controls. Each game has a Forgejo repository behind the API. Projects still live on hosted infrastructure at this stage.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegamesio/commit/5109c220604b5c515484e4dc1424cea6b3e6876f">homegamesio · 5109c22</a> — Adds studio.html and studio.js; initial editor and history interface.</li>
+        <li><a href="https://github.com/homegamesio/api/commit/f26c5a298efd39f0fe11925cf5f893ee958a53b4">api · f26c5a2</a> — Forgejo-backed file operations, commits, restoration, and repository creation.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2026-03-29">MARCH 29–APRIL 14, 2026</time><h3>Preview, draw, and record inside Studio.</h3>
+    <p>Studio gains Run, Restart, and Stop controls, with preview updates after editing. An asset library follows, including uploads, audio previews, a pixel drawing tool, and microphone recording. These first previews send game code to a server.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegamesio/commit/4ee055acca7bd81cbb5c31743868e6064567ad03">homegamesio · 4ee055a</a> — March 29: preview panel and server-backed preview lifecycle.</li>
+        <li><a href="https://github.com/homegamesio/homegamesio/commit/2400f81cc17fd6195907654850e5bd213a0d7aac">homegamesio · 2400f81</a> — April 14: asset browser, drag-and-drop upload, 32 × 32 drawing exported as PNG, and microphone recording uploaded as WebM.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2026-04-15">APRIL 15–JULY 5, 2026</time><h3>Local servers can isolate individual games.</h3>
+    <p>A Core development branch adopts a shared session manager that can start each game in its own Docker container. The work reaches main in July. Game source is mounted read-only, with memory, CPU, and process limits. The original implementation falls back to a child process when Docker or its image is unavailable.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-common/commit/7103bb921de1d89997573d142083180c92165910">homegames-common · 7103bb9</a> — Adds GameSessionManager and Docker helpers: per-game containers, dropped capabilities, read-only source, optional writable saves, and a fork fallback. Running sessions still have network access.</li>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/bf92d5ec45ad2b5152e150d171297a300d427d88">homegames-core · bf92d5e</a> — April 15: branch implementation adds the homegames-runner image, container entry point, validation script, and dashboard integration. This original commit is outside current main ancestry.</li>
+        <li><a href="https://github.com/homegamesio/homegames-core/commit/406d10e3abe82876bd5aeb059226d8e6ec4d0b01">homegames-core · 406d10e</a> — July 5: the Docker image, validator, and session-management changes enter current Core main through the broader #102 commit.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2026-04-19">APRIL 19–21, 2026</time><h3>Publish a saved version and share a preview.</h3>
+    <p>Studio adds publishing controls beside saved commits, with pending, published, and failed statuses plus retries. Templates, shareable preview links, and live logs follow. The API also replaces Elasticsearch catalog queries with MongoDB search and lists games with published versions.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegamesio/commit/b91ee32f017d7eec6453c56aec7251fbef7c75be">homegamesio · b91ee32</a> — April 19: per-version publishing, status polling, errors, and retry controls.</li>
+        <li><a href="https://github.com/homegamesio/api/commit/75f179ec18a758c6f5632563c4f5954e723dae94">api · 75f179e</a> — April 19: publishing endpoints and MongoDB catalog search. A similar April 15 Elasticsearch-removal commit exists on a separate branch.</li>
+        <li><a href="https://github.com/homegamesio/homegamesio/commit/6eafb515f12f5807a86d62b6ca66c4610d88f255">homegamesio · 6eafb51</a> — April 21: templates, preview links, and streamed logs.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2026-04-23">APRIL 23, 2026</time><h3>The browser client becomes an embeddable library.</h3>
+    <p>homegames-client starts its own repository, separating browser rendering, input, and connection handling from the web server around it. Earlier browser history remains in Core and homegames-web.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-web-client/commit/e1a11c4b5c57d45563f3baac90496627fab5fa67">homegames-client · e1a11c4</a> — Initial extracted browser client.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2026-04-25">APRIL 25–MAY 23, 2026</time><h3>Publishing requires an isolated runtime check.</h3>
+    <p>The newer publishing worker downloads the selected commit and tests it in Docker with networking disabled, a read-only filesystem, resource limits, and a timeout. In May, publishing fails if Docker validation is unavailable, and a syntax-tree scan checks JavaScript files before execution.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/api/commit/5f6a2bb587b38555a22d852d04086d9d4ec3390f">api · 5f6a2bb</a> — April 25: api/worker.js integrates Docker validation after source, size, and license checks. At first, it could skip the runtime check if the helper was unavailable.</li>
+        <li><a href="https://github.com/homegamesio/homegames-common/commit/3a77c60aafadf0f06e58fc4081123acc473d3772">homegames-common · 3a77c60</a> — April 15 foundation: validation containers have no network, dropped capabilities, a read-only root/source, bounded temporary storage, and CPU/memory/process limits. Timed-out containers are stopped and removed.</li>
+        <li><a href="https://github.com/homegamesio/api/commit/a5f211717c589ce66b64b2df855f329f4c71cdf8">api · a5f2117</a> — May 23: Docker validation becomes mandatory; AST-based source scanning covers JavaScript files across the submitted archive. The runtime check loads and briefly exercises a game; it is not a proof of safety.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2026-05-30">MAY 30–JUNE 20, 2026</time><h3>Reusable media and AI editing join Studio.</h3>
+    <p>The asset browser adds personal and public collections, search, tags, and publishing controls. An AI edit interface proposes game-code changes for review. API queue endpoints and the separate worker’s local model runner follow, connecting an editing request to a generated result.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegamesio/commit/a04c90c88b99aa3be60b1320caeb98a677f2c1e0">homegamesio · a04c90c</a> — May 30: public asset catalog and “Ask AI to edit”; returned code enters the editor as an unsaved change.</li>
+        <li><a href="https://github.com/homegamesio/api/commit/76f635fd2173b5a51d8dc4de85f6fcbf56d276cd">api · 76f635f</a> — June 14: AI request, status, and result routes, with source and prompt sent to the inference queue.</li>
+        <li><a href="https://github.com/homegamesio/worker/commit/d732b8623d611ba05b43ee64406df299dfafa5b8">worker · d732b86</a> — June 20: the queue worker hands game-editing jobs to a persistent Python child and posts results back to the API.</li>
+        <li><a href="https://github.com/homegamesio/worker/commit/58a442b044c3baa91946ca4c3ff2827747d6e865">worker · 58a442b</a> — June 20: adds the local MLX model runner, authoring prompt, JavaScript syntax validation, and retry loop. Studio’s AI UI is temporarily hidden on July 5 and re-enabled August 15.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2026-07-06">JULY 6, 2026</time><h3>A game can run locally—and download as HTML.</h3>
+    <p>The client gains a LocalSession that runs game code in the browser. The API can package source, declared assets, and the client runtime into one HTML file. This early download path explicitly excludes multiplayer games.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-web-client/commit/29b740659ed9eca04b70f9a7a08bd89b87d0b5dc">homegames-client · 29b7406</a> — LocalSession, browser game loader, and local input dispatch.</li>
+        <li><a href="https://github.com/homegamesio/api/commit/02e69671a2cba814f597324c23e281fb1d679731">api · 02e6967</a> — Local-play manifests, asset bundles, and standalone HTML generation.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2026-07-07">JULY 7, 2026</time><h3>Start making a game without an account.</h3>
+    <p>Guest Studio lets someone choose a template, edit it, and run it locally in the browser. A saved guest draft can be restored or carried into a hosted project after signup. Accounts are still required for the hosted workflows at this stage.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegamesio/commit/43cf7a3336529a1c521236bd1b10054afcfc899b">homegamesio · 43cf7a3</a> — Guest templates, locally saved drafts, browser previews, and conversion to a hosted project; server-backed sharing remains available separately.</li>
+        <li><a href="https://github.com/homegamesio/api/commit/3d59c1b5d0c2b4e5c0b5491bce28e2962b36e613">api · 3d59c1b</a> — Public template-file endpoint supports guest creation.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2026-08-15">AUGUST 15, 2026</time><h3>Inspect scenes and scrub recorded frames.</h3>
+    <p>Studio adds a scene-tree inspector, node highlights, recorded-frame scrubbing, and input-event markers. A second simulated local player helps test multiple views. Find-in-file, syntax checks, staged file changes, and recovery of unsaved drafts improve the editor around it.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegamesio/commit/7206fc51c14667b89e7460e5c560b8216431d3c5">homegamesio · 7206fc5</a> — Adds the inspector, frame recordings retained after Stop, second-player preview, and editor recovery. Recordings capture rendered snapshots and input markers, not deterministic game replay.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2026-08-22">AUGUST 22, 2026</time><h3>Publishing checks the archive more closely.</h3>
+    <p>Validation adds a substantive README requirement, rejects symbolic links in the submitted archive, and checks the declared game name and Squish version before running it. Validation warnings are kept with the publishing result.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/api/commit/603fc0ea0c01e444794c539494529327c19b9602">api · 603fc0e</a> — Extends api/worker.js with archive checks, static metadata parsing, supported-version checks, and warning persistence.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2026-09-28">SEPTEMBER 28, 2026</time><h3>Artwork and sound can leave Studio as files.</h3>
+    <p>Drawing gains configurable dimensions, shapes, fill, undo, and touch or stylus input. Audio tools can layer, split, mute, and mix sounds into WAV files. Artwork, recordings, and mixes can be downloaded directly without an account or API.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegamesio/commit/6e59ed27270a52b0595c87136146ed276f2ff0e0">homegamesio · 6e59ed2</a> — Expanded drawing and audio tools, local media downloads, mobile navigation, and project search and archive controls.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2026-10-03">OCTOBER 3, 2026</time><h3>RTC multiplayer reaches the browser host.</h3>
+    <p>Website Play, Studio previews, and downloaded HTML games gain RTC invitations. Friends join the existing game running in the host’s browser. Studio no longer needs to upload preview source to Core just to share that session.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-common/commit/78b4eabf953ebd189ec92ab901f3633fd7215d24">homegames-common · 78b4eab</a> — Adds shared RTC signaling.</li>
+        <li><a href="https://github.com/homegamesio/homegames-web-client/commit/82c29d4933e77016e897861a26bdb5caaf190811">homegames-client · 82c29d4</a> — Adds RTC sessions, data-channel handling, and sharing UI.</li>
+        <li><a href="https://github.com/homegamesio/homegamesio/commit/13a973729acd768da9ccbe5830677efb0479b1a8">homegamesio · 13a9737</a> — Browser-hosted Play and Studio sharing; documents RTC in downloaded games.</li>
+        <li><a href="https://github.com/homegamesio/api/commit/60c4667524b1f56e8dc7d6f72b8904d984614834">api · 60c4667</a> — RTC listing validation and downloadable-game sharing.</li>
+      </ul>
+    </details>
+  </li>
+  <li class="milestone"><time datetime="2026-10-09">OCTOBER 9, 2026</time><h3>The public site puts playing first.</h3>
+    <p>The homepage and catalog center on game cards, featured games, and live rooms hosted in players’ browsers. Search and filters get shareable URLs. Game pages use the selected version’s manifest to offer play, multiplayer, download, and source options.</p>
+    <details class="evidence"><summary>Commit evidence</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegamesio/commit/fd55ab5c52ef2f599b0eb1b8bd73f283a88551e5">homegamesio · fd55ab5</a> — Rebuilds game discovery and version-aware play options. This is committed local history; it does not establish a deployment date.</li>
+      </ul>
+    </details>
+  </li>
+</ol>
+</section>
+          <section class="chapter" id="portable" aria-labelledby="portable-title" style="--chapter-color:var(--green)">
+            <div class="chapter-head"><span class="chapter-num">07</span><span class="chapter-date">OCTOBER 2026 →</span><span class="current-label">IN PROGRESS</span></div>
+            <h2 id="portable-title">Portable games.<br>Fewer dependencies.</h2>
+            <p class="chapter-deck">The current local refactor packages source, media, and a player together. It also removes accounts and hosted publishing from the active workflow and adds a manual connection path that can bypass Homegames signaling.</p>
+            <ul class="current-list">
+              <li><strong>A file you keep</strong><p>Export an ordinary ZIP of source and media, or one playable HTML file with the game and its runtime inside. A saved HTML game can run locally without loading Homegames.</p></li>
+              <li><strong>A copy you share</strong><p>Send the complete project over an RTC data channel. Once received, a copy has its own life: it can be played, saved, edited in Studio, or passed on again.</p></li>
+              <li><strong>A smaller website</strong><p>Build game pages and downloads as static files. Keep Studio projects in the browser. Remove accounts and centralized publishing from the active path.</p></li>
+              <li><strong>A way around</strong><p>Exchange connection offers and answers manually to pair loaded players without Homegames signaling. Keep a home server as another option.</p></li>
+            </ul>
+            <div class="outage" id="outage-sketch" data-offline="false">
+              <div class="small-label">Current connection paths</div>
+              <h3>What if Homegames goes away?</h3>
+              <div class="connection-service" id="service-state">homegames.io + connection API · available</div>
+              <div class="connection-sketch" aria-label="One player's browser hosts the game; a friend's browser connects over WebRTC">
+                <div class="peer"><strong>Your game</strong>saved file + browser</div>
+                <div class="peer-line"><span aria-hidden="true">↔</span>RTC</div>
+                <div class="peer"><strong>Your friend</strong>loaded player</div>
+              </div>
+              <div class="connection-explanation" aria-live="polite" aria-atomic="true" id="connection-explanation">
+                <p><strong>The convenient path.</strong> Open your game and invite a friend. Homegames signaling introduces the browsers; one browser runs the game and exchanges play data with the other over RTC.</p>
+                <p>The saved file also supports local play without the website. Ordinary automatic invitations still depend on the connection service.</p>
+              </div>
+              <div class="outage-controls" id="outage-controls" hidden><button type="button" id="outage-toggle" aria-pressed="false" aria-controls="service-state connection-explanation">Imagine Homegames is offline</button><span class="sketch-label">An illustration of the design,<br>not a live network test.</span></div>
+              <noscript><p><strong>During a Homegames outage:</strong> saved HTML games still support local play. With both players already loaded, manual offer/answer pairing can bypass Homegames signaling when the network permits a connection.</p></noscript>
+              <p class="fine-print">Independent of Homegames does not mean independent of the network. The host must stay open. Public STUN is optional; some networks require a TURN relay, which the manual interface does not configure. Automatic rooms currently close when signaling disconnects; they do not switch to manual pairing on their own.</p>
+            </div>
+            <details class="evidence"><summary>About this chapter</summary>
+      <ul>
+        <li>This chapter describes the site deployed in October 2026. Some of its commits are not public yet.</li>
+        <li>Implementation evidence: <code>homegames-common/portable-html.js</code>, <code>portable-project.js</code>; <code>homegames-client/src/rtc-manual.js</code>, <code>rtc-copy.js</code>; <code>homegamesio/scripts/build-site.js</code>, <code>studio-project-store.js</code>, <code>game-app.js</code>; <code>api/index.js</code>.</li>
+        <li>Joining a live game and receiving an independent copy are different actions. Source exports do not automatically include Studio snapshot history or the sender’s game progress.</li></ul></details>
+          </section>
+          <section class="destination" aria-labelledby="destination-title"><div class="eyebrow">Current direction</div><h2 id="destination-title">From hosted services<br>to standalone games.</h2><p>The focus now is portable game files, browser-hosted multiplayer, and fewer required services. The timeline will continue as the work does.</p><div class="destination-links"><a href="/catalog.html">Find a game <span aria-hidden="true">↗</span></a><a href="/studio.html">Make something <span aria-hidden="true">↗</span></a></div></section>
+        </div>
+      </div>
+      <section class="sources" id="sources" aria-labelledby="sources-title"><h2 id="sources-title">Sources and scope</h2><p>This is a selection of turning points from the local Git histories, not a release calendar. Dates are commit author dates. Coverage includes locally available branches and commits that may not have been pushed. Expand a milestone to inspect its source; a commit records work, not necessarily a public launch. The 2020 RTC experiment and 2025 game experiments are explicitly marked as branch work outside the current Core main ancestry. The final chapter describes work in progress as of <time datetime="2026-10-14">October 14, 2026</time>.</p><p>The chapters group technical changes; they do not infer personal motivations. The original aim and current direction above come from the maintainer. The timeline and diagrams are static HTML and remain readable without JavaScript. The logo and font are served by this site; following source links needs the linked site.</p><details><summary>Repositories behind the timeline</summary>
+      <ul>
+        <li><a href="https://github.com/homegamesio/homegames-core">homegames-core</a> — earliest experiments, game sessions, dashboard</li>
+        <li><a href="https://github.com/homegamesio/squish">squish</a> — scene model and game-state serialization</li>
+        <li><a href="https://github.com/homegamesio/homegames-web">homegames-web</a> — browser rendering and input</li>
+        <li><a href="https://github.com/homegamesio/homegames-common">homegames-common</a> — shared platform and session code</li>
+        <li><a href="https://github.com/homegamesio/homegames">homegames</a> — combined app and distribution</li>
+        <li><a href="https://github.com/homegamesio/homegamesio">homegamesio</a> — public website, Studio, media tools, and game discovery</li>
+        <li><a href="https://github.com/homegamesio/homegames.link">homegames.link</a> — finding a home server</li>
+        <li><a href="https://github.com/homegamesio/api">api</a> — platform, catalog, publishing worker, and connection services</li>
+        <li><a href="https://github.com/homegamesio/gatekeeper">gatekeeper</a> — early account service</li>
+        <li><a href="https://github.com/homegamesio/landlord">landlord</a> — catalog and version records</li>
+        <li><a href="https://github.com/homegamesio/homedome">homedome</a> — earlier publishing worker and containerized game validation</li>
+        <li><a href="https://github.com/homegamesio/worker">worker</a> — background jobs, certificates, and local-model game editing; distinct from api/worker.js</li>
+        <li><a href="https://github.com/homegamesio/ws-relay">ws-relay</a> — relaying game traffic</li>
+        <li><a href="https://github.com/homegamesio/homepad">homepad</a> — controller support</li>
+        <li><a href="https://github.com/homegamesio/homegames-web-client">homegames-client</a> — extracted browser client, now configured with the homegames-web-client remote</li></ul></details></section>
+    </main>
+    <p class="footer"><a href="#page-title">Back to the beginning ↑</a></p>
+  </div>
+  <!-- site-footer -->
+  <script>
+    (() => {
+      const architectureButtons = [...document.querySelectorAll('[data-architecture]')];
+      const architectureStages = architectureButtons.map(button => document.getElementById(button.dataset.architecture));
+      const architectureAll = document.getElementById('architecture-show-all');
+      const architectureStatus = document.getElementById('architecture-status');
+      let architectureIndex = Math.max(0, architectureStages.findIndex(stage => '#' + stage.id === location.hash));
+      let showAllArchitectures = false;
+      const showArchitecture = () => {
+        architectureStages.forEach((stage, index) => {
+          stage.hidden = !showAllArchitectures && index !== architectureIndex;
+          architectureButtons[index].setAttribute('aria-pressed', String(!showAllArchitectures && index === architectureIndex));
+        });
+        architectureAll.setAttribute('aria-pressed', String(showAllArchitectures));
+        architectureAll.textContent = showAllArchitectures ? 'Show one' : 'Show all';
+        architectureStatus.textContent = showAllArchitectures ? 'Showing all six architecture snapshots.'
+          : `Diagram ${architectureIndex + 1} of 6 · ${architectureStages[architectureIndex].querySelector('h3').textContent}`;
+      };
+      architectureButtons.forEach((button, index) => button.addEventListener('click', () => {
+        architectureIndex = index;
+        showAllArchitectures = false;
+        showArchitecture();
+      }));
+      architectureAll.addEventListener('click', () => {
+        showAllArchitectures = !showAllArchitectures;
+        showArchitecture();
+      });
+      addEventListener('hashchange', () => {
+        const index = architectureStages.findIndex(stage => '#' + stage.id === location.hash);
+        if (index < 0) return;
+        architectureIndex = index;
+        showAllArchitectures = false;
+        showArchitecture();
+        architectureStages[index].scrollIntoView();
+      });
+      showArchitecture();
+      document.getElementById('architecture-controls').hidden = false;
+      architectureStatus.hidden = false;
+
+      const sketch = document.getElementById('outage-sketch');
+      const toggle = document.getElementById('outage-toggle');
+      const explanation = document.getElementById('connection-explanation');
+      const onlineContent = explanation.innerHTML;
+      document.getElementById('outage-controls').hidden = false;
+      toggle.addEventListener('click', () => {
+        const offline = toggle.getAttribute('aria-pressed') !== 'true';
+        toggle.setAttribute('aria-pressed', String(offline));
+        sketch.dataset.offline = String(offline);
+        document.getElementById('service-state').textContent = offline
+          ? 'homegames.io + connection API · unavailable'
+          : 'homegames.io + connection API · available';
+        toggle.textContent = offline ? 'Bring Homegames back' : 'Imagine Homegames is offline';
+        explanation.innerHTML = offline
+          ? '<p><strong>The copy stays yours.</strong> A saved HTML game still runs locally. For multiplayer, both players need their players loaded or downloaded before the outage.</p><p><strong>Pair by hand.</strong> Exchange an offer and answer through another channel. Where the network permits, the browsers can connect without Homegames signaling. This starts a manual connection; it does not rescue an automatic room that disconnected.</p>'
+          : onlineContent;
+      });
+      const links = [...document.querySelectorAll('.chapter-nav ol a')];
+      const chapters = links.map(link => document.querySelector(link.getAttribute('href')));
+      let scheduled = false;
+      const updateChapter = () => {
+        scheduled = false;
+        let active = 0;
+        chapters.forEach((chapter, index) => { if (chapter.getBoundingClientRect().top <= Math.min(200, innerHeight * .3)) active = index; });
+        links.forEach((link, index) => {
+          if (index === active) link.setAttribute('aria-current', 'location');
+          else link.removeAttribute('aria-current');
+        });
+      };
+      addEventListener('scroll', () => { if (!scheduled) { scheduled = true; requestAnimationFrame(updateChapter); } }, { passive: true });
+      addEventListener('resize', updateChapter);
+      updateChapter();
+    })();
+  </script>
+</body>
+</html>

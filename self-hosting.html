@@ -3,181 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Homegames — Self-hosting</title>
+    <meta name="description" content="Run Homegames on a computer at home: download the server bundle, set it up, and let everyone on your network play from their browsers.">
+    <title>Self-hosting — Homegames</title>
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="manifest" href="/site.webmanifest">
-    <style>
-        @font-face { font-family: 'amateur'; src: url('/amateur.ttf'); }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        :root {
-            --bg-primary: #1a1a2e;
-            --bg-secondary: #16213e;
-            --bg-deep: #0a0a1a;
-            --bg-hover: #1a1a3e;
-            --border: #333;
-            --border-light: #444;
-            --text-primary: #eee;
-            --text-secondary: #aaa;
-            --text-muted: #888;
-            --accent-green: #A0EB5D;
-            --accent-blue: rgba(148, 210, 229, 255);
-            --accent-red: rgba(241, 112, 111, 255);
-            --accent-yellow: rgba(255, 247, 142, 255);
-            --logo-color: rgba(241, 112, 111, 255);
-            --code-bg: #0a0a1a;
-        }
-
-        body.light {
-            --bg-primary: #fbfff2;
-            --bg-secondary: #f0f4e8;
-            --bg-deep: #e8ecdf;
-            --bg-hover: #eef2e5;
-            --border: #ccc;
-            --border-light: #bbb;
-            --text-primary: #333;
-            --text-secondary: #555;
-            --text-muted: #777;
-            --accent-green: #4a9e2f;
-            --accent-blue: rgba(100, 170, 200, 255);
-            --accent-red: rgba(220, 90, 90, 255);
-            --accent-yellow: rgba(160, 150, 40, 255);
-            --logo-color: rgba(220, 90, 90, 255);
-            --code-bg: #f4f7ec;
-        }
-
-        body {
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.65;
-        }
-
-        #docs-header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 0 20px; height: 48px;
-            background: var(--bg-secondary); border-bottom: 1px solid var(--border);
-            position: sticky; top: 0; z-index: 10;
-        }
-        #docs-header .logo { font-family: 'amateur', monospace; font-size: 1.15em; color: var(--logo-color); text-decoration: none; }
-        #docs-header nav { display: flex; align-items: center; gap: 18px; font-size: 0.9em; }
-        #docs-header nav a { color: var(--accent-blue); text-decoration: none; }
-        #docs-header nav a:hover { text-decoration: underline; }
-        #theme-toggle { cursor: pointer; color: var(--text-muted); background: none; border: none; font-size: 0.9em; font-family: inherit; }
-
-        #layout { display: flex; max-width: 1200px; margin: 0 auto; align-items: flex-start; }
-
-        #sidebar {
-            width: 250px; flex-shrink: 0;
-            position: sticky; top: 48px;
-            max-height: calc(100vh - 48px); overflow-y: auto;
-            padding: 28px 8px 40px 20px;
-            font-size: 0.88em;
-        }
-        #sidebar .toc-group { color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; font-size: 0.78em; margin: 18px 0 6px; }
-        #sidebar a { display: block; color: var(--text-secondary); text-decoration: none; padding: 3px 8px; border-radius: 4px; }
-        #sidebar a:hover { background: var(--bg-hover); color: var(--text-primary); }
-
-        main {
-            flex: 1; min-width: 0;
-            padding: 32px 40px 120px;
-        }
-
-        main h1 { font-family: 'amateur', monospace; font-size: 2.2em; color: var(--logo-color); margin-bottom: 4px; line-height: 1.2; }
-        main .subtitle { color: var(--text-secondary); margin-bottom: 36px; font-size: 1.05em; }
-        main h2 {
-            font-family: 'amateur', monospace; font-size: 1.6em; color: var(--accent-green);
-            margin: 56px 0 14px; padding-top: 14px; border-top: 1px solid var(--border);
-        }
-        main h3 { font-size: 1.12em; color: var(--text-primary); margin: 30px 0 10px; }
-        main p { margin: 12px 0; color: var(--text-primary); max-width: 76ch; }
-        main ul, main ol { margin: 12px 0 12px 26px; max-width: 74ch; }
-        main li { margin: 6px 0; }
-        main a { color: var(--accent-blue); }
-        main strong { color: var(--text-primary); }
-
-        code {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-            font-size: 0.88em;
-            background: var(--code-bg);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 1px 5px;
-        }
-        pre {
-            background: var(--code-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 14px 16px;
-            overflow-x: auto;
-            margin: 14px 0;
-            max-width: 860px;
-        }
-        pre code { background: none; border: none; padding: 0; font-size: 0.85em; line-height: 1.55; }
-
-        .download-btn {
-            display: inline-block;
-            background: var(--accent-green);
-            color: var(--bg-primary);
-            font-weight: 600;
-            text-decoration: none;
-            padding: 10px 22px;
-            border-radius: 8px;
-            margin: 6px 0;
-        }
-        .download-btn:hover { filter: brightness(1.08); }
-
-        .callout {
-            border-left: 4px solid var(--accent-yellow);
-            background: var(--bg-secondary);
-            border-radius: 0 8px 8px 0;
-            padding: 12px 16px;
-            margin: 16px 0;
-            max-width: 820px;
-        }
-        .callout.danger { border-left-color: var(--accent-red); }
-        .callout.tip { border-left-color: var(--accent-green); }
-        .callout p { margin: 6px 0; }
-
-        table { border-collapse: collapse; margin: 14px 0; font-size: 0.92em; }
-        th, td { border: 1px solid var(--border); padding: 7px 12px; text-align: left; vertical-align: top; }
-        th { background: var(--bg-secondary); }
-
-        @media (max-width: 820px) {
-            #sidebar { display: none; }
-            main { padding: 24px 16px 100px; }
-            #docs-header nav { gap: 12px; }
-        }
-
-        /* Long guides remain navigable on narrow screens. */
-        main h2, main h3 { scroll-margin-top: 110px; }
-        main code { overflow-wrap: anywhere; }
-        pre code { overflow-wrap: normal; }
-        table { display: block; max-width: 100%; overflow-x: auto; }
-        .mobile-toc { display: none; }
-        @media (max-width: 820px) {
-            #docs-header { height: auto; min-height: 48px; flex-wrap: wrap; gap: 8px; padding: 10px 16px; }
-            #docs-header nav { flex-wrap: wrap; column-gap: 14px; row-gap: 6px; }
-            .mobile-toc { display: block; margin-bottom: 24px; padding: 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; }
-            main th, main td { min-width: 160px; }
-            .mobile-toc summary { cursor: pointer; color: var(--accent-green); font-weight: 600; }
-            .mobile-toc a { display: block; padding: 4px 0; }
-            .mobile-toc .toc-group { margin-top: 12px; color: var(--text-muted); }
-            #ask-form { flex-wrap: wrap; }
-            #ask-input { min-width: 0; }
-        }
-    </style>
+    <link rel="stylesheet" href="/app.css">
+    <link rel="stylesheet" href="/docs.css">
 </head>
 <body>
-    <div id="docs-header">
-        <a class="logo" href="/">Homegames</a>
-        <nav>
-            <a href="/how_it_works.html">How it works</a>
-            <a href="/docs.html">Make games</a>
-            <a href="/studio.html">Developer Studio</a>
-            <button id="theme-toggle">Light</button>
-        </nav>
-    </div>
+    <!-- site-header -->
+    <!-- docs-nav -->
 
     <div id="layout">
         <aside id="sidebar">
@@ -197,7 +32,7 @@
             <a href="#full-platform">Hosting the whole platform</a>
         </aside>
 
-        <main>
+        <main id="content">
             <details class="mobile-toc">
                 <summary>On this page</summary>
             <div class="toc-group">Setup</div>
@@ -218,17 +53,17 @@
             </details>
 <h1>Self-hosting Homegames</h1>
             <p class="subtitle">Run the game dashboard and shared sessions on one computer. Other devices
-                play through their browsers over your local network. A developer account is not required
-                for the home dashboard.</p>
+                play through their browsers over your local network. No account is needed.</p>
 
             <h2 id="overview">What you get</h2>
             <p>The server includes a dashboard, built-in games, a browser client, and session management.
-                You can browse the online catalog and install published games, join running sessions, or
-                use browser-local solo play for installed games. This does not install your own copy of
-                the public website, Developer Studio, or account and publishing services.</p>
-            <p>The launcher supervises <code>homegames-core</code>; shared game sessions run in separate
-                processes or Docker containers. Keep the server computer awake and the launcher running
-                while others play. Closing a player's browser is different from stopping the server.</p>
+                You can browse installed games, import portable game ZIPs, join running sessions, or
+                host installed games in a browser tab and invite people to them. This does not install your own copy of
+                this website or Studio.</p>
+            <p>The launcher supervises <code>homegames-core</code>. Dashboard Play runs the game in a host
+                browser tab, with household room discovery and RTC guests. Keep that tab open and awake.
+                The separate <strong>Host with WebSocket</strong> option runs game logic in a Node child
+                process or Docker container; that session depends on the server instead.</p>
             <div class="callout tip">
                 <p><strong>Start with the LAN address.</strong> For the downloadable bundle, open
                     <code>http://localhost:7001</code> on the server or
@@ -240,9 +75,10 @@
             <h2 id="download">Download a server bundle</h2>
             <p>The bundle contains Homegames source, dependencies, Node runtimes, and prefetched game
                 assets. You do not need to install Node, Git, or Docker to launch a supported bundle.
-                This is different from a game page's Download button, which produces one HTML game you can keep and open in your browser, with link sharing for multiplayer games.</p>
-            <p><a class="download-btn" id="download-btn" href="/builds/homegames.zip">⤓ Download Homegames ZIP &nbsp;·&nbsp; Windows / macOS / Linux</a></p>
-            <p><a class="download-btn" id="mac-download-btn" style="display:none">⤓ Download for macOS</a></p>
+                This is different from a game page's Download game pack link, which downloads one editable game.
+                Studio and the game player can also download a self-contained HTML copy of a single game.</p>
+            <p><a class="block-button green" id="download-btn" href="/builds/homegames.zip">⤓ Download Homegames ZIP &nbsp;·&nbsp; Windows / macOS / Linux</a></p>
+            <p><a class="block-button blue" id="mac-download-btn" style="display:none">⤓ Download for macOS</a></p>
             <p id="download-status" role="status"></p>
             <details id="download-checksums" hidden>
                 <summary>Verify your download (SHA-256)</summary>
@@ -251,9 +87,10 @@
             </details>
             <p><strong>ZIP:</strong> extract the entire archive before launching; keep its folders together.
                 On Windows, use <strong>Extract All</strong> before opening the launcher.
-                <strong>macOS DMG (when offered):</strong> open the disk image and copy the entire
-                <code>homegames</code> folder to your computer before launching. Keep the included
-                folders alongside <code>Play Mac.app</code>.</p>
+                <strong>macOS 2.0.3 and newer:</strong> copy <code>Play Mac.app</code> from the ZIP or
+                disk image to Applications, then open it. The app includes its own server, games and runtimes.
+                Older releases require their surrounding <code>homegames</code> folder and may fail
+                when macOS isolates a newly downloaded app; use 2.0.3 or newer when available.</p>
             <table>
                 <tr><th>Platform packaged by the current builder</th><th>Launch</th></tr>
                 <tr><td>Windows 10+ x64</td><td>Double-click <code>Play Windows.bat</code></td></tr>
@@ -286,40 +123,27 @@
                     use that major version when reproducing its environment. The source repos do not
                     declare one consistent minimum Node version.</li>
                 <li>For isolated shared sessions: a running Docker daemon and a built
-                    <code>homegames-runner</code> image. Browser-local solo play does not need Docker.</li>
-                <li>Internet for initial dependency installation, catalog downloads, uncached assets,
-                    link discovery, and certificate requests. Offline play needs the game's files and
-                    assets already present; the catalog itself remains an online service.</li>
+                    <code>homegames-runner</code> image. Browser-hosted play, including RTC guests, does not need Docker.</li>
+                <li>Internet for source dependency installation, optional link discovery, certificate requests,
+                    or public RTC signaling. New bundles include built-in game media and local RTC
+                    signaling; browsing installed games and playing on the LAN need no internet.</li>
             </ul>
 
             <h2 id="quick-start">Run from source</h2>
-            <p>The local packages use sibling <code>file:</code> dependencies. Clone them into one parent
-                directory and install the shared library before its consumers:</p>
+            <p>Clone the server and launcher into one parent directory. The server installs the
+                published client, shared library, Homepad and Squish packages from npm:</p>
 <pre><code>mkdir homegames-server
 cd homegames-server
-git clone https://github.com/homegamesio/homepad
-git clone https://github.com/homegamesio/homegames-common
-git clone https://github.com/homegamesio/homegames-client
 git clone https://github.com/homegamesio/homegames-core
 git clone https://github.com/homegamesio/homegames
 
-cd homepad
-npm install
-cd ../homegames-common
-npm install
-cd ../homegames-client
-npm install
-npm run build
-cd ../homegames-core
-npm install
+cd homegames-core
+npm ci
 cd ../homegames
-npm install</code></pre>
-            <p>Stop if any install or build fails. The client bundle must exist at
-                <code>homegames-client/dist/homegames-client.js</code> before serving the dashboard.
-                Squish versions are installed by <code>homegames-common</code>; cloning the Squish source
-                alone does not replace those packages. If the client reports a missing
-                <code>squish-NNN</code>, check its <code>src/squish-map.js</code> against common's
-                <code>game-loader.js</code> and dependencies: those lists must agree for a clean build.</p>
+npm ci</code></pre>
+            <p>Stop if either install fails. The published client includes its built browser bundle;
+                no separate client build is needed. Both browser and server run games written for
+                Squish 1.5.0 (<code>squish-150</code>).</p>
             <p>Create <code>homegames-core/config.json</code> with an explicit starting configuration.
                 This avoids inheriting older library defaults:</p>
 <pre><code>{
@@ -349,19 +173,19 @@ node index.js</code></pre>
             <ol>
                 <li>Check that the dashboard loads on the server computer.</li>
                 <li>Open the server's LAN IP and main port from another device on the same network.</li>
-                <li>Start a shared session and join it from both devices. This checks the session ports
-                    as well as the dashboard port.</li>
+                <li>Use Play and join the browser-hosted game from a second device. If using Host with
+                    WebSocket, also check that clients can reach the allocated child-session port.</li>
             </ol>
             <p>For discovery without HTTPS, set <code>LINK_ENABLED: true</code> in your JSON config and
                 restart. Visit <a href="https://homegames.link">homegames.link</a> from a device using the
                 same public internet connection. The service redirects to your server's LAN IP and port.
                 It does not relay traffic or make that private address accessible from the internet.</p>
             <h3>Enable secure connections</h3>
-            <p>The dashboard calls this <strong>Enable multiplayer</strong> under the homegames.link
+            <p>The dashboard calls this <strong>Enable homegames.link</strong> under the homegames.link
                 settings. It enables discovery and requests a certificate. Ordinary LAN multiplayer can
                 already work over HTTP; this setting adds the secure hostname path.</p>
             <ol>
-                <li>Choose <strong>Enable multiplayer</strong>. The server creates a private TLS key and
+                <li>Choose <strong>Enable homegames.link</strong>. The server creates a private TLS key and
                     signing request locally. Only the signing request goes to the Homegames API.</li>
                 <li>Wait for <strong>Certificate ready</strong>. Issuance depends on the API, background
                     worker, DNS, and certificate authority; it may take several minutes.</li>
@@ -382,13 +206,23 @@ npm start</code></pre>
             <p>Use the configured <code>HOME_PORT</code>. Direct execution has no launcher to honor the
                 dashboard's restart requests: after core exits to apply settings, start it again yourself.</p>
             <p>Set <code>START_PATH</code> to a game's directory or <code>index.js</code> to boot straight
-                into it. Relative paths resolve from the running core package directory. Restart to load
-                changed code; <code>npm run develop</code> currently references a missing
+                into it. Relative paths resolve from the running core package directory. Direct-start games
+                default to <code>START_MODE: "browser"</code>: Core serves files to a browser host on
+                the main port, without starting the ordinary dashboard/Homenames stack. Set
+                <code>START_MODE: "server"</code> for Node/WebSocket execution. Restart to load changed code; <code>npm run develop</code> currently references a missing
                 <code>hotload.js</code>, so it is not the source-start command.</p>
-            <p>For offline use, keep discovery, HTTPS provisioning, and error reporting off, and connect
-                by LAN address. The bundle seeds an asset cache from the files it includes. Games or assets
-                downloaded later need to be cached before disconnecting; runtime-created or externally
-                fetched content is not automatically included in the bundle.</p>
+            <p>New bundles keep game media inside the game folders and use local RTC signaling without
+                external STUN/TURN servers. Choose <strong>Play Offline</strong> in the Mac launcher,
+                <strong>Play Offline Windows.bat</strong>, or <code>./play-offline-linux.sh</code> to override
+                previously saved online settings. From source, run <code>node index.js --offline</code>
+                in the <code>homegames</code> launcher repository. The override lasts for that run and
+                keeps LAN play available over HTTP without changing saved settings.</p>
+
+            <p>To add a portable ZIP, open the dashboard on the host computer at its localhost address
+                and choose <strong>Import ZIP</strong>. The server validates it before saving a separate
+                revision under application data. Imports and saves survive replacing the bundle.
+                You can also place an unpacked game folder under <code>homegames-core/src/games</code>
+                and restart. Imported source executes when you play the game.</p>
 
             <h2 id="config">Configuration and ports</h2>
             <p>Values resolve in this order: environment variable, user application-data
@@ -408,6 +242,9 @@ npm start</code></pre>
                 <tr><td><code>TESTS_ENABLED</code></td><td>false</td><td>Show diagnostic/test games in the dashboard</td></tr>
                 <tr><td><code>ERROR_REPORTING</code></td><td>false</td><td>Enable configured error-report requests</td></tr>
                 <tr><td><code>START_PATH</code></td><td>Unset for dashboard builds</td><td>Start a specific game instead of the dashboard</td></tr>
+                <tr><td><code>START_MODE</code></td><td>browser (runtime default)</td><td>For direct-start games; use server for Node/WebSocket</td></tr>
+                <tr><td><code>RTC_SHARE_ORIGIN</code></td><td>local</td><td>Local signaling and LAN invitations. Set JSON null for public RTC helpers.</td></tr>
+                <tr><td><code>RTC_SIGNAL_URL</code>, <code>RTC_JOIN_URL</code></td><td>Homegames endpoints in public mode</td><td>Optional overrides for online invitations</td></tr>
             </table>
             <p><strong>Source defaults differ.</strong> With no config file, the common library currently
                 supplies main port <code>9801</code>, Homenames <code>7400</code>, session ports
@@ -424,7 +261,7 @@ npm start</code></pre>
                 <tr><td>macOS</td><td><code>~/Library/Application Support/homegames</code></td></tr>
                 <tr><td>Linux</td><td><code>~/.homegames</code></td></tr>
             </table>
-            <p>This contains the user config, certificates, asset cache, and server save data under
+            <p><code>HG_APP_DATA_DIR</code> can override this directory. It contains the user config, certificates, asset cache, and server save data under
                 <code>.save-data</code>. The current dashboard keeps downloaded games under
                 <code>hg-games</code> there. <code>LOCAL_GAME_DIRECTORY</code> can add a separate directory
                 of your own game source; the older <code>DOWNLOADED_GAME_DIRECTORY</code> setting is not
@@ -436,10 +273,11 @@ npm start</code></pre>
                 with the player's browser, outside this server backup.</p>
 
             <h2 id="ports">Firewall and network access</h2>
-            <p>For the current bundle, allow LAN clients to reach <strong>TCP 7001</strong> and the shared
-                session range <strong>TCP 7002–7099</strong>. Use your configured values if different.
-                Loading the dashboard proves only that the main port is reachable; entering a shared
-                game opens a WebSocket on its allocated session port.</p>
+            <p>For the current bundle, LAN clients reach the dashboard on <strong>TCP 7001</strong>.
+                Node/WebSocket hosting additionally uses <strong>TCP 7002–7099</strong>. Browser-hosted
+                games instead use RTC between host and guests, with signaling and ICE/STUN/TURN as
+                configured. Use your configured ports if different; loading the dashboard does not verify
+                every game transport.</p>
             <p>Homenames is a management service. The implementation listens without a loopback-only bind,
                 so “local API” does not mean the port is automatically private. Keep it restricted to
                 trusted callers. Some management actions require an internal secret, but session creation
@@ -455,8 +293,8 @@ npm start</code></pre>
                 <tr><td>Nothing at localhost</td><td>Read the launcher's errors; confirm the actual port and
                     whether the server is serving HTTP or HTTPS. Another installation or a user config may
                     have changed these values.</td></tr>
-                <tr><td>Blank dashboard / client script 404</td><td>Build the sibling browser client and
-                    check that <code>dist/homegames-client.js</code> exists. In a bundle, check that the
+                <tr><td>Blank dashboard / client script 404</td><td>Run <code>npm ci</code> in Core to restore the published browser client and
+                    check that <code>node_modules/homegames-client/dist/homegames-client.js</code> exists. In a bundle, check that the
                     archive was fully extracted.</td></tr>
                 <tr><td>“No Homegames servers found”</td><td>Enable discovery and restart. Check server and
                     browser use the same public connection. Try the LAN IP directly. Hosts without fresh
@@ -464,12 +302,15 @@ npm start</code></pre>
                 <tr><td>Certificate ready but setup page remains</td><td>Choose the restart button in
                     settings. If running core directly, restart it manually. Check logs for DNS or
                     certificate failures and use the assigned hostname for TLS.</td></tr>
-                <tr><td>Dashboard works; shared game will not start</td><td>Check Docker is running and
+                <tr><td>Dashboard works; Node/WebSocket game will not start</td><td>Check Docker is running and
                     <code>homegames-runner</code> is built, or enable the fork option. If Docker started
                     after core, restart core: a failed Docker check can stay cached. Check session logs
                     for unsupported Squish versions, missing assets, and port conflicts.</td></tr>
-                <tr><td>Game starts on server, fails on phone</td><td>Allow the configured session port
-                    range, check Wi-Fi client isolation, and use the server's LAN IP rather than localhost.</td></tr>
+                <tr><td>Browser Invite will not connect</td><td>Keep the host tab awake; check signaling, a
+                    compatible guest player and ICE/TURN reachability. Manual pairing bypasses signaling,
+                    but cannot guarantee a connection through every firewall.</td></tr>
+                <tr><td>Node game starts on server, fails on phone</td><td>Allow the configured child-port
+                    range, check Wi-Fi client isolation, and use the LAN address rather than localhost.</td></tr>
                 <tr><td>Installed game fails without internet</td><td>Its source may be installed while an
                     asset is still missing from the cache. Load it online first; games depending on online
                     services cannot become fully offline merely by installing source.</td></tr>
@@ -481,37 +322,25 @@ npm start</code></pre>
             </table>
 
             <h2 id="full-platform">Hosting the public services too</h2>
-            <p>A home game server is only part of the product. A complete independent platform also needs
-                the <code>homegamesio</code> website, API, MongoDB, Forgejo, RabbitMQ, a publishing worker
-                with Docker validation, and a built browser-client bundle for downloads. Email delivery
-                supports verification and password resets. The other worker supplies optional AI/docs jobs
-                and certificate issuance; discovery and certificates require DNS and domain configuration.</p>
-            <p>The website currently embeds Homegames service URLs in several entry points, so changing
-                one server-side config value does not redirect the whole site to your infrastructure.
-                Start with the <a href="/how_it_works.html#pieces">service map</a> and each repository's
-                configuration code. There is no single complete-platform installer in the server bundle.</p>
+            <p>Choose services by the features you need. The website, including Studio, is a static site:
+                build it from the <code>homegamesio</code> repository and serve the generated folder from any
+                static host. Projects, saves and exports live in each browser, so there is no account or game
+                database to run.</p>
+            <p>Automatic invitations and game-copy sharing need a signaling server (the <code>api</code>
+                repository runs one) and may need a TURN relay on some networks. The website reads its
+                signaling address from <code>signalingUrl</code> in <code>site.config.json</code>. Manual
+                pairing with downloaded players can bypass signaling.</p>
+            <p>Discovery and HTTPS certificates for home servers need the <code>homegames.link</code>
+                service plus the API's certificate service, which uses MongoDB, DNS for your domain and an
+                ACME certificate authority. Start with the <a href="/how_it_works.html#pieces">service map</a>
+                and each repository's configuration code. There is no single complete-platform installer in
+                the server bundle.</p>
             <p>For help, include your installation type, OS, configured ports, and the relevant error
                 without passwords or certificate keys. Email <a href="mailto:joseph@homegames.io">joseph@homegames.io</a>.</p>
         </main>
     </div>
+    <!-- site-footer -->
 
     <script src="/downloads.js"></script>
-    <script>
-        (() => {
-            const btn = document.getElementById('theme-toggle');
-            const apply = (light) => {
-                document.body.classList.toggle('light', light);
-                btn.textContent = light ? 'Dark' : 'Light';
-            };
-            let light = false;
-            try { light = localStorage.getItem('hg-studio-theme') === 'light'; } catch (e) {}
-            apply(light);
-            btn.onclick = () => {
-                light = !light;
-                apply(light);
-                try { localStorage.setItem('hg-studio-theme', light ? 'light' : 'dark'); } catch (e) {}
-            };
-        })();
-    </script>
 </body>
 </html>

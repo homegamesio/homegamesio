@@ -2,43 +2,29 @@
 // Homegames Studio
 // ---------------------------------------------------------------------------
 
-//const API_URL = 'http://localhost';
-const API_URL = 'https://api.homegames.io';//'http://localhost:80';
-
-// Gates the AI entry points (dashboard "AI Edit" button, "Generate with AI"
-// template option). The full pipeline (modal, polling, API, worker) is always
-// present — this flag only controls whether the UI exposes it.
-// Disabled for now: locally-hosted models aren't good/fast enough for
-// full game edits yet. The API endpoint is gated off too (AI_EDITS_ENABLED).
-const AI_FEATURES_ENABLED = true;
-
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
-let userInfo = null;
+
 // A ChatGPT save links back to this game; authentication stays in memory.
-let linkedGameId = new URLSearchParams(window.location.search).get('game');
-if (!/^[a-f0-9]{32}$/.test(linkedGameId || '')) linkedGameId = null;
+
 let isGuest = false;     // entered the studio without an account
 let games = [];
-let gamePage = 1;
-let gameTotal = 0;
-let gameSearch = '';
-let gameShowArchived = false;
-const GAMES_PER_PAGE = 20;
+
 let currentGame = null;
 let fileTree = [];
 let currentFile = null;
-let openFiles = {};      // path -> { content, sha, dirty, original }
+let openFiles = {};      // All project buffers, including files with closed tabs.
+let editorTabs = [];     // Visible tabs are separate from saved project contents.
 let pendingDeletions = []; // [{ path, sha }] staged removals (from moves) — committed on save
 let extraFolders = new Set(); // client-side empty folders (git only tracks files)
 let dragSrcPath = null;  // file path being dragged in the file tree
 let versions = [];
 let versionPage = 1;
 let viewingVersion = null; // null = HEAD, or { sha, message, date }
-let publishStatuses = {};  // commitSha -> { status, error, requestId, ... }
-let llmJob = null;         // { requestId, prompt } — open AI edit for currentGame; locks the editor
+  // commitSha -> { status, error, requestId, ... }
+         // { requestId, prompt } — open AI edit for currentGame; locks the editor
 let previewClient = null;
 let previewRtcHost = null;
 let previewShareDialog = null;
@@ -74,38 +60,6 @@ const hideError = () => {
     if (errorBannerTimer) { clearTimeout(errorBannerTimer); errorBannerTimer = null; }
 };
 
-const apiErrorMessage = (err) => {
-    if (err.status === 429) return 'Rate limit hit — you\'re doing that too often. Wait a moment and try again.';
-    if (err.status === 0) return 'Network error — check your connection and try again.';
-    const detail = err.error || err.message;
-    return detail ? String(detail) : `Request failed (HTTP ${err.status})`;
-};
-
-// opts.silent: don't show the global error banner (background polls, forms
-// with their own inline error display).
-const api = (method, path, body, opts = {}) => new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open(method, `${API_URL}${path}`, true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    if (userInfo) xhr.setRequestHeader('Authorization', `Bearer ${userInfo.token}`);
-    xhr.onreadystatechange = () => {
-        if (xhr.readyState === XMLHttpRequest.DONE) {
-            if (xhr.status >= 200 && xhr.status < 300) {
-                try { resolve(JSON.parse(xhr.response)); }
-                catch (e) { resolve(xhr.response); }
-            } else {
-                let err;
-                try { err = JSON.parse(xhr.response); } catch (e) { err = null; }
-                if (!err || typeof err !== 'object') err = { error: xhr.response };
-                err.status = xhr.status;
-                if (!opts.silent) showError(apiErrorMessage(err));
-                reject(err);
-            }
-        }
-    };
-    xhr.send(body ? JSON.stringify(body) : null);
-});
-
 const setStatus = (msg) => { const el = $('status-msg'); if (el) el.innerHTML = msg; };
 const hasUnsavedChanges = () => pendingDeletions.length > 0 || Object.values(openFiles).some(f => f.dirty);
 
@@ -113,240 +67,56 @@ const hasUnsavedChanges = () => pendingDeletions.length > 0 || Object.values(ope
 // per BYTE (latin1), so multi-byte UTF-8 characters mojibake on load — and
 // then get saved back corrupted. Decode the bytes as UTF-8 properly.
 // Keep in sync with view.html.
-const b64ToUtf8 = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
+
 
 if ($('error-banner-close')) $('error-banner-close').onclick = hideError;
 const confirmDiscard = () => confirm('You have unsaved changes. Discard them?');
 
 // ---------------------------------------------------------------------------
-// Blade navigation — three columns of increasing specificity (games → game →
-// version), Xbox-360-blades style: the active blade fills the screen, the
-// others collapse to clickable vertical strips.
+// The editor stays mounted while Games and Settings open above it.
 // ---------------------------------------------------------------------------
-
-let editorBladeOpened = false; // blade 3 stays hidden until a version is opened
-
-// Reassigned by the mobile bar module (bottom of this file); navigation and
-// dirty-state changes call it so the contextual action button stays current.
+let editorBladeOpened = false;
 let syncMobileBar = () => {};
 
 const setActiveBlade = (name) => {
-    // Fall back to the deepest reachable blade.
-    if (name === 'editor' && !editorBladeOpened) name = 'game';
-    // Guest games have no versions/settings — skip the game blade entirely.
-    if (name === 'game' && currentGame && currentGame.guest) name = 'editor';
-    if (name !== 'games' && !currentGame) name = 'games';
-    const blades = {
-        games: { el: $('blade-games'), available: true },
-        game: { el: $('blade-game'), available: !!currentGame && !currentGame.guest },
-        editor: { el: $('blade-editor'), available: !!currentGame && editorBladeOpened },
-    };
-    Object.entries(blades).forEach(([key, { el, available }]) => {
-        if (!el) return;
-        el.classList.remove('expanded', 'strip', 'hidden');
-        el.classList.add(!available ? 'hidden' : key === name ? 'expanded' : 'strip');
-    });
-    syncMobileBar();
-};
-
-document.querySelectorAll('.blade-strip').forEach(strip => {
-    strip.onclick = () => setActiveBlade(strip.dataset.blade);
-});
-
-// ---------------------------------------------------------------------------
-// Auth
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Token auto-refresh (tokens expire after 15 min, refresh every 12 min)
-// ---------------------------------------------------------------------------
-
-let tokenRefreshInterval = null;
-
-const startTokenRefresh = () => {
-    if (tokenRefreshInterval) clearInterval(tokenRefreshInterval);
-    tokenRefreshInterval = setInterval(() => {
-        if (!userInfo) return;
-        api('POST', '/auth/refresh', null, { silent: true })
-            .then(data => {
-                if (data.token) {
-                    userInfo.token = data.token;
-                    console.log('Token refreshed');
-                }
-            })
-            .catch(err => {
-                console.error('Token refresh failed:', err);
-            });
-    }, 12 * 60 * 1000); // 12 minutes
-};
-
-// Show/hide the "verify your email" banner based on current user state.
-const updateVerifyBanner = () => {
-    const banner = $('verify-banner');
-    if (banner) banner.style.display = (userInfo && !userInfo.verified) ? 'block' : 'none';
-};
-
-// Enter the studio app after a successful login/signup.
-const enterStudio = () => {
-    closeSignupGate();
-    isGuest = false;
-    $('studio-login').style.display = 'none';
-    $('studio-app').style.display = 'flex';
-    // Restore the games blade in case a guest session turned it into the template list
-    $('games-pane-header').textContent = 'My Games';
-    $('new-game-btn').style.display = '';
-    $('user-info').textContent = userInfo.displayName || '';
-    $('profile-settings-btn').style.display = '';
-    $('header-signin-btn').style.display = 'none';
-    if (userInfo.isAdmin) $('admin-btn').style.display = '';
-    updateVerifyBanner();
-    loadGames();
-    openLinkedGame();
-    startTokenRefresh();
-    syncMobileBar();
-    // Arrived via the signup gate with guest work in progress — send them back
-    // to their editor; Save Version now claims the game for their account.
-    if (currentGame && currentGame.guest) {
-        setActiveBlade('editor');
-        setStatus('Logged in — hit "Save Version" to save this game to your account.');
+    const picker = $('studio-games');
+    if (!currentGame) {
+        $('main-content').replaceChildren($('studio-empty-template').content.cloneNode(true));
+        $('main-content').querySelector('[data-open-games]').onclick = () => setActiveBlade('games');
     }
+    // Retain the navigation names used by older workspace backups.
+    if (name === 'games' || !currentGame) {
+        if (!picker.open && !$('studio-settings').open) {
+            $('studio-learn-menu').open = false;
+            $('studio-games-error').textContent = '';
+            picker.showModal();
+            $('studio-games-open').setAttribute('aria-expanded', 'true');
+        }
+    } else {
+        picker.close();
+        $('mobile-menu')?.classList.remove('open');
+        $('mobile-menu-btn')?.classList.remove('open');
+        for (const id of ['portable-history', 'file-tree', 'preview-panel']) $(id)?.classList.remove('mobile-visible');
+    }
+    syncMobileBar();
 };
-
-const doLogin = () => {
-    const username = $('login-username').value.trim();
-    const password = $('login-password').value;
-    const errorEl = $('login-error');
-    errorEl.textContent = '';
-    if (!username || !password) { errorEl.textContent = 'Username and password required'; return; }
-
-    $('login-btn').disabled = true;
-    $('login-btn').value = 'Logging in...';
-
-    api('POST', '/auth/login', { username, password, type: 'login' }, { silent: true })
-        .then(data => {
-            if (data.token) {
-                userInfo = {
-                    userId: data.userId,
-                    displayName: data.displayName,
-                    token: data.token,
-                    isAdmin: data.isAdmin || false,
-                    verified: !!data.verified,
-                };
-                enterStudio();
-            } else { errorEl.textContent = 'Login failed'; }
-        })
-        .catch((err) => { errorEl.textContent = (err && err.error) || 'Login failed'; })
-        .finally(() => { $('login-btn').disabled = false; $('login-btn').value = 'Log in'; });
-};
-
-$('login-btn').onclick = doLogin;
-$('login-password').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
-$('login-username').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('login-password').focus(); });
+$('studio-games-open').onclick = () => setActiveBlade('games');
+$('studio-games-close').onclick = () => $('studio-games').close();
+$('studio-games').addEventListener('close', () => {
+    $('studio-games-open').setAttribute('aria-expanded', 'false');
+    $('portable-template-picker').hidden = true;
+    syncMobileBar();
+});
+$('studio-games').addEventListener('click', event => {
+    if (event.target === $('studio-games')) {
+        const bounds = event.target.getBoundingClientRect();
+        if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) event.target.close();
+    }
+});
+$('studio-settings').addEventListener('close', () => syncMobileBar());
 
 // ---------------------------------------------------------------------------
-// Signup
-// ---------------------------------------------------------------------------
-
-const doSignup = () => {
-    const displayName = $('signup-username').value.trim();
-    const email = $('signup-email').value.trim();
-    const password = $('signup-password').value;
-    const confirm = $('signup-password-confirm').value;
-    const tos = $('signup-tos').checked;
-    const errorEl = $('signup-error');
-    errorEl.textContent = '';
-
-    if (!displayName || !email || !password) { errorEl.textContent = 'Display name, email, and password are required'; return; }
-    if (password !== confirm) { errorEl.textContent = 'Passwords do not match'; return; }
-    if (!tos) { errorEl.textContent = 'You must agree to the Terms of Service'; return; }
-
-    $('signup-btn').disabled = true;
-    $('signup-btn').value = 'Signing up...';
-
-    api('POST', '/auth/signup', { displayName, email, password }, { silent: true })
-        .then(data => {
-            if (data.token) {
-                userInfo = {
-                    userId: data.userId,
-                    displayName: data.displayName,
-                    token: data.token,
-                    isAdmin: false,
-                    verified: !!data.verified,
-                };
-                enterStudio();
-                setStatus('Account created — enter the code we emailed you to unlock publishing.');
-            } else {
-                errorEl.textContent = 'Signup failed';
-            }
-        })
-        .catch(err => {
-            const msg = (err && err.error) || (typeof err === 'string' ? err : 'Signup failed');
-            errorEl.textContent = msg;
-        })
-        .finally(() => { $('signup-btn').disabled = false; $('signup-btn').value = 'Sign up'; });
-};
-
-$('signup-btn').onclick = doSignup;
-$('signup-password-confirm').addEventListener('keydown', (e) => { if (e.key === 'Enter') doSignup(); });
-$('signup-username').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('signup-password').focus(); });
-$('signup-password').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('signup-password-confirm').focus(); });
-
-// Toggle between login and signup forms
-$('show-signup').onclick = () => {
-    $('login-form').style.display = 'none';
-    $('signup-form').style.display = 'flex';
-    $('signup-error').textContent = '';
-    $('signup-username').focus();
-};
-
-$('show-login').onclick = () => {
-    $('signup-form').style.display = 'none';
-    $('login-form').style.display = 'flex';
-    $('login-error').textContent = '';
-    $('login-username').focus();
-};
-
-// Resend verification code from the in-app banner.
-const resendVerifyEl = $('resend-verify');
-if (resendVerifyEl) {
-    resendVerifyEl.onclick = () => {
-        const status = $('resend-status');
-        if (status) status.textContent = 'Sending...';
-        api('POST', '/auth/resend')
-            .then(() => { if (status) status.textContent = 'Sent — check your inbox.'; })
-            .catch((err) => { if (status) status.textContent = (err && err.error) || 'Failed to resend.'; });
-    };
-}
-
-// Submit the email verification code from the in-app banner.
-const submitVerifyCode = () => {
-    const input = $('verify-code');
-    const status = $('resend-status');
-    const code = input ? input.value.trim() : '';
-    if (!code) { if (status) status.textContent = 'Enter the code from your email.'; return; }
-    if (status) status.textContent = 'Verifying...';
-    api('POST', '/auth/verify', { code })
-        .then(() => {
-            if (userInfo) userInfo.verified = true;
-            if (status) status.textContent = '';
-            updateVerifyBanner();
-            setStatus('Email verified — you can now publish and upload.');
-        })
-        .catch((err) => { if (status) status.textContent = (err && err.error) || 'Verification failed.'; });
-};
-const verifyCodeBtn = $('verify-code-btn');
-if (verifyCodeBtn) verifyCodeBtn.onclick = submitVerifyCode;
-const verifyCodeInput = $('verify-code');
-if (verifyCodeInput) verifyCodeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitVerifyCode(); });
-
-// ---------------------------------------------------------------------------
-// Guest mode — browse templates, edit, and run local previews without an
-// account. Server-backed actions (saving, online sessions, assets, profile)
-// open the signup gate instead. A guest "game" lives only in openFiles /
-// fileTree, seeded from a template; after signup, Save Version claims it as a
-// real game.
-// ---------------------------------------------------------------------------
-
+// Recover drafts from older Studio versions. All current projects are local.
 const GUEST_DRAFT_KEY = 'hg-guest-draft';
 
 const loadGuestDraft = () => {
@@ -355,525 +125,33 @@ const loadGuestDraft = () => {
 
 const clearGuestDraft = () => { try { localStorage.removeItem(GUEST_DRAFT_KEY); } catch (e) {} };
 
-// Logged-in games get a per-game draft too: dirty edits live only in memory
-// until Save Version, so a refresh or crash would eat them otherwise. Only
-// the uncommitted delta is stored — dirty contents plus staged deletion
-// paths — and the key is dropped as soon as the working set is clean.
-const gameDraftKey = (gameId) => 'hg-game-draft-' + gameId;
-
-const clearGameDraft = (gameId) => { try { localStorage.removeItem(gameDraftKey(gameId)); } catch (e) {} };
-
-const saveDraft = () => {
-    if (!currentGame) return;
-    if (currentGame.guest) {
-        const files = {};
-        Object.entries(openFiles).forEach(([path, data]) => { files[path] = data.content; });
-        try {
-            localStorage.setItem(GUEST_DRAFT_KEY, JSON.stringify({
-                templateId: currentGame.templateId,
-                name: currentGame.name,
-                files,
-            }));
-        } catch (e) {}
-        return;
-    }
-    if (viewingVersion) return;
-    const files = {};
-    Object.entries(openFiles).forEach(([path, data]) => { if (data.dirty) files[path] = data.content; });
-    const deletions = pendingDeletions.map(d => d.path);
-    try {
-        if (Object.keys(files).length === 0 && deletions.length === 0) {
-            localStorage.removeItem(gameDraftKey(currentGame.id));
-        } else {
-            localStorage.setItem(gameDraftKey(currentGame.id), JSON.stringify({ files, deletions }));
-        }
-    } catch (e) {}
-};
-
-// Offer to reapply a draft after a game's file tree loads. Contents overlay
-// as dirty edits; deletion paths re-stage against the freshly loaded shas
-// (a path that no longer exists is just skipped).
-const maybeRestoreGameDraft = () => {
-    if (!currentGame || currentGame.guest || viewingVersion) return;
-    let draft = null;
-    try { draft = JSON.parse(localStorage.getItem(gameDraftKey(currentGame.id))); } catch (e) {}
-    if (!draft) return;
-    const fileCount = Object.keys(draft.files || {}).length;
-    const delCount = (draft.deletions || []).length;
-    if (fileCount === 0 && delCount === 0) return;
-    const what = [
-        fileCount ? `${fileCount} edited file(s)` : '',
-        delCount ? `${delCount} deletion(s)` : '',
-    ].filter(Boolean).join(' and ');
-    if (!confirm(`You have unsaved edits to this game from a previous session (${what}). Restore them?`)) {
-        clearGameDraft(currentGame.id);
-        return;
-    }
-    Object.entries(draft.files || {}).forEach(([path, content]) => {
-        const entry = fileTree.find(f => f.path === path);
-        openFiles[path] = { content, sha: entry ? entry.sha : null, dirty: true, original: null };
-        if (!entry) fileTree.push({ path, type: 'blob', sha: null });
-    });
-    (draft.deletions || []).forEach(path => {
-        const entry = fileTree.find(f => f.path === path);
-        if (!entry || openFiles[path]) return;
-        pendingDeletions.push({ path, sha: entry.sha });
-        fileTree = fileTree.filter(f => f.path !== path);
-    });
-    renderFileTree();
-    renderTabs();
-    updateSaveButton();
-    setStatus('Restored unsaved edits from your last session');
-};
+const saveDraft = () => { if (currentGame && !viewingVersion) StudioPortable.changed(); };
 
 const enterGuestStudio = () => {
     isGuest = true;
     $('studio-login').style.display = 'none';
     $('studio-app').style.display = 'flex';
     $('user-info').textContent = '';
-    $('profile-settings-btn').style.display = 'none';
-    $('header-signin-btn').style.display = '';
-    renderGuestTemplateList();
+    // $('profile-settings-btn').style.display = 'none'; // Hosted profile control retired.
+    // $('header-signin-btn').style.display = ''; // Accounts retired.
+    // renderGuestTemplateList(); // Retired API template picker retained below for reference.
+    StudioPortable.showLibrary();
     syncMobileBar();
 };
 
-// In guest mode the games blade lists templates instead of "My Games".
-const renderGuestTemplateList = () => {
-    $('games-pane-header').textContent = 'Start from a template';
-    $('new-game-btn').style.display = 'none';
-    const list = $('game-list');
-    list.innerHTML = '<div class="file-tree-empty">Loading templates...</div>';
-
-    const templateItem = (title, description, onClick) => {
-        const el = document.createElement('div');
-        el.className = 'game-item';
-        const name = document.createElement('span');
-        name.className = 'game-item-name';
-        name.textContent = title;
-        el.appendChild(name);
-        if (description) {
-            const desc = document.createElement('span');
-            desc.className = 'game-item-desc';
-            desc.textContent = description;
-            el.appendChild(desc);
-        }
-        el.onclick = onClick;
-        return el;
-    };
-
-    api('GET', '/studio/templates').then(data => {
-        list.innerHTML = '';
-        const draft = loadGuestDraft();
-        if (draft && draft.files && Object.keys(draft.files).length) {
-            list.appendChild(templateItem(
-                'Resume your draft',
-                'Pick up where you left off' + (draft.name ? ` (${draft.name})` : ''),
-                () => startGuestGame({ id: draft.templateId, label: draft.name }, draft)
-            ));
-        }
-        (data.templates || []).forEach(t => {
-            list.appendChild(templateItem(t.label, t.description, () => startGuestGame(t)));
-        });
-    }).catch(() => { list.innerHTML = '<div class="file-tree-empty">Failed to load templates</div>'; });
-};
-
-// Seed an in-memory guest game from a template (optionally overlaying a saved
-// draft) and jump straight to the editor. No server game is created.
-const startGuestGame = (template, draft) => {
-    if (currentGame && hasUnsavedChanges() && !confirmDiscard()) return;
-    stopPreview();
-    setStatus('<span class="spinner"></span>Loading template...');
-
-    api('GET', `/studio/templates/${template.id}/files`)
-        .then(data => ({ label: data.label || template.label, templateFiles: data.files || {} }))
-        .catch(err => {
-            // A draft can outlive its template — open it with what we have
-            if (draft) return { label: template.label, templateFiles: {} };
-            throw err;
-        })
-        .then(({ label, templateFiles }) => {
-            currentGame = {
-                id: 'guest',
-                guest: true,
-                templateId: template.id,
-                name: (draft && draft.name) || label,
-            };
-            viewingVersion = null;
-            currentFile = null;
-            versions = [];
-            publishStatuses = {};
-            openFiles = {};
-            pendingDeletions = [];
-            extraFolders = new Set();
-            llmJob = null; // any open AI job belongs to a server game — stop watching it here
-
-            const contents = (draft && draft.files) || templateFiles;
-            Object.entries(contents).forEach(([path, content]) => {
-                const original = templateFiles[path] !== undefined ? templateFiles[path] : null;
-                openFiles[path] = { content, sha: null, dirty: content !== original, original };
-            });
-            fileTree = Object.keys(openFiles).map(p => ({ path: p, type: 'blob', sha: null }));
-            fileTree.sort((a, b) => {
-                const da = a.path.split('/').length, db = b.path.split('/').length;
-                if (da !== db) return da - db;
-                return a.path.localeCompare(b.path);
-            });
-
-            editorBladeOpened = true;
-            renderGameView();
-            renderFileTree();
-            updateVersionBadge();
-            updateSaveButton();
-            setStatus('');
-            if (openFiles['index.js']) switchToFile('index.js');
-            setActiveBlade('editor');
-            // Land guests with the game already running — open the play panel
-            // and start a local session (files are all in memory, no fetches)
-            if (openFiles['index.js']) {
-                if (!previewOpen) togglePreviewPanel();
-                previewMode = 'local';
-                startPreview();
-            }
-        })
-        .catch(err => {
-            console.error('Failed to load template', err);
-            setStatus('Failed to load template');
-        });
-};
-
-// The auth overlay over the running guest session. Gated actions open it on
-// the signup form with a contextual message; the header Sign in button opens
-// it on the login form.
-const openAuthOverlay = (message, mode) => {
-    saveDraft();
-    const msgEl = $('signup-gate-msg');
-    msgEl.textContent = message || '';
-    msgEl.style.display = message ? '' : 'none';
-    const signup = mode === 'signup';
-    $('login-form').style.display = signup ? 'none' : 'flex';
-    $('signup-form').style.display = signup ? 'flex' : 'none';
-    $('login-error').textContent = '';
-    $('signup-error').textContent = '';
-    $('studio-login').style.display = 'flex';
-    (signup ? $('signup-username') : $('login-username')).focus();
-};
-
-const openSignupGate = (message) => openAuthOverlay(message, 'signup');
-
-const closeSignupGate = () => {
-    $('signup-gate-msg').style.display = 'none';
-    $('studio-login').style.display = 'none';
-};
-
-$('signup-gate-back').onclick = closeSignupGate;
-$('header-signin-btn').onclick = () => openAuthOverlay('', 'login');
+const openSignupGate = () => showError('Open a browser project to use this tool. No account is needed.');
 
 // ---------------------------------------------------------------------------
 // Game list
 // ---------------------------------------------------------------------------
 
-const loadGames = () => {
-    const params = new URLSearchParams({ page: gamePage, limit: GAMES_PER_PAGE });
-    if (gameSearch) params.set('q', gameSearch);
-    if (gameShowArchived) params.set('archived', 'true');
-    api('GET', `/studio/games?${params}`).then(data => {
-        games = data.games || [];
-        gameTotal = data.total || games.length;
-        // A shrinking result set (search, archive) can strand the page past
-        // the end — snap back to the last page that has anything on it.
-        const lastPage = Math.max(1, Math.ceil(gameTotal / GAMES_PER_PAGE));
-        if (gamePage > lastPage) { gamePage = lastPage; loadGames(); return; }
-        renderGameList();
-    }).catch(err => console.error('Failed to load games', err));
-};
-
-const renderGameList = () => {
-    const list = $('game-list');
-    list.innerHTML = '';
-    if (!games.length) {
-        const empty = document.createElement('div');
-        empty.id = 'game-list-empty';
-        empty.textContent = gameSearch
-            ? 'No games match your search'
-            : (gameShowArchived ? 'No archived games' : 'No games yet');
-        list.appendChild(empty);
-    }
-    games.forEach(game => {
-        const el = document.createElement('div');
-        el.className = 'game-item' + (currentGame && currentGame.id === game.id ? ' active' : '');
-        const name = document.createElement('span');
-        name.className = 'game-item-name';
-        name.textContent = game.name;
-        el.appendChild(name);
-        if (game.description) {
-            const desc = document.createElement('span');
-            desc.className = 'game-item-desc';
-            desc.textContent = game.description;
-            el.appendChild(desc);
-        }
-        el.onclick = () => selectGame(game);
-        list.appendChild(el);
-    });
-
-    const pager = $('game-list-pager');
-    const lastPage = Math.max(1, Math.ceil(gameTotal / GAMES_PER_PAGE));
-    if (lastPage > 1) {
-        pager.style.display = 'flex';
-        $('game-page-info').textContent = `Page ${gamePage} of ${lastPage} (${gameTotal} games)`;
-        $('game-page-prev').disabled = gamePage <= 1;
-        $('game-page-next').disabled = gamePage >= lastPage;
-    } else {
-        pager.style.display = 'none';
-    }
-};
-
-$('game-page-prev').onclick = () => { if (gamePage > 1) { gamePage--; loadGames(); } };
-$('game-page-next').onclick = () => { gamePage++; loadGames(); };
-
-let gameSearchTimer = null;
-$('game-search').addEventListener('input', (e) => {
-    clearTimeout(gameSearchTimer);
-    gameSearchTimer = setTimeout(() => {
-        gameSearch = e.target.value.trim();
-        gamePage = 1;
-        loadGames();
-    }, 250);
-});
-
-const setGameFilter = (showArchived) => {
-    if (gameShowArchived === showArchived) return;
-    gameShowArchived = showArchived;
-    gamePage = 1;
-    $('game-filter-active').classList.toggle('active', !showArchived);
-    $('game-filter-archived').classList.toggle('active', showArchived);
-    loadGames();
-};
-$('game-filter-active').onclick = () => setGameFilter(false);
-$('game-filter-archived').onclick = () => setGameFilter(true);
-
-// ---------------------------------------------------------------------------
-// Game selection
-// ---------------------------------------------------------------------------
-
-const openLinkedGame = () => {
-    if (!linkedGameId || !userInfo) return;
-    const gameId = linkedGameId;
-    linkedGameId = null;
-    api('GET', `/games/${gameId}`).then(data => {
-        if (!data.game || data.game.developerId !== userInfo.userId) {
-            setStatus('This game is not available in your Homegames account.');
-            return;
-        }
-        selectGame(data.game);
-    }).catch(() => setStatus('Could not open the linked game. Select it from My Games.'));
-};
-
-const selectGame = (game) => {
-    // Re-clicking the already-loaded game just navigates to its blade.
-    if (currentGame && currentGame.id === game.id) { setActiveBlade('game'); return; }
-    if (currentGame && hasUnsavedChanges() && !confirmDiscard()) return;
-    stopPreview();
-    currentGame = game;
-    currentFile = null;
-    openFiles = {};
-    pendingDeletions = [];
-    extraFolders = new Set();
-    versions = [];
-    versionPage = 1;
-    viewingVersion = null;
-    publishStatuses = {};
-    editorBladeOpened = false;
-    llmJob = null;
-    renderGameList();
-    renderGameBlade();
-    renderGameView();
-    loadFiles().then(maybeRestoreGameDraft);
-    loadVersions();
-    loadPublishStatuses();
-    checkLLMJob();
-    setActiveBlade('game');
-};
-
-// The logo just navigates back to the games blade — the loaded game keeps its
-// state (including any unsaved edits) in the collapsed blades.
+// The logo opens the switcher without changing the working game.
 const goHome = () => setActiveBlade('games');
 
 $('logo-btn').onclick = goHome;
 $('header-asset-btn').onclick = () => openAssetModal();
 
 // ---------------------------------------------------------------------------
-// Profile settings modal (image, about, BTC address)
-// ---------------------------------------------------------------------------
-
-const updateProfileDescCount = () => {
-    const input = $('profile-desc-input');
-    $('profile-desc-count').textContent = `${input.value.length} / 200`;
-};
-
-const openProfileModal = () => {
-    if (!userInfo) {
-        openSignupGate('Create a free account to set up your developer profile.');
-        return;
-    }
-    $('profile-image-status').textContent = '';
-    $('profile-modal-error').textContent = '';
-    resetPasswordChangeSection();
-    // Load current profile
-    api('GET', '/profile').then(data => {
-        $('btc-address-input').value = data.btcAddress || '';
-        $('profile-desc-input').value = data.description || '';
-        updateProfileDescCount();
-        const preview = $('profile-image-preview');
-        if (data.image) {
-            preview.src = `${API_URL}/assets/${data.image}`;
-            preview.style.display = '';
-        } else {
-            preview.style.display = 'none';
-        }
-    }).catch(() => {});
-    showModal('profile-modal');
-};
-
-$('user-info').onclick = openProfileModal;
-$('profile-settings-btn').onclick = openProfileModal;
-$('profile-desc-input').addEventListener('input', updateProfileDescCount);
-$('profile-modal-close').onclick = () => hideModal('profile-modal');
-$('profile-modal-cancel').onclick = () => hideModal('profile-modal');
-
-// Profile image upload
-$('profile-image-input').onchange = () => {
-    const fileInput = $('profile-image-input');
-    const statusEl = $('profile-image-status');
-    if (!fileInput.files || fileInput.files.length === 0) return;
-
-    const file = fileInput.files[0];
-    if (file.size > 5 * 1024 * 1024) {
-        statusEl.textContent = 'Image must be under 5MB';
-        statusEl.style.color = 'rgba(241, 112, 111, 255)';
-        return;
-    }
-
-    statusEl.textContent = 'Uploading...';
-    statusEl.style.color = '#888';
-
-    // Upload as asset
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', `${API_URL}/asset`, true);
-    if (userInfo) xhr.setRequestHeader('Authorization', `Bearer ${userInfo.token}`);
-    const form = new FormData();
-    form.append('file', file);
-    form.append('description', 'Profile image');
-    xhr.onreadystatechange = () => {
-        if (xhr.readyState !== XMLHttpRequest.DONE) return;
-        if (xhr.status >= 200 && xhr.status < 300) {
-            let data;
-            try { data = JSON.parse(xhr.response); } catch (e) {}
-            if (data && data.assetId) {
-                // Set as profile image
-                api('POST', '/profile', { image: data.assetId }).then(() => {
-                    statusEl.textContent = 'Image updated!';
-                    statusEl.style.color = '#A0EB5D';
-                    const preview = $('profile-image-preview');
-                    preview.src = `${API_URL}/assets/${data.assetId}`;
-                    preview.style.display = '';
-                    setTimeout(() => { statusEl.textContent = ''; }, 2000);
-                }).catch(() => {
-                    statusEl.textContent = 'Failed to save';
-                    statusEl.style.color = 'rgba(241, 112, 111, 255)';
-                });
-            }
-        } else {
-            statusEl.textContent = 'Upload failed';
-            statusEl.style.color = 'rgba(241, 112, 111, 255)';
-        }
-    };
-    xhr.send(form);
-};
-
-// Change password — reuses the email-code reset flow (/auth/forgot + /auth/reset).
-// The code is typed from the email rather than clicked as a link, so email-client
-// prefetching can't consume it. Requires the account email, fetched via /auth/me.
-let pwChangeEmail = null;
-
-const setPwChangeStatus = (msg, kind) => {
-    const el = $('pw-change-status');
-    el.textContent = msg;
-    el.style.color = kind === 'ok' ? '#A0EB5D' : kind === 'err' ? 'rgba(241, 112, 111, 255)' : 'var(--text-dim)';
-};
-
-const resetPasswordChangeSection = () => {
-    pwChangeEmail = null;
-    $('pw-change-start').style.display = '';
-    $('pw-change-form').style.display = 'none';
-    $('pw-change-code').value = '';
-    $('pw-change-new').value = '';
-    $('pw-change-btn').disabled = false;
-    $('pw-change-btn').textContent = 'Change password';
-    setPwChangeStatus('', '');
-};
-
-$('pw-change-btn').onclick = () => {
-    const btn = $('pw-change-btn');
-    btn.disabled = true;
-    btn.textContent = 'Sending code...';
-    api('GET', '/auth/me', null, { silent: true }).then((me) => {
-        if (!me.email) return Promise.reject({ error: 'No email on file for this account' });
-        pwChangeEmail = me.email;
-        return api('POST', '/auth/forgot', { email: pwChangeEmail }, { silent: true });
-    }).then(() => {
-        $('pw-change-start').style.display = 'none';
-        $('pw-change-form').style.display = '';
-        setPwChangeStatus(`We emailed a code to ${pwChangeEmail}. Enter it below with your new password.`, '');
-        $('pw-change-code').focus();
-    }).catch((err) => {
-        btn.disabled = false;
-        btn.textContent = 'Change password';
-        setPwChangeStatus(apiErrorMessage(err), 'err');
-    });
-};
-
-$('pw-change-submit').onclick = () => {
-    const code = $('pw-change-code').value.trim();
-    const newPassword = $('pw-change-new').value;
-    if (!code) { setPwChangeStatus('Enter the code from the email', 'err'); return; }
-    if (newPassword.length < 8) { setPwChangeStatus('Password must be at least 8 characters', 'err'); return; }
-    const submitBtn = $('pw-change-submit');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Saving...';
-    api('POST', '/auth/reset', { email: pwChangeEmail, code, newPassword }, { silent: true }).then(() => {
-        resetPasswordChangeSection();
-        setPwChangeStatus('Password updated.', 'ok');
-    }).catch((err) => {
-        setPwChangeStatus(apiErrorMessage(err), 'err');
-    }).finally(() => {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Set new password';
-    });
-};
-
-$('profile-modal-save').onclick = () => {
-    const btcAddress = $('btc-address-input').value.trim();
-    const description = $('profile-desc-input').value.trim().substring(0, 200);
-    const errEl = $('profile-modal-error');
-    const saveBtn = $('profile-modal-save');
-    errEl.textContent = '';
-    errEl.style.color = '';
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving...';
-    api('POST', '/profile', { btcAddress, description }).then(() => {
-        hideModal('profile-modal');
-    }).catch(() => {
-        errEl.textContent = 'Failed to save';
-    }).finally(() => {
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Save';
-    });
-};
-
-// ---------------------------------------------------------------------------
-// Game view
-// ---------------------------------------------------------------------------
-
 const renderGameView = () => {
     const main = $('main-content');
     main.innerHTML = '';
@@ -893,15 +171,10 @@ const renderGameView = () => {
     const versionBadge = document.createElement('span');
     versionBadge.id = 'version-badge';
     versionBadge.className = 'version-badge head';
-    versionBadge.textContent = 'HEAD';
+    versionBadge.textContent = 'BROWSER';
     left.appendChild(versionBadge);
 
-    if (currentGame.thumbnail) {
-        const thumbImg = document.createElement('img');
-        thumbImg.src = `${API_URL}/assets/${currentGame.thumbnail}`;
-        thumbImg.style = 'width:24px;height:24px;border-radius:3px;object-fit:cover;border:1px solid var(--border);';
-        left.appendChild(thumbImg);
-    }
+
     header.appendChild(left);
 
     // Dashboard: only version-level actions live here — game-wide actions
@@ -919,26 +192,7 @@ const renderGameView = () => {
     };
 
     dashBtn('Play', '', togglePreviewPanel, 'preview-toggle-btn');
-    if (AI_FEATURES_ENABLED) {
-        dashBtn('AI Edit', '', () => {
-            if (viewingVersion) { alert('Switch back to HEAD to use AI edits'); return; }
-            if (currentGame && currentGame.guest) { alert('Save your game to an account first to use AI edits'); return; }
-            if (llmJob) { alert('An AI edit is already in progress for this game'); return; }
-            // The AI works from the last saved version; unsaved buffers would
-            // be silently overwritten by its commit — so commit them first.
-            if (hasUnsavedChanges()) {
-                setStatus('Saving your changes...');
-                const save = saveVersion();
-                if (save && save.then) {
-                    // saveVersion swallows failures (dirty flags survive them),
-                    // so only proceed if the working set actually came clean.
-                    save.then(() => { if (!hasUnsavedChanges()) showLLMModal(); });
-                }
-                return;
-            }
-            showLLMModal();
-        });
-    }
+
     // Only visible when viewing a historical version (toggled by updateVersionBadge).
     const restoreBtn = dashBtn('Restore', 'publish', () => {
         if (viewingVersion) restoreVersion(viewingVersion);
@@ -948,16 +202,18 @@ const renderGameView = () => {
     header.appendChild(dash);
     main.appendChild(header);
 
-    // AI-edit banner — visible while an LLM job is open for this game; the
-    // editor is read-only until the job resolves (see updateLLMBanner).
-    const aiBanner = document.createElement('div');
-    aiBanner.id = 'ai-banner';
-    aiBanner.style.display = 'none';
-    main.appendChild(aiBanner);
-
-    // Editor area
     const editorArea = document.createElement('div');
     editorArea.id = 'editor-area';
+
+    const historyPane = document.createElement('aside');
+    historyPane.id = 'portable-history';
+    historyPane.setAttribute('aria-label', 'Save history');
+    const historyTitle = document.createElement('h2');
+    historyTitle.textContent = 'History';
+    const historyList = document.createElement('div');
+    historyList.id = 'portable-history-list';
+    historyPane.append(historyTitle, historyList);
+    editorArea.append(historyPane);
 
     // File tree
     const ftDiv = document.createElement('div');
@@ -965,12 +221,12 @@ const renderGameView = () => {
     const ftHeader = document.createElement('div');
     ftHeader.id = 'file-tree-header';
     ftHeader.innerHTML = '<span>Files</span>';
-    const newFileBtn = document.createElement('span');
+    const newFileBtn = document.createElement('button');
+    newFileBtn.type = 'button';
     newFileBtn.id = 'new-file-btn';
-    newFileBtn.textContent = '+ New';
+    newFileBtn.textContent = 'New file or folder';
     newFileBtn.onclick = () => {
         if (viewingVersion) { alert('Switch back to HEAD to create files'); return; }
-        if (llmJob) { alert('An AI edit is in progress — wait for it to finish'); return; }
         showModal('new-file-modal', 'new-file-name');
     };
     ftHeader.appendChild(newFileBtn);
@@ -1071,7 +327,7 @@ const renderGameView = () => {
     // one would kick everyone who joined via the share link).
     textarea.addEventListener('mousedown', () => {
         // Already frozen for inspection: leave the recording alone
-        if (previewClient && !previewRtcHost?.link && !previewFrozen) {
+        if (previewClient && !previewClient.embedded && !previewRtcHost?.link && !previewFrozen) {
             if (inspectorOn) {
                 freezePreview();
             } else {
@@ -1207,26 +463,34 @@ const renderGameView = () => {
     const statusMsg = document.createElement('span');
     statusMsg.id = 'status-msg';
     bottom.appendChild(statusMsg);
-    const rightDiv = document.createElement('div');
-    rightDiv.id = 'bottom-right';
-    rightDiv.style = 'display:flex;align-items:center;gap:8px;';
+    const saveControls = document.createElement('div');
+    saveControls.id = 'studio-save-controls';
     const commitInput = document.createElement('input');
     commitInput.type = 'text';
     commitInput.id = 'commit-msg';
-    commitInput.placeholder = 'Commit message (optional)';
-    commitInput.style = 'padding:4px 8px;font-size:0.82em;font-family:inherit;background:var(--bg-deep);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);width:220px;';
-    rightDiv.appendChild(commitInput);
+    commitInput.placeholder = 'Save message (optional)';
+    commitInput.setAttribute('aria-label', 'Save message (optional)');
+    commitInput.maxLength = 200;
+    commitInput.value = StudioPortable.saveMessage;
+    commitInput.oninput = () => StudioPortable.setSaveMessage(commitInput.value);
+    commitInput.onkeydown = event => {
+        if (event.key === 'Enter' && !event.isComposing) {
+            event.preventDefault();
+            if (!$('save-btn').disabled) saveVersion();
+        }
+    };
     const saveBtn = document.createElement('button');
     saveBtn.id = 'save-btn';
-    saveBtn.textContent = 'Save Version';
+    saveBtn.textContent = 'Save';
+    saveBtn.title = 'Save a snapshot (⌘S / Ctrl+S)';
+    saveBtn.className = 'dash-btn';
     saveBtn.disabled = true;
     saveBtn.onclick = saveVersion;
-    rightDiv.appendChild(saveBtn);
-    bottom.appendChild(rightDiv);
+    saveControls.append(commitInput, saveBtn);
+    dash.prepend(saveControls);
     main.appendChild(bottom);
 
-    updateLLMBanner();
-    initAssetDetailModal();
+    if (currentGame.portable) StudioPortable.decorateEditor();
 };
 
 // ---------------------------------------------------------------------------
@@ -1342,7 +606,7 @@ const updateHighlight = () => {
 };
 
 const onEditorInput = () => {
-    if (!currentFile || viewingVersion || llmJob) return;
+    if (!currentFile || viewingVersion) return;
     const textarea = $('editor-textarea');
     const file = openFiles[currentFile.path];
     if (!file) return;
@@ -1360,16 +624,13 @@ const onEditorInput = () => {
 
 const onEditorKeydown = (e) => {
     if (e.key === 'Tab') {
+        if (e.target.readOnly) return;
         e.preventDefault();
         const ta = e.target;
         const s = ta.selectionStart, end = ta.selectionEnd;
         ta.value = ta.value.substring(0, s) + '  ' + ta.value.substring(end);
         ta.selectionStart = ta.selectionEnd = s + 2;
         ta.dispatchEvent(new Event('input'));
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-        e.preventDefault();
-        if (!$('save-btn').disabled) saveVersion();
     }
     if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
         e.preventDefault();
@@ -1491,17 +752,17 @@ const renderFindOverlay = () => {
 // ---------------------------------------------------------------------------
 // Pre-run syntax check
 //
-// The open file is parse-checked as you type. JS is validated by injecting a
-// never-invoked function-expression <script> — a parse failure fires the
-// window error event synchronously with a real line/col, which new Function()
-// doesn't provide. Nothing executes either way: on success the script only
-// evaluates `void function(){...}`.
+// Parse source as data using the portable-project parser. Never insert draft
+// source into the editor document, even wrapped inside a function.
 // ---------------------------------------------------------------------------
 
 let syntaxCheckTimer = null;
 let syntaxError = null; // { path, line, message }
 
 const checkJSSyntax = (source) => {
+    return HomegamesClient.PortableProject.checkSyntax(source);
+    /* Legacy script-wrapper parser retained during migration. Parsing source
+       must not insert it into the Studio document, even inside a function.
     let err = null;
     const handler = (e) => {
         err = { message: e.message || 'Syntax error', line: e.lineno };
@@ -1520,6 +781,7 @@ const checkJSSyntax = (source) => {
         message: err.message.replace(/^Uncaught /, ''),
         line: Math.min(lineCount, Math.max(1, (err.line || 1) - 1)),
     };
+    */
 };
 
 const runSyntaxCheck = () => {
@@ -1581,43 +843,7 @@ const jumpToSyntaxError = () => {
 
 // Returns a promise that settles when the tree is loaded (callers that need
 // the file list — e.g. auto-previewing a version — can chain on it).
-const loadFiles = () => {
-    if (!currentGame) return Promise.resolve();
-    const ref = viewingVersion ? viewingVersion.sha : null;
-    const endpoint = ref
-        ? `/studio/games/${currentGame.id}/versions/${ref}/files`
-        : `/studio/games/${currentGame.id}/files`;
-
-    setStatus('<span class="spinner"></span>Loading files...');
-    return api('GET', endpoint)
-        .then(data => {
-            fileTree = (data.tree || []).filter(e => e.type === 'blob');
-            fileTree.sort((a, b) => {
-                const da = a.path.split('/').length, db = b.path.split('/').length;
-                if (da !== db) return da - db;
-                return a.path.localeCompare(b.path);
-            });
-            if (!viewingVersion) {
-                fileTree.forEach(f => { if (openFiles[f.path]) openFiles[f.path].sha = f.sha; });
-            }
-            renderFileTree();
-            setStatus('');
-
-            // Auto-open index.js if it exists and no file is currently open
-            if (!currentFile) {
-                const indexFile = fileTree.find(f => f.path === 'index.js');
-                if (indexFile) {
-                    openFile(indexFile);
-                }
-            }
-        })
-        .catch(err => {
-            console.error('Failed to load files', err);
-            fileTree = [];
-            renderFileTree();
-            setStatus('Failed to load files');
-        });
-};
+const loadFiles = () => { fileTree = Object.keys(openFiles).map(path => ({path, type: "blob"})); renderFileTree(); return Promise.resolve(); };
 
 // Make an element accept file drops that move the dragged file into
 // destFolder ('' = repo root). Drops are disabled while viewing a version.
@@ -1735,98 +961,17 @@ const moveFile = (srcPath, destFolder) => {
     relocateFile(srcPath, destFolder ? `${destFolder}/${name}` : name);
 };
 
-const relocateFile = (srcPath, newPath) => {
-    if (viewingVersion || llmJob) return;
-    if (newPath === srcPath) return;
-    if (openFiles[newPath] || fileTree.find(f => f.path === newPath)) {
-        setStatus(`${newPath} already exists`);
-        return;
-    }
-
-    const doMove = (content, committedSha) => {
-        // Moving back onto a path already queued for deletion: cancel the
-        // deletion and reuse its sha so the save commits an update, not a create.
-        const undoIdx = pendingDeletions.findIndex(d => d.path === newPath);
-        const reuseSha = undoIdx >= 0 ? pendingDeletions.splice(undoIdx, 1)[0].sha : null;
-        if (committedSha) pendingDeletions.push({ path: srcPath, sha: committedSha });
-        openFiles[newPath] = { content, sha: reuseSha, dirty: true, original: null };
-        delete openFiles[srcPath];
-        fileTree = fileTree.filter(f => f.path !== srcPath);
-        fileTree.push({ path: newPath, type: 'blob', sha: null });
-        if (currentFile && currentFile.path === srcPath) currentFile = { path: newPath };
-        renderFileTree();
-        renderTabs();
-        updateSaveButton();
-        saveDraft();
-    };
-
-    const open = openFiles[srcPath];
-    if (open) {
-        doMove(open.content, open.sha);
-        return;
-    }
-    const entry = fileTree.find(f => f.path === srcPath);
-    if (!entry) return;
-    setStatus('<span class="spinner"></span>Moving...');
-    api('GET', `/studio/games/${currentGame.id}/file?path=${encodeURIComponent(srcPath)}`)
-        .then(data => {
-            doMove(data.content ? b64ToUtf8(data.content) : '', data.sha || entry.sha);
-            setStatus('');
-        })
-        .catch(err => {
-            console.error('Failed to move file', err);
-            setStatus('Failed to move file');
-        });
-};
+const relocateFile = (srcPath, newPath) => StudioPortable.relocate(srcPath, newPath);
 
 // ---------------------------------------------------------------------------
 // File open / editor
 // ---------------------------------------------------------------------------
 
-const openFile = (file) => {
-    if (!viewingVersion && openFiles[file.path]) {
-        switchToFile(file.path);
-        return;
-    }
-
-    setStatus('<span class="spinner"></span>Loading...');
-    const ref = viewingVersion ? viewingVersion.sha : undefined;
-    const refParam = ref ? `&ref=${ref}` : '';
-
-    api('GET', `/studio/games/${currentGame.id}/file?path=${encodeURIComponent(file.path)}${refParam}`)
-        .then(data => {
-            const content = data.content ? b64ToUtf8(data.content) : '';
-            if (viewingVersion) {
-                // Read-only view — don't store in openFiles
-                currentFile = { path: file.path };
-                renderFileTree();
-                const textarea = $('editor-textarea');
-                const placeholder = $('editor-placeholder');
-                if (textarea) {
-                    textarea.value = content;
-                    textarea.style.display = 'block';
-                    textarea.readOnly = true;
-                    updateHighlight();
-                }
-                if (placeholder) placeholder.style.display = 'none';
-                renderTabs();
-            } else if (openFiles[file.path]) {
-                // A draft restore landed while this fetch was in flight —
-                // the drafted content wins over the committed content.
-                switchToFile(file.path);
-            } else {
-                openFiles[file.path] = { content, sha: data.sha, dirty: false, original: content };
-                switchToFile(file.path);
-            }
-            setStatus('');
-        })
-        .catch(err => {
-            console.error('Failed to load file', err);
-            setStatus('Failed to load file');
-        });
-};
+const openFile = file => switchToFile(file.path);
 
 const switchToFile = (path) => {
+    if (!Object.hasOwn(openFiles, path)) return;
+    if (!editorTabs.includes(path)) editorTabs.push(path);
     currentFile = { path };
     renderFileTree();
     renderTabs();
@@ -1840,7 +985,19 @@ const switchToFile = (path) => {
     }
 };
 
+const closeEditorTab = path => {
+    const index = editorTabs.indexOf(path);
+    editorTabs = editorTabs.filter(value => value !== path);
+    if (currentFile?.path === path) {
+        const next = editorTabs[Math.min(index, editorTabs.length - 1)];
+        currentFile = next ? { path: next } : null;
+        showEditor();
+    }
+    renderFileTree();renderTabs();
+};
+
 const showEditor = () => {
+    if (currentGame?.portable && StudioPortable.showMedia()) return;
     const textarea = $('editor-textarea');
     const placeholder = $('editor-placeholder');
     const editorWrap = $('editor-wrap');
@@ -1848,7 +1005,7 @@ const showEditor = () => {
     if (currentFile && openFiles[currentFile.path]) {
         textarea.value = openFiles[currentFile.path].content;
         textarea.style.display = 'block';
-        textarea.readOnly = !!viewingVersion || !!llmJob;
+        textarea.readOnly = !!viewingVersion;
         if (editorWrap) editorWrap.style.display = '';
         if (placeholder) placeholder.style.display = 'none';
         updateHighlight();
@@ -1867,34 +1024,28 @@ const renderTabs = () => {
     const bar = $('editor-tab-bar');
     if (!bar) return;
     bar.innerHTML = '';
-    if (viewingVersion) {
-        if (currentFile) {
-            const tab = document.createElement('span');
-            tab.className = 'editor-tab active';
-            tab.textContent = currentFile.path.split('/').pop() + ' (read-only)';
-            bar.appendChild(tab);
-        }
-        return;
-    }
-    Object.keys(openFiles).forEach(path => {
-        const tab = document.createElement('span');
+    editorTabs = editorTabs.filter(path => Object.hasOwn(openFiles, path));
+    editorTabs.forEach(path => {
+        const tab = document.createElement('div');
         const isActive = currentFile && currentFile.path === path;
         tab.className = 'editor-tab' + (isActive ? ' active' : '') + (openFiles[path].dirty ? ' dirty' : '');
-        tab.textContent = path.split('/').pop();
         tab.title = path;
-        tab.onclick = () => switchToFile(path);
+        const select = document.createElement('button');select.type = 'button';select.className = 'editor-tab-select';
+        select.textContent = path.split('/').pop() + (viewingVersion ? ' (read-only)' : '');
+        select.setAttribute('aria-label', 'Open ' + path);select.setAttribute('aria-pressed', String(!!isActive));
+        select.onclick = () => switchToFile(path);
+        const close = document.createElement('button');close.type = 'button';close.className = 'editor-tab-close';close.textContent = '×';
+        close.setAttribute('aria-label', 'Close ' + path);close.title = 'Close tab';close.onclick = () => closeEditorTab(path);
+        tab.append(select, close);
         bar.appendChild(tab);
     });
 };
 
 const updateSaveButton = () => {
-    const btn = $('save-btn');
-    if (!btn) return;
-    // Guest games can always "save" — it opens the signup gate, or claims the
-    // game once logged in.
-    if (currentGame && currentGame.guest) { btn.disabled = false; syncMobileBar(); return; }
-    btn.disabled = !!viewingVersion || !!llmJob || !hasUnsavedChanges();
-    syncMobileBar();
+    const btn = $('save-btn'); if (!btn) return;
+    btn.textContent = StudioPortable.saving ? 'Saving…' : 'Save';
+    btn.disabled = !!viewingVersion || StudioPortable.conflicted || StudioPortable.saving || (!StudioPortable.unsaved && !StudioPortable.saveMessage.trim());
+    btn.hidden = false; syncMobileBar();
 };
 
 // ---------------------------------------------------------------------------
@@ -1913,6 +1064,9 @@ const createNewFile = () => {
     const name = input.value.trim().replace(/^\/+|\/+$/g, '');
     errorEl.textContent = '';
     if (!name) { errorEl.textContent = (isFolder ? 'Folder' : 'File') + ' name required'; return; }
+    if (currentGame?.portable) {
+        try { StudioPortable.validatePath(name); } catch (error) { errorEl.textContent = error.message; return; }
+    }
     if (name.split('/').some(p => !p || p === '.' || p === '..')) {
         errorEl.textContent = 'Invalid name'; return;
     }
@@ -1945,7 +1099,6 @@ let renameSrcPath = null;
 
 const openRenameModal = (path) => {
     if (viewingVersion) return;
-    if (llmJob) { alert('An AI edit is in progress — wait for it to finish'); return; }
     renameSrcPath = path;
     showModal('rename-file-modal', 'rename-file-name');
     const input = $('rename-file-name');
@@ -1977,24 +1130,26 @@ let pendingDeleteFile = null;
 
 const confirmDeleteFile = (path) => {
     if (viewingVersion) return;
-    if (llmJob) { alert('An AI edit is in progress — wait for it to finish'); return; }
     pendingDeleteFile = path;
-    $('file-delete-confirm-text').textContent = `Delete "${path}"? It will be removed from your game on the next Save Version.`;
+    $('file-delete-confirm-text').textContent = currentGame?.portable
+        ? `Delete "${path}" from this browser project? Save to keep this change.`
+        : `Delete "${path}"? It will be removed from your game on the next Save Version.`;
     showModal('file-delete-confirm-modal');
 };
 
 // Deleting is staged like a move: committed files are queued in
 // pendingDeletions for the next Save Version; never-saved files just vanish.
 const deleteFile = (path) => {
-    if (viewingVersion || llmJob) return;
+    if (viewingVersion) return;
     const open = openFiles[path];
     const entry = fileTree.find(f => f.path === path);
     const committedSha = (open && open.sha) || (entry && entry.sha) || null;
     if (committedSha) pendingDeletions.push({ path, sha: committedSha });
     delete openFiles[path];
+    editorTabs = editorTabs.filter(value => value !== path);
     fileTree = fileTree.filter(f => f.path !== path);
     if (currentFile && currentFile.path === path) {
-        const next = Object.keys(openFiles)[0];
+        const next = editorTabs[0];
         currentFile = next ? { path: next } : null;
     }
     renderFileTree();
@@ -2006,7 +1161,7 @@ const deleteFile = (path) => {
 
 // Client-side empty folders can be removed outright — git never knew about them.
 const deleteEmptyFolder = (folderPath) => {
-    if (viewingVersion || llmJob) return;
+    if (viewingVersion) return;
     if (fileTree.some(f => f.path.startsWith(folderPath + '/'))) return;
     extraFolders.forEach(f => {
         if (f === folderPath || f.startsWith(folderPath + '/')) extraFolders.delete(f);
@@ -2018,437 +1173,45 @@ const deleteEmptyFolder = (folderPath) => {
 // Save version
 // ---------------------------------------------------------------------------
 
-const saveVersion = () => {
-    if (llmJob) return;
-    if (currentGame && currentGame.guest) {
-        if (!userInfo) {
-            openSignupGate('Create a free account to save your game and keep working on it from anywhere. Your edits come with you.');
-            return;
-        }
-        claimGuestGame();
-        return;
+const saveVersion = () => StudioPortable.save().catch(StudioPortable.error);
+window.addEventListener('keydown', event => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's' && currentGame?.portable) {
+        event.preventDefault();
+        if (!document.querySelector('dialog[open]') && !$('save-btn')?.disabled) saveVersion();
     }
-
-    const dirtyFiles = Object.entries(openFiles)
-        .filter(([, data]) => data.dirty)
-        .map(([path, data]) => ({ path, content: data.content, sha: data.sha }));
-    if (dirtyFiles.length === 0 && pendingDeletions.length === 0) return;
-
-    const btn = $('save-btn');
-    btn.disabled = true;
-    btn.textContent = 'Saving...';
-    setStatus(`Committing ${dirtyFiles.length + pendingDeletions.length} file(s)...`);
-
-    const commitMsgEl = $('commit-msg');
-    const commitMsg = (commitMsgEl && commitMsgEl.value.trim()) || `Update ${dirtyFiles.length + pendingDeletions.length} file(s)`;
-
-    return api('POST', `/studio/games/${currentGame.id}/save`, {
-        files: dirtyFiles,
-        deletions: pendingDeletions,
-        message: commitMsg,
-    })
-    .then(result => {
-        if (result.files) {
-            result.files.forEach(f => { if (openFiles[f.path] && f.sha) openFiles[f.path].sha = f.sha; });
-        }
-        for (const [, data] of Object.entries(openFiles)) {
-            if (data.dirty) { data.dirty = false; data.original = data.content; }
-        }
-        pendingDeletions = [];
-        saveDraft(); // working set is clean — drops the local draft
-        btn.textContent = 'Save Version';
-        if (commitMsgEl) commitMsgEl.value = '';
-        updateSaveButton();
-        renderTabs();
-        renderFileTree();
-        setStatus('Version saved');
-        loadFiles();
-        loadVersions();
-    })
-    .catch(err => {
-        console.error('Save failed', err);
-        btn.textContent = 'Save Version';
-        btn.disabled = false;
-        setStatus('Save failed');
-    });
-};
+});
 
 // Turn the in-memory guest game into a real server-backed game: create it
 // from the same template, then commit the local edits on top. Requires a
 // logged-in, email-verified user (the save endpoints enforce verification).
-const claimGuestGame = () => {
-    const btn = $('save-btn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
-    setStatus('<span class="spinner"></span>Creating your game...');
 
-    const templateId = currentGame.templateId;
-    const baseName = currentGame.name || 'My game';
-    const commitMsgEl = $('commit-msg');
-    const message = (commitMsgEl && commitMsgEl.value.trim()) || 'Save guest session edits';
-
-    // The repo name derives from the game name — retry with a suffix if the
-    // user already has a game by this name.
-    const createWithName = (attempt) => {
-        const name = attempt === 0 ? baseName : `${baseName} ${attempt + 1}`;
-        return api('POST', '/studio/games', { name, description: '', template: templateId })
-            .catch(err => {
-                const errMsg = (err && err.error) || '';
-                if (attempt < 4 && errMsg.includes('repository')) return createWithName(attempt + 1);
-                throw err;
-            });
-    };
-
-    createWithName(0)
-        .then(game =>
-            api('GET', `/studio/games/${game.id}/files`).then(data => {
-                const shaByPath = {};
-                (data.tree || []).forEach(e => { if (e.type === 'blob') shaByPath[e.path] = e.sha; });
-                const dirtyFiles = Object.entries(openFiles)
-                    .filter(([, f]) => f.dirty)
-                    .map(([path, f]) => ({ path, content: f.content, sha: shaByPath[path] }));
-                // A guest game keeps every file in openFiles, so any template
-                // file missing from it was deleted (or moved away) locally.
-                const deletions = Object.entries(shaByPath)
-                    .filter(([path]) => !openFiles[path])
-                    .map(([path, sha]) => ({ path, sha }));
-                if (dirtyFiles.length === 0 && deletions.length === 0) return game;
-                return api('POST', `/studio/games/${game.id}/save`, { files: dirtyFiles, deletions, message }).then(() => game);
-            })
-        )
-        .then(game => {
-            clearGuestDraft();
-            if (commitMsgEl) commitMsgEl.value = '';
-            // Reload it as a normal server-backed game
-            currentGame = null;
-            selectGame({ id: game.id, name: game.name, description: game.description || '' });
-            openEditorAtHead();
-            loadGames();
-            // loadFiles clears the status when it finishes — re-assert after it settles
-            setTimeout(() => setStatus('Game saved to your account'), 1500);
-        })
-        .catch(err => {
-            console.error('Failed to save guest game', err);
-            const errMsg = (err && err.error) || '';
-            setStatus(errMsg.includes('verification')
-                ? 'Verify your email using the banner above, then hit Save Version again.'
-                : 'Save failed' + (errMsg ? ': ' + errMsg : ''));
-        })
-        .finally(() => {
-            if (btn) { btn.textContent = 'Save Version'; updateSaveButton(); }
-        });
-};
 
 // ---------------------------------------------------------------------------
 // Versions
 // ---------------------------------------------------------------------------
 
-const loadVersions = () => {
-    if (!currentGame) return;
-    api('GET', `/studio/games/${currentGame.id}/versions?page=${versionPage}&limit=20`)
-        .then(data => {
-            versions = data.versions || [];
-            renderVersionList();
-        })
-        .catch(err => console.error('Failed to load versions', err));
-};
+const loadVersions = () => StudioPortable.renderHistory().catch(StudioPortable.error);
 
-const renderVersionList = () => {
-    const list = $('version-list');
-    if (!list) return;
-    list.innerHTML = '';
-
-    // Pinned entry: the editable working copy (HEAD).
-    const headEl = document.createElement('div');
-    headEl.className = 'version-item head-item' + (!viewingVersion && editorBladeOpened ? ' active' : '');
-    headEl.innerHTML = '<span class="head-title">Current version (HEAD)</span><span class="head-sub">Open the editor — saving creates the next version</span>';
-    headEl.onclick = () => openEditorAtHead();
-    list.appendChild(headEl);
-
-    versions.forEach(v => {
-        const el = document.createElement('div');
-        const isActive = viewingVersion && viewingVersion.sha === v.sha;
-        el.className = 'version-item' + (isActive ? ' active' : '');
-
-        const sha = document.createElement('span');
-        sha.className = 'v-sha';
-        sha.textContent = v.sha.substring(0, 7);
-
-        const msg = document.createElement('span');
-        msg.className = 'v-msg';
-        msg.textContent = v.message || 'No message';
-
-        const date = document.createElement('span');
-        date.className = 'v-date';
-        date.textContent = new Date(v.date).toLocaleString();
-
-        const top = document.createElement('div');
-        top.className = 'v-top';
-        top.appendChild(sha);
-        top.appendChild(date);
-
-        el.appendChild(top);
-        el.appendChild(msg);
-
-        // Publish status / action
-        const pubStatus = publishStatuses[v.sha];
-        const pubRow = document.createElement('div');
-        pubRow.className = 'v-publish-row';
-
-        if (pubStatus) {
-            const badge = document.createElement('span');
-            badge.className = 'v-publish-badge ' + pubStatus.status.toLowerCase();
-            badge.textContent = pubStatus.status;
-            pubRow.appendChild(badge);
-
-            if (pubStatus.status === 'FAILED' && pubStatus.error) {
-                const errMsg = document.createElement('span');
-                errMsg.className = 'v-publish-error';
-                errMsg.textContent = pubStatus.error;
-                errMsg.title = pubStatus.error;
-                pubRow.appendChild(errMsg);
-            }
-
-            // Allow resubmit if failed
-            if (pubStatus.status === 'FAILED') {
-                const retryBtn = document.createElement('span');
-                retryBtn.className = 'v-publish-btn';
-                retryBtn.textContent = 'Retry';
-                retryBtn.onclick = (e) => { e.stopPropagation(); submitForPublishing(v.sha); };
-                pubRow.appendChild(retryBtn);
-            }
-        } else {
-            const publishBtn = document.createElement('span');
-            publishBtn.className = 'v-publish-btn';
-            publishBtn.textContent = 'Publish';
-            publishBtn.onclick = (e) => { e.stopPropagation(); submitForPublishing(v.sha); };
-            pubRow.appendChild(publishBtn);
-        }
-
-        el.appendChild(pubRow);
-
-        if (isActive && viewingVersion) {
-            const restore = document.createElement('span');
-            restore.className = 'v-restore';
-            restore.textContent = 'Restore this version';
-            restore.onclick = (e) => { e.stopPropagation(); restoreVersion(v); };
-            el.appendChild(restore);
-        }
-
-        el.onclick = () => viewVersion(v);
-        list.appendChild(el);
-    });
-
-    // Pagination
-    const footer = $('version-panel-footer');
-    if (!footer) return;
-    footer.innerHTML = '';
-    if (versionPage > 1) {
-        const prev = document.createElement('span');
-        prev.className = 'vp-nav';
-        prev.textContent = '← Newer';
-        prev.onclick = () => { versionPage--; loadVersions(); };
-        footer.appendChild(prev);
-    }
-    if (versions.length >= 20) {
-        const next = document.createElement('span');
-        next.className = 'vp-nav';
-        next.textContent = 'Older →';
-        next.onclick = () => { versionPage++; loadVersions(); };
-        footer.appendChild(next);
-    }
-};
+const renderVersionList = () => StudioPortable.renderHistory().catch(StudioPortable.error);
 
 // ---------------------------------------------------------------------------
 // Publish statuses
 // ---------------------------------------------------------------------------
 
-const loadPublishStatuses = () => {
-    if (!currentGame) return;
-    api('GET', `/studio/games/${currentGame.id}/publish-status`, null, { silent: true })
-        .then(data => {
-            publishStatuses = {};
-            (data.requests || []).forEach(r => {
-                // Keep the most recent request per commitSha
-                if (!publishStatuses[r.commitSha] || r.created > publishStatuses[r.commitSha].created) {
-                    publishStatuses[r.commitSha] = r;
-                }
-            });
-            renderVersionList();
-        })
-        .catch(err => console.error('Failed to load publish statuses', err));
-};
-
-const submitForPublishing = (commitSha) => {
-    if (!currentGame) return;
-    if (!confirm(`Submit version ${commitSha.substring(0, 7)} for publishing?`)) return;
-
-    setStatus('Submitting publish request...');
-
-    api('POST', `/studio/games/${currentGame.id}/publish`, { commitSha })
-        .then(data => {
-            publishStatuses[commitSha] = {
-                requestId: data.requestId,
-                commitSha,
-                status: data.status || 'PENDING',
-                created: Date.now(),
-            };
-            renderVersionList();
-            setStatus('Publish request submitted');
-
-            // Poll for status updates
-            pollPublishStatus(commitSha);
-        })
-        .catch(err => {
-            const msg = (err && err.error) || 'Failed to submit publish request';
-            setStatus(msg);
-        });
-};
-
-const pollPublishStatus = (commitSha) => {
-    if (!currentGame) return;
-    const gameId = currentGame.id;
-
-    const poll = () => {
-        // Stop polling if user navigated away
-        if (!currentGame || currentGame.id !== gameId) return;
-
-        const current = publishStatuses[commitSha];
-        if (!current || current.status === 'PUBLISHED' || current.status === 'FAILED') return;
-
-        api('GET', `/studio/games/${gameId}/publish-status`, null, { silent: true })
-            .then(data => {
-                (data.requests || []).forEach(r => {
-                    if (!publishStatuses[r.commitSha] || r.created >= publishStatuses[r.commitSha].created) {
-                        publishStatuses[r.commitSha] = r;
-                    }
-                });
-                renderVersionList();
-
-                const updated = publishStatuses[commitSha];
-                if (updated && (updated.status === 'PENDING' || updated.status === 'PROCESSING')) {
-                    setTimeout(poll, 3000);
-                } else if (updated && updated.status === 'PUBLISHED') {
-                    setStatus('Version published successfully!');
-                } else if (updated && updated.status === 'FAILED') {
-                    setStatus('Publish failed: ' + (updated.error || 'unknown error'));
-                }
-            })
-            .catch(() => setTimeout(poll, 5000));
-    };
-
-    setTimeout(poll, 2000);
-};
-
-const viewVersion = (v) => {
-    if (viewingVersion && viewingVersion.sha === v.sha) { setActiveBlade('editor'); return; }
-    if (hasUnsavedChanges() && !confirmDiscard()) return;
-    editorBladeOpened = true;
-    viewingVersion = v;
-    currentFile = null;
-    openFiles = {};
-    pendingDeletions = [];
-    extraFolders = new Set();
-    updateVersionBadge();
-    renderVersionList();
-    const filesLoaded = loadFiles();
-    updateSaveButton();
-    // Clear editor
-    const textarea = $('editor-textarea');
-    const placeholder = $('editor-placeholder');
-    if (textarea) { textarea.style.display = 'none'; textarea.readOnly = true; }
-    if (placeholder) placeholder.style.display = 'flex';
-    renderTabs();
-    setActiveBlade('editor');
-    // Opening a commit is for trying it out — open the play panel and run the
-    // commit as a local session once its file tree is in.
-    if (!previewOpen) togglePreviewPanel();
-    previewMode = 'local';
-    filesLoaded.then(() => {
-        // Still on this version, and the tree actually loaded
-        if (viewingVersion && viewingVersion.sha === v.sha && fileTree.length) startPreview();
-    });
-};
+const viewVersion = v => StudioPortable.viewSnapshot(v.id).catch(StudioPortable.error);
 
 // Open the editable working copy (HEAD) in the editor blade.
-const openEditorAtHead = () => {
-    editorBladeOpened = true;
-    if (viewingVersion) {
-        switchToHead();
-    } else {
-        updateVersionBadge();
-        renderVersionList();
-    }
-    setActiveBlade('editor');
-};
+const openEditorAtHead = () => StudioPortable.openCurrent().catch(StudioPortable.error);
 
-const switchToHead = () => {
-    if (!viewingVersion) return;
-    viewingVersion = null;
-    currentFile = null;
-    openFiles = {};
-    pendingDeletions = [];
-    updateVersionBadge();
-    renderVersionList();
-    loadFiles();
-    updateSaveButton();
-    const textarea = $('editor-textarea');
-    const placeholder = $('editor-placeholder');
-    if (textarea) { textarea.style.display = 'none'; textarea.readOnly = !!llmJob; }
-    if (placeholder) placeholder.style.display = 'flex';
-    renderTabs();
-};
+const switchToHead = () => StudioPortable.openCurrent().catch(StudioPortable.error);
 
-const updateVersionBadge = () => {
-    const badge = $('version-badge');
-    const stripLabel = $('blade-editor-label');
-    const restoreBtn = $('header-restore-btn');
-    if (viewingVersion) {
-        const sha = viewingVersion.sha.substring(0, 7);
-        if (badge) { badge.className = 'version-badge history'; badge.textContent = sha; }
-        if (stripLabel) stripLabel.textContent = 'Version ' + sha;
-        if (restoreBtn) restoreBtn.style.display = '';
-    } else {
-        if (badge) { badge.className = 'version-badge head'; badge.textContent = 'HEAD'; }
-        if (stripLabel) stripLabel.textContent = 'Editor — HEAD';
-        if (restoreBtn) restoreBtn.style.display = 'none';
-    }
-};
+const updateVersionBadge = () => { const badge = $("version-badge"); if (badge) badge.textContent = viewingVersion ? "SNAPSHOT" : "BROWSER"; };
 
 // ---------------------------------------------------------------------------
 // Restore version
 // ---------------------------------------------------------------------------
 
-const restoreVersion = (v) => {
-    if (!confirm(`Restore to version ${v.sha.substring(0, 7)}? This will overwrite current files.`)) return;
-
-    setStatus('<span class="spinner"></span>Restoring...');
-
-    api('POST', `/studio/games/${currentGame.id}/restore`, { commitSha: v.sha })
-        .then(result => {
-            setStatus(`Restored to ${v.sha.substring(0, 7)}`);
-            // Switch back to HEAD view
-            editorBladeOpened = true;
-            setActiveBlade('editor');
-            viewingVersion = null;
-            currentFile = null;
-            openFiles = {};
-            pendingDeletions = [];
-            extraFolders = new Set();
-            updateVersionBadge();
-            loadFiles();
-            loadVersions();
-            updateSaveButton();
-            renderTabs();
-            const textarea = $('editor-textarea');
-            const placeholder = $('editor-placeholder');
-            if (textarea) { textarea.style.display = 'none'; textarea.readOnly = !!llmJob; }
-            if (placeholder) placeholder.style.display = 'flex';
-        })
-        .catch(err => {
-            console.error('Restore failed', err);
-            setStatus('Restore failed');
-        });
-};
+const restoreVersion = v => StudioPortable.restoreSnapshot(v.id).catch(StudioPortable.error);
 
 // ---------------------------------------------------------------------------
 // Modals
@@ -2460,83 +1223,23 @@ const showModal = (id, focusId) => {
     const err = $(id)?.querySelector('.modal-error');
     if (err) err.textContent = '';
 };
-const hideModal = (id) => { $(id).classList.remove('visible'); };
+const hideModal = (id) => { const el = $(id); if (el?.tagName === 'DIALOG') el.close(); else el?.classList.remove('visible'); };
 
-// Load templates into the dropdown
-const loadTemplates = () => {
-    api('GET', '/studio/templates').then(data => {
-        const select = $('new-game-template');
-        (data.templates || []).forEach(t => {
-            if (t.id === 'blank') return; // already present as the default option
-            const opt = document.createElement('option');
-            opt.value = t.id;
-            opt.textContent = t.label + ' — ' + t.description;
-            select.appendChild(opt);
-        });
-    }).catch(() => {}).finally(() => {
-        if (!AI_FEATURES_ENABLED) return;
-        // Always last: not a real server template — picking it creates a blank
-        // game and hands the description to the AI worker (see startLLMCreate).
-        const opt = document.createElement('option');
-        opt.value = 'ai';
-        opt.textContent = 'Generate with AI — describe the game you want';
-        $('new-game-template').appendChild(opt);
-    });
-};
-loadTemplates();
-
-$('new-game-template').addEventListener('change', () => {
-    $('new-game-ai-prompt-wrap').style.display = $('new-game-template').value === 'ai' ? '' : 'none';
-});
-
+// Theme preference lives with the rest of Studio's settings.
 // ---------------------------------------------------------------------------
-// Theme toggle
-// ---------------------------------------------------------------------------
-
-$('theme-toggle').onclick = () => {
-    const isLight = document.body.classList.toggle('light');
-    $('theme-toggle').textContent = isLight ? 'Dark' : 'Light';
-    try { localStorage.setItem('hg-studio-theme', isLight ? 'light' : 'dark'); } catch (e) {}
+$('studio-theme').onchange = () => {
+    const theme = $('studio-theme').value;
+    document.body.classList.toggle('light', theme === 'light');
+    try { localStorage.setItem('hg-studio-theme', theme); } catch (e) {}
 };
-
-// Restore saved theme
 try {
-    if (localStorage.getItem('hg-studio-theme') === 'light') {
-        document.body.classList.add('light');
-        $('theme-toggle').textContent = 'Dark';
-    }
+    const theme = localStorage.getItem('hg-studio-theme') === 'light' ? 'light' : 'dark';
+    document.body.classList.toggle('light', theme === 'light');
+    $('studio-theme').value = theme;
 } catch (e) {}
 
-$('new-game-btn').onclick = () => showModal('new-game-modal', 'new-game-name');
-$('new-game-cancel').onclick = () => hideModal('new-game-modal');
-$('new-game-create').onclick = () => {
-    const name = $('new-game-name').value.trim();
-    const desc = $('new-game-desc').value.trim();
-    const template = $('new-game-template').value || undefined;
-    const isAI = template === 'ai';
-    const aiPrompt = isAI ? $('new-game-ai-prompt').value.trim() : null;
-    const errorEl = $('new-game-error');
-    errorEl.textContent = '';
-    if (!name) { errorEl.textContent = 'Game name required'; return; }
-    if (isAI && !aiPrompt) { errorEl.textContent = 'Describe the game you want the AI to build'; return; }
-    if (isAI && aiPrompt.length > 2000) { errorEl.textContent = 'Keep the description under 2000 characters'; return; }
-    $('new-game-create').disabled = true;
-    $('new-game-create').textContent = 'Creating...';
-    // The AI choice isn't a server template: create from blank, then hand the
-    // description to the LLM worker against the fresh repo.
-    api('POST', '/studio/games', { name, description: desc, template: isAI ? 'blank' : template })
-        .then(game => {
-            hideModal('new-game-modal');
-            loadGames();
-            selectGame(game);
-            if (isAI) startLLMCreate(game.id, aiPrompt, !!$('new-game-email-notify')?.checked, newGameImages.list());
-            newGameImages.clear();
-        })
-        .catch(err => { errorEl.textContent = (err && err.error) || 'Failed to create game'; })
-        .finally(() => { $('new-game-create').disabled = false; $('new-game-create').textContent = 'Create'; });
-};
-$('new-game-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('new-game-create').click(); });
-
+// $('new-game-btn').onclick = () => showModal('new-game-modal', 'new-game-name');
+$('new-game-btn').onclick = () => StudioPortable.showTemplates().catch(StudioPortable.error);
 $('new-file-cancel').onclick = () => hideModal('new-file-modal');
 $('new-file-create').onclick = createNewFile;
 $('new-file-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') createNewFile(); });
@@ -2560,673 +1263,6 @@ document.querySelectorAll('input[name="new-file-type"]').forEach(radio => {
 });
 
 // ---------------------------------------------------------------------------
-// AI ("Ask AI to edit") modal
-// ---------------------------------------------------------------------------
-
-// The modal only collects the prompt. Submitting registers an open job
-// (llmJob) that locks the whole editor — banner + read-only — until the
-// server resolves it. The server commits a COMPLETED result as a new version
-// (commit message = the prompt), so completion here is "reload and unlock";
-// the job survives page reloads because checkLLMJob finds it on game open.
-
-const setLLMBusy = (busy, statusMsg) => {
-    const submit = $('llm-modal-submit');
-    const input = $('llm-prompt-input');
-    const statusEl = $('llm-modal-status');
-    if (submit) { submit.disabled = busy; submit.textContent = busy ? 'Submitting…' : 'Generate'; }
-    if (input) input.disabled = busy;
-    if (statusEl) statusEl.innerHTML = statusMsg || '';
-};
-
-const showLLMModal = () => {
-    const errEl = $('llm-modal-error');
-    if (errEl) errEl.textContent = '';
-    const titleEl = $('llm-modal-title');
-    if (titleEl) titleEl.textContent = 'Ask AI to edit your game';
-    setLLMBusy(false, '');
-    showModal('llm-modal', 'llm-prompt-input');
-};
-
-// Banner scene: the AI edit queue, live. One polygonal robot per queued
-// request waits in line outside the worker's cave — yours marked with a
-// bouncing arrow. The front robot walks in whenever the worker picks up a
-// job (sparks fly while it's busy), new robots wander in from the left as
-// other requests arrive, and when your edit lands your robot walks back home
-// with a gem. Queue counts come from the llm-status poll; falls back to the
-// plain spinner under prefers-reduced-motion.
-const AI_SCENE = { w: 210, h: 40, ground: 36, home: 16, mouth: 174, frontSlot: 146, slotGap: 16, maxShown: 8 };
-let aiAnim = null;
-
-const aiAnimNewRobot = (x, opts) => ({
-    x, target: x, speed: 55,
-    kind: 'line',                    // 'line' | 'enter' | 'leave' | 'return'
-    mine: !!(opts && opts.mine),
-    popIn: !!(opts && opts.popIn),   // materialize standing (was queued before we joined)
-    alpha: opts && opts.popIn ? 0 : 1,
-    cycle: Math.random() * Math.PI * 2,
-    idleT: 0, blink: 0, nextBlink: 1 + Math.random() * 4,
-});
-
-const stopAIAnim = () => {
-    if (!aiAnim) return;
-    cancelAnimationFrame(aiAnim.raf);
-    aiAnim = null;
-};
-
-const aiAnimPoly = (ctx, pts) => {
-    ctx.beginPath();
-    ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-    ctx.closePath();
-    ctx.fill();
-};
-
-const aiAnimRobot = (ctx, c, r, hopY) => {
-    const S = AI_SCENE;
-    // Fade through the last few px of the mouth so robots "enter" the dark
-    const nearMouth = r.x > S.mouth - 10 ? Math.max(0, Math.min(1, (S.mouth + 4 - r.x) / 14)) : 1;
-    const alpha = r.alpha * nearMouth;
-    if (alpha <= 0.01) return;
-    const g = S.ground, x = r.x;
-    const dir = r.kind === 'return' ? -1 : 1;
-    const swing = Math.sin(r.cycle) * 3.5 * Math.max(0, 1 - r.idleT * 6);
-    const bob = Math.sin(r.cycle * 2) * 0.7;
-    ctx.save();
-    ctx.translate(0, hopY || 0);
-    ctx.globalAlpha = alpha;
-    ctx.strokeStyle = c.body;
-    ctx.lineWidth = 1.5;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(x - 2, g - 7 + bob); ctx.lineTo(x - 2 + swing, g);
-    ctx.moveTo(x + 2, g - 7 + bob); ctx.lineTo(x + 2 - swing, g);
-    ctx.moveTo(x - 5, g - 14 + bob); ctx.lineTo(x - 6 - swing * 0.8, g - 8 + bob);
-    ctx.moveTo(x + 5, g - 14 + bob); ctx.lineTo(x + 6 + swing * 0.8, g - 8 + bob);
-    ctx.stroke();
-    ctx.fillStyle = c.body;
-    aiAnimPoly(ctx, [[x - 5, g - 7 + bob], [x + 5, g - 7 + bob], [x + 4, g - 16 + bob], [x - 4, g - 16 + bob]]);
-    aiAnimPoly(ctx, [[x - 4, g - 17 + bob], [x + 4, g - 17 + bob], [x + 4, g - 24 + bob], [x - 4, g - 24 + bob]]);
-    if (r.blink <= 0) {
-        ctx.fillStyle = c.accent;
-        ctx.fillRect(x + (dir > 0 ? 1 : -3), g - 22 + bob, 2, 2);
-    }
-    ctx.strokeStyle = c.body;
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(x, g - 24 + bob); ctx.lineTo(x, g - 27 + bob); ctx.stroke();
-    ctx.fillStyle = c.accent;
-    ctx.fillRect(x - 1, g - 29 + bob, 2, 2);
-    if (r.kind === 'return') {
-        const gy = g - 33 + bob;
-        aiAnimPoly(ctx, [[x, gy - 3], [x + 3, gy], [x, gy + 3], [x - 3, gy]]);
-    }
-    ctx.restore();
-};
-
-const aiAnimDraw = (now) => {
-    const a = aiAnim, c = a.colors, ctx = a.ctx, S = AI_SCENE;
-    ctx.clearRect(0, 0, S.w, S.h);
-    ctx.strokeStyle = c.cave;
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(0, S.ground + 0.5); ctx.lineTo(S.w, S.ground + 0.5); ctx.stroke();
-    ctx.fillStyle = c.cave;
-    aiAnimPoly(ctx, [[52, S.ground], [55, S.ground - 3], [58, S.ground]]);
-    aiAnimPoly(ctx, [[104, S.ground], [106, S.ground - 2], [108, S.ground]]);
-    aiAnimPoly(ctx, [[140, S.ground], [152, 16], [170, 10], [188, 14], [206, S.ground]]);
-    ctx.fillStyle = c.dark;
-    aiAnimPoly(ctx, [[160, S.ground], [164, 20], [176, 20], [180, S.ground]]);
-    if (a.caveBusy) {
-        ctx.save();
-        ctx.globalAlpha = 0.10 + 0.08 * Math.sin(now / 250);
-        ctx.fillStyle = c.accent;
-        aiAnimPoly(ctx, [[160, S.ground], [164, 20], [176, 20], [180, S.ground]]);
-        ctx.restore();
-        if (a.peek > 0) {
-            ctx.fillStyle = c.accent;
-            ctx.fillRect(167, 26, 2, 2);
-            ctx.fillRect(171, 26, 2, 2);
-        }
-    }
-    for (const s of a.sparks) {
-        ctx.save();
-        ctx.globalAlpha = Math.max(0, s.life / s.maxLife);
-        ctx.fillStyle = s.green ? c.accent : c.spark;
-        aiAnimPoly(ctx, [[s.x, s.y - 2], [s.x + 2, s.y + 1], [s.x - 2, s.y + 1]]);
-        ctx.restore();
-    }
-    for (const r of a.line) aiAnimRobot(ctx, c, r, 0);
-    for (const r of a.transients) {
-        const hopY = (a.phase === 'hop' && r.kind === 'return')
-            ? -Math.abs(Math.sin(a.hopT * Math.PI / 0.35)) * 5 : 0;
-        aiAnimRobot(ctx, c, r, hopY);
-    }
-    // Bouncing arrow over your robot while it waits its turn
-    if (a.phase === 'queue') {
-        const me = a.line.find(r => r.mine);
-        if (me && me.alpha > 0.5 && me.x > 0) {
-            const tipY = S.ground - 31 - Math.abs(Math.sin(now / 300)) * 1.5;
-            ctx.fillStyle = c.accent;
-            aiAnimPoly(ctx, [[me.x, tipY], [me.x - 2.5, tipY - 3.5], [me.x + 2.5, tipY - 3.5]]);
-        }
-    }
-    // Queue too long to draw: the tail waits off-screen
-    if (a.overflow > 0) {
-        ctx.fillStyle = c.body;
-        ctx.font = '9px amateur, monospace';
-        ctx.fillText(`+${a.overflow}`, 2, S.ground - 2);
-    }
-};
-
-const aiAnimStepRobot = (r, dt) => {
-    const d = r.target - r.x;
-    if (Math.abs(d) > 0.5) {
-        r.x += Math.sign(d) * Math.min(Math.abs(d), r.speed * dt);
-        r.cycle += dt * (r.speed / 6);
-        r.idleT = 0;
-    } else {
-        r.idleT += dt;
-        r.cycle += dt * 1.5; // gentle idle bob
-    }
-    if (r.popIn) { r.alpha = Math.min(1, r.alpha + dt * 3); if (r.alpha >= 1) r.popIn = false; }
-    if (r.kind === 'leave') r.alpha = Math.max(0, r.alpha - dt * 3);
-    r.nextBlink -= dt;
-    if (r.nextBlink <= 0) { r.blink = 0.12; r.nextBlink = 2 + Math.random() * 4; }
-    if (r.blink > 0) r.blink -= dt;
-};
-
-const aiAnimFrame = (now) => {
-    const a = aiAnim;
-    if (!a) return;
-    if (!a.canvas.isConnected) { stopAIAnim(); return; }
-    const dt = a.last ? Math.min((now - a.last) / 1000, 0.05) : 0.016;
-    a.last = now;
-    const S = AI_SCENE;
-
-    for (const r of a.line) aiAnimStepRobot(r, dt);
-    for (const r of a.transients) aiAnimStepRobot(r, dt);
-    a.transients = a.transients.filter(r => {
-        if (r.kind === 'enter') return r.x < r.target - 0.5; // swallowed by the cave
-        if (r.kind === 'leave') return r.alpha > 0;
-        return true;
-    });
-
-    if (a.phase === 'return') {
-        const me = a.transients.find(r => r.kind === 'return');
-        if (me && me.x <= S.home + 0.5) { a.phase = 'hop'; a.hopT = 0; }
-    } else if (a.phase === 'hop') {
-        a.hopT += dt;
-        if (a.hopT >= 0.75 && a.onDone) {
-            const done = a.onDone;
-            a.onDone = null;
-            done();
-            if (!aiAnim) return;
-        }
-    }
-
-    if (a.caveBusy) {
-        a.nextSpark -= dt;
-        if (a.nextSpark <= 0) {
-            a.nextSpark = 0.4 + Math.random() * 0.5;
-            const n = 2 + Math.floor(Math.random() * 2);
-            for (let i = 0; i < n; i++) a.sparks.push({
-                x: 167 + Math.random() * 6, y: 23,
-                vx: (Math.random() - 0.5) * 50, vy: -30 - Math.random() * 45,
-                life: 0.6 + Math.random() * 0.3, maxLife: 0.9,
-                green: Math.random() < 0.35,
-            });
-        }
-        a.nextPeek -= dt;
-        if (a.nextPeek <= 0) { a.peek = 0.5; a.nextPeek = 2.5 + Math.random() * 2.5; }
-        if (a.peek > 0) a.peek -= dt;
-    }
-    for (const s of a.sparks) { s.vy += 150 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt; }
-    a.sparks = a.sparks.filter(s => s.life > 0);
-    aiAnimDraw(now);
-    a.raf = requestAnimationFrame(aiAnimFrame);
-};
-
-const startAIAnim = (canvas) => {
-    stopAIAnim();
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = AI_SCENE.w * dpr;
-    canvas.height = AI_SCENE.h * dpr;
-    const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
-    const style = getComputedStyle(document.body);
-    const col = name => style.getPropertyValue(name).trim();
-    const me = aiAnimNewRobot(AI_SCENE.home, { mine: true });
-    me.target = AI_SCENE.frontSlot; // head for the front until the first queue snapshot
-    aiAnim = {
-        canvas, ctx,
-        colors: { body: col('--text-secondary'), cave: col('--border-light'), dark: col('--bg-deep'), accent: col('--accent-green'), spark: col('--accent-yellow') },
-        phase: 'queue', line: [me], transients: [],
-        caveBusy: false, overflow: 0,
-        sparks: [], nextSpark: 0, peek: 0, nextPeek: 0, hopT: 0, last: 0, onDone: null, raf: 0,
-    };
-    aiAnim.raf = requestAnimationFrame(aiAnimFrame);
-};
-
-// Reconcile the drawn line with a queue snapshot from the llm-status poll.
-// Front robots that disappeared walk into the cave; new arrivals walk in
-// from the left and join the back; robots queued before we started watching
-// materialize in place. Also refreshes the banner label (which works even
-// under reduced motion, where there's no aiAnim).
-const setAIQueue = (status, queue) => {
-    const ahead = queue.ahead || 0;
-    const behind = queue.behind || 0;
-    const busy = status === 'PROCESSING' || (queue.processing || 0) > 0;
-
-    const label = $('ai-banner-label');
-    if (label && llmJob) {
-        const stage = status === 'PROCESSING' ? 'Working on your game edit'
-            : ahead > 0 ? `Waiting in line — ${ahead} edit${ahead === 1 ? '' : 's'} ahead of yours`
-            : busy ? 'Next in line' : 'Waiting for the worker';
-        label.textContent = llmBannerText(stage);
-    }
-
-    const a = aiAnim;
-    if (!a || a.phase === 'return' || a.phase === 'hop') return;
-    a.caveBusy = busy;
-
-    // The worker picked ours up: into the cave. Anything still drawn ahead
-    // of us is stale (already processed) — fade it out rather than parading
-    // the whole front of the line through the mouth at once.
-    if (status === 'PROCESSING') {
-        if (a.phase !== 'work') {
-            a.phase = 'work';
-            const idx = a.line.findIndex(r => r.mine);
-            if (idx !== -1) {
-                const stale = a.line.splice(0, idx);
-                const me = a.line.shift();
-                me.kind = 'enter';
-                me.target = AI_SCENE.mouth + 4;
-                a.transients.push(me);
-                for (const r of stale) { r.kind = 'leave'; a.transients.push(r); }
-            }
-        }
-    } else {
-        let idx = a.line.findIndex(r => r.mine);
-        if (idx === -1) return; // shouldn't happen while queued
-        while (idx > ahead) {
-            // front of the line got its turn
-            const front = a.line.shift();
-            front.kind = 'enter';
-            front.target = AI_SCENE.mouth + 4;
-            a.transients.push(front);
-            idx--;
-        }
-        while (idx < ahead) {
-            a.line.unshift(aiAnimNewRobot(0, { popIn: true }));
-            idx++;
-        }
-        let curBehind = a.line.length - 1 - idx;
-        // New requests walk in from the left; stagger spawns so a batch
-        // arrives as a line, not a stack.
-        let spawnX = -14;
-        for (const r of a.line) spawnX = Math.min(spawnX, r.x - AI_SCENE.slotGap);
-        while (curBehind < behind) {
-            a.line.push(aiAnimNewRobot(spawnX));
-            spawnX -= AI_SCENE.slotGap;
-            curBehind++;
-        }
-        while (curBehind > behind) {
-            const gone = a.line.pop(); // cancelled — fades out where it stood
-            gone.kind = 'leave';
-            a.transients.push(gone);
-            curBehind--;
-        }
-    }
-
-    a.line.forEach((r, i) => {
-        r.target = i < AI_SCENE.maxShown ? AI_SCENE.frontSlot - i * AI_SCENE.slotGap : -14;
-        if (r.popIn && r.x === 0) r.x = r.target;
-    });
-    a.overflow = Math.max(0, a.line.length - AI_SCENE.maxShown);
-};
-
-// Send your robot home with the goods; onDone fires after it hops in
-// celebration. Returns false when there's no animation to play (reduced
-// motion / no canvas).
-const aiAnimReturn = (onDone) => {
-    if (!aiAnim || aiAnim.onDone) return false;
-    const a = aiAnim;
-    const idx = a.line.findIndex(r => r.mine);
-    // If completion beat the PROCESSING poll, it still went through the cave
-    // — we just missed it. Emerge from the mouth either way.
-    const me = idx !== -1 ? a.line.splice(idx, 1)[0] : aiAnimNewRobot(0, { mine: true });
-    me.kind = 'return';
-    me.x = AI_SCENE.mouth + 4;
-    me.target = AI_SCENE.home;
-    me.speed = 75;
-    me.alpha = 1;
-    me.popIn = false;
-    a.transients.push(me);
-    a.phase = 'return';
-    a.caveBusy = false;
-    a.onDone = onDone;
-    return true;
-};
-
-const llmBannerText = (stage) => {
-    const prompt = (llmJob && llmJob.prompt) || '';
-    const shortPrompt = prompt.length > 120 ? prompt.substring(0, 117) + '…' : prompt;
-    return `${stage}${shortPrompt ? ` — “${shortPrompt}”` : ''}. The editor is read-only until it finishes.`;
-};
-
-const hideLLMBanner = (banner) => {
-    stopAIAnim();
-    banner.innerHTML = '';
-    banner.style.display = 'none';
-    delete banner.dataset.jobId;
-};
-
-const updateLLMBanner = () => {
-    const banner = $('ai-banner');
-    if (!banner) return;
-    if (!llmJob) {
-        // A completed job keeps the banner up until the robot makes it home.
-        if (aiAnim && aiAnim.onDone) return;
-        hideLLMBanner(banner);
-        return;
-    }
-    if (banner.dataset.jobId === llmJob.requestId) return; // already showing this job
-    banner.dataset.jobId = llmJob.requestId;
-    banner.innerHTML = '';
-    banner.style.display = 'flex';
-
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        stopAIAnim();
-        const spin = document.createElement('span');
-        spin.className = 'spinner';
-        banner.appendChild(spin);
-    } else {
-        const canvas = document.createElement('canvas');
-        canvas.id = 'ai-banner-canvas';
-        canvas.style.width = AI_SCENE.w + 'px';
-        canvas.style.height = AI_SCENE.h + 'px';
-        banner.appendChild(canvas);
-        startAIAnim(canvas);
-    }
-
-    const textWrap = document.createElement('div');
-    textWrap.id = 'ai-banner-text';
-
-    const label = document.createElement('span');
-    label.id = 'ai-banner-label';
-    label.textContent = llmBannerText('In line for the AI worker');
-    textWrap.appendChild(label);
-
-    // Generation can take up to an hour; make it clear they don't have to
-    // babysit the page (the result commits server-side), and give the ones
-    // who stay something to do.
-    const note = document.createElement('span');
-    note.id = 'ai-banner-note';
-    note.append(llmJob.emailOnComplete
-        ? 'Can take up to an hour. Safe to leave this page — the result saves as a new version and we\'ll email you. While you wait: '
-        : 'Can take up to an hour. Safe to leave this page — the result saves as a new version automatically. While you wait: ');
-    const playLink = document.createElement('a');
-    playLink.href = 'catalog.html';
-    playLink.target = '_blank';
-    playLink.rel = 'noopener';
-    playLink.textContent = 'play some games';
-    note.appendChild(playLink);
-    note.append(' · ');
-    const docsLink = document.createElement('a');
-    docsLink.href = 'docs.html';
-    docsLink.target = '_blank';
-    docsLink.rel = 'noopener';
-    docsLink.textContent = 'read the docs';
-    note.appendChild(docsLink);
-    textWrap.appendChild(note);
-
-    banner.appendChild(textWrap);
-
-    const cancelBtn = document.createElement('button');
-    cancelBtn.id = 'ai-banner-cancel';
-    cancelBtn.textContent = 'Cancel';
-    cancelBtn.onclick = cancelLLMJob;
-    banner.appendChild(cancelBtn);
-};
-
-// Lock state is derived, not stored: read-only whenever a job is open (or a
-// historical version is being viewed).
-const setEditorLock = () => {
-    const textarea = $('editor-textarea');
-    if (textarea) textarea.readOnly = !!viewingVersion || !!llmJob;
-    updateSaveButton();
-    updateLLMBanner();
-};
-
-// A job resolved (completed, failed, or cancelled): unlock and, on success,
-// pull the AI's commit — it's the new HEAD. Open buffers are stale (they
-// predate the commit and were clean, since submission requires a clean tree),
-// so drop them and let loadFiles reopen index.js fresh.
-const finishLLMJob = (outcome, message) => {
-    llmJob = null;
-    // On success, let the robot walk back out of the cave before the banner
-    // goes away (updateLLMBanner leaves it up while onDone is pending); the
-    // editor unlocks immediately regardless.
-    const banner = $('ai-banner');
-    if (outcome === 'COMPLETED' && banner && aiAnimReturn(() => hideLLMBanner(banner))) {
-        const label = $('ai-banner-label');
-        if (label) label.textContent = message || 'Done!';
-        const cancelBtn = $('ai-banner-cancel');
-        if (cancelBtn) cancelBtn.remove();
-        // The "safe to leave / while you wait" note is stale once it's done.
-        const note = $('ai-banner-note');
-        if (note) note.remove();
-    }
-    setEditorLock();
-    if (message) setStatus(message);
-    if (outcome === 'COMPLETED') {
-        if (!viewingVersion) {
-            openFiles = {};
-            pendingDeletions = [];
-            currentFile = null;
-            loadFiles();
-        }
-        loadVersions();
-    }
-};
-
-const startLLMJob = (gameId, requestId, prompt, emailOnComplete) => {
-    llmJob = { requestId, prompt, emailOnComplete: !!emailOnComplete };
-    setEditorLock();
-    pollLLMStatus(gameId, requestId);
-};
-
-// On game open: resume watching any job that's still in flight (submitted
-// from a previous visit or another tab).
-const checkLLMJob = () => {
-    if (!AI_FEATURES_ENABLED || !currentGame || currentGame.guest || !userInfo) return;
-    const gameId = currentGame.id;
-    api('GET', `/studio/games/${gameId}/llm-status`, null, { silent: true })
-        .then(data => {
-            if (!currentGame || currentGame.id !== gameId || llmJob) return;
-            const open = (data.requests || []).find(r => r.status === 'PENDING' || r.status === 'PROCESSING');
-            if (open) startLLMJob(gameId, open.requestId, open.prompt || '', open.emailOnComplete);
-        })
-        .catch(() => {});
-};
-
-const pollLLMStatus = (gameId, requestId) => {
-    let notFound = 0;
-    const poll = () => {
-        // Stop if the user navigated away or the job already resolved.
-        if (!currentGame || currentGame.id !== gameId || !llmJob || llmJob.requestId !== requestId) return;
-
-        api('GET', `/studio/games/${gameId}/llm-status?id=${encodeURIComponent(requestId)}`, null, { silent: true })
-            .then(data => {
-                const r = data.request;
-                if (!r || r.status === 'PENDING' || r.status === 'PROCESSING') {
-                    if (r) setAIQueue(r.status, r.queue || {});
-                    setTimeout(poll, 5000);
-                    return;
-                }
-                if (r.status === 'COMPLETED') {
-                    finishLLMJob('COMPLETED', 'AI edit saved as a new version — your prompt is the commit message.');
-                } else if (r.status === 'CANCELLED') {
-                    finishLLMJob('CANCELLED', 'AI edit cancelled.');
-                } else {
-                    finishLLMJob('FAILED', 'AI edit failed: ' + (r.error || 'unknown error'));
-                }
-            })
-            .catch(err => {
-                // The record can disappear server-side; a dead id must not keep
-                // the editor locked forever.
-                if (err && err.status === 404 && ++notFound >= 3) {
-                    finishLLMJob('FAILED', 'AI edit request disappeared — it may have expired. Try again.');
-                    return;
-                }
-                setTimeout(poll, 8000);
-            });
-    };
-    // First poll comes quickly so the queue line materializes before your
-    // robot finishes its walk to the front.
-    setTimeout(poll, 1200);
-};
-
-const cancelLLMJob = () => {
-    if (!llmJob || !currentGame) return;
-    api('POST', `/studio/games/${currentGame.id}/llm-cancel`, { id: llmJob.requestId }, { silent: true })
-        .then(() => finishLLMJob('CANCELLED', 'AI edit cancelled.'))
-        .catch(() => {
-            // Probably resolved in the meantime — the poller picks it up.
-            setStatus('Could not cancel — the job may have just finished.');
-        });
-};
-
-// Kick off generation for a game just created via the "Generate with AI"
-// template choice — same job flow as an edit, no modal.
-const startLLMCreate = (gameId, prompt, emailOnComplete, images) => {
-    api('POST', `/studio/games/${gameId}/llm-modify`, { prompt, mode: 'CREATE', emailOnComplete: !!emailOnComplete, images: images || [] })
-        .then(data => {
-            startLLMJob(gameId, data.requestId, prompt, emailOnComplete);
-            // Land in the editor so the progress banner is in view.
-            openEditorAtHead();
-        })
-        .catch(err => {
-            setStatus(((err && err.error) || 'Failed to start AI generation')
-                + ' — your game was still created; retry from the AI Edit button.');
-        });
-};
-
-// ---------------------------------------------------------------------------
-// AI prompt image attachments ("here's a sketch" / "screenshot of the bug").
-// Images are downscaled client-side (max 1024px, JPEG) so even three
-// attachments stay well under the API's body cap, then ride along with the
-// prompt as data URLs for the vision model.
-// ---------------------------------------------------------------------------
-
-const AI_IMAGE_MAX = 3;
-const AI_IMAGE_MAX_DIM = 1024;
-
-const downscaleImage = (file) => new Promise((resolve, reject) => {
-    if (!file.type || !file.type.startsWith('image/')) {
-        reject(new Error(`${file.name} is not an image`));
-        return;
-    }
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-        URL.revokeObjectURL(url);
-        const scale = Math.min(1, AI_IMAGE_MAX_DIM / Math.max(img.width, img.height));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(img.width * scale));
-        canvas.height = Math.max(1, Math.round(img.height * scale));
-        const ctx = canvas.getContext('2d');
-        // JPEG has no alpha — flatten transparent sketches onto white.
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(`Could not read ${file.name}`)); };
-    img.src = url;
-});
-
-// Wire one modal's attachment widget (ids `${prefix}-image-{input,add,thumbs}`).
-// Returns { list, clear }: list() is the current data URLs in order.
-const initAIImageAttach = (prefix, errElId) => {
-    const input = $(`${prefix}-image-input`);
-    const addBtn = $(`${prefix}-image-add`);
-    const thumbs = $(`${prefix}-image-thumbs`);
-    if (!input || !addBtn || !thumbs) return { list: () => [], clear: () => {} };
-    let images = [];
-    const render = () => {
-        thumbs.innerHTML = '';
-        images.forEach((dataUrl, i) => {
-            const wrap = document.createElement('div');
-            wrap.className = 'ai-image-thumb';
-            const img = document.createElement('img');
-            img.src = dataUrl;
-            img.alt = `attached image ${i + 1}`;
-            wrap.appendChild(img);
-            const rm = document.createElement('button');
-            rm.type = 'button';
-            rm.textContent = '×';
-            rm.title = 'Remove image';
-            rm.onclick = () => { images.splice(i, 1); render(); };
-            wrap.appendChild(rm);
-            thumbs.appendChild(wrap);
-        });
-        addBtn.style.display = images.length >= AI_IMAGE_MAX ? 'none' : '';
-    };
-    addBtn.onclick = () => input.click();
-    input.onchange = () => {
-        const files = Array.from(input.files || []).slice(0, AI_IMAGE_MAX - images.length);
-        input.value = '';
-        files.forEach(f => {
-            downscaleImage(f)
-                .then(dataUrl => { if (images.length < AI_IMAGE_MAX) { images.push(dataUrl); render(); } })
-                .catch(e => { const el = $(errElId); if (el) el.textContent = e.message; });
-        });
-    };
-    return { list: () => images.slice(), clear: () => { images = []; render(); } };
-};
-
-const llmImages = initAIImageAttach('llm', 'llm-modal-error');
-const newGameImages = initAIImageAttach('new-game', 'new-game-error');
-
-$('llm-modal-cancel').onclick = () => hideModal('llm-modal');
-$('llm-modal-submit').onclick = () => {
-    const input = $('llm-prompt-input');
-    const errEl = $('llm-modal-error');
-    const prompt = (input?.value || '').trim();
-    if (errEl) errEl.textContent = '';
-    if (!prompt) {
-        if (errEl) errEl.textContent = 'Describe the change you want.';
-        return;
-    }
-    if (!currentGame || llmJob) return;
-    if (hasUnsavedChanges()) {
-        if (errEl) errEl.textContent = 'Save or discard your changes first — the AI edits your last saved version.';
-        return;
-    }
-
-    const gameId = currentGame.id;
-    const emailOnComplete = !!$('llm-email-notify')?.checked;
-    const images = llmImages.list();
-    setLLMBusy(true, '<span class="spinner"></span>Submitting…');
-    api('POST', `/studio/games/${gameId}/llm-modify`, { prompt, emailOnComplete, images }, { silent: true })
-        .then(data => {
-            setLLMBusy(false, '');
-            if (input) input.value = '';
-            llmImages.clear();
-            hideModal('llm-modal');
-            startLLMJob(gameId, data.requestId, prompt, emailOnComplete);
-        })
-        .catch(err => {
-            setLLMBusy(false, '');
-            // 409 = a job is already open (e.g. from another tab) — adopt it.
-            if (err && err.status === 409) {
-                hideModal('llm-modal');
-                checkLLMJob();
-                return;
-            }
-            if (errEl) errEl.textContent = (err && err.error) ? err.error : 'Failed to submit request';
-        });
-};
-
 // Refresh/close protection: the draft makes this recoverable, but private
 // browsing (or a full localStorage) can't persist it — warn either way.
 window.addEventListener('beforeunload', (e) => {
@@ -3237,6 +1273,7 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
+    if ($('studio-games').open || $('studio-settings').open) return;
     // Cmd+F targets the in-editor find whenever a file is open — browser
     // page-find fights the highlight overlay and finds nothing useful.
     if ((e.metaKey || e.ctrlKey) && e.key === 'f' && currentFile) {
@@ -3247,7 +1284,7 @@ document.addEventListener('keydown', (e) => {
             .some((id) => $(id).classList.contains('visible'));
         if (!inOtherField && !overlayUp) { e.preventDefault(); openFindBar(); }
     }
-    if (e.key === 'Escape') { if (findBarOpen()) closeFindBar(); hideModal('new-game-modal'); hideModal('new-file-modal'); hideModal('rename-file-modal'); hideModal('file-delete-confirm-modal'); hideModal('guide-modal'); hideModal('snippets-modal'); hideModal('llm-modal'); closeAssetModal(); hideModal('asset-delete-confirm-modal'); hideModal('profile-modal'); }
+    if (e.key === 'Escape') { if (findBarOpen()) closeFindBar(); hideModal('new-file-modal'); hideModal('rename-file-modal'); hideModal('file-delete-confirm-modal'); hideModal('guide-modal'); hideModal('snippets-modal'); closeAssetModal(); }
 });
 
 // ---------------------------------------------------------------------------
@@ -3255,209 +1292,9 @@ document.addEventListener('keydown', (e) => {
 // ---------------------------------------------------------------------------
 
 // Admins get a link to the full moderation console at /admin.
-$('admin-btn').onclick = () => { window.open('/admin', '_blank'); };
+// $('admin-btn').onclick = () => { window.open('/admin', '_blank'); }; // Retired Studio entry point.
 
 // Authoring guide / LLM context — fetch once, show in a modal, copy to clipboard.
-let _guideText = null;
-const loadGuide = () => {
-    const el = $('guide-content');
-    if (_guideText !== null) { el.textContent = _guideText; return; }
-    el.textContent = 'Loading…';
-    fetch('/authoring-guide.md')
-        .then(r => r.ok ? r.text() : Promise.reject(new Error('http ' + r.status)))
-        .then(text => { _guideText = text; el.textContent = text; })
-        .catch(() => { el.textContent = 'Failed to load the guide. (Is homegames-common installed on the server?)'; });
-};
-
-$('guide-btn').onclick = () => { showModal('guide-modal'); loadGuide(); };
-$('guide-close').onclick = () => hideModal('guide-modal');
-$('guide-copy').onclick = () => {
-    const text = _guideText || $('guide-content').textContent || '';
-    const btn = $('guide-copy');
-    const done = (ok) => {
-        btn.textContent = ok ? 'Copied!' : 'Copy failed';
-        setTimeout(() => { btn.textContent = 'Copy to clipboard'; }, 1500);
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(() => done(true)).catch(() => done(false));
-    } else {
-        const ta = document.createElement('textarea');
-        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
-        document.body.appendChild(ta); ta.select();
-        try { done(document.execCommand('copy')); } catch (e) { done(false); }
-        document.body.removeChild(ta);
-    }
-};
-
-// ---------------------------------------------------------------------------
-// Snippets — copy-paste building blocks for common game pieces.
-// Kept in sync with the authoring contract (homegames-context.md, Part II).
-// ---------------------------------------------------------------------------
-
-const SNIPPETS = [
-    {
-        title: 'Shape',
-        blurb: 'A colored rectangle. coordinates2d is a vertex list in 0-100 space.',
-        code: [
-            "const box = new GameNode.Shape({",
-            "    shapeType: Shapes.POLYGON,",
-            "    coordinates2d: ShapeUtils.rectangle(40, 40, 20, 20),   // x, y, width, height",
-            "    fill: [0, 200, 255, 255]                               // [r, g, b, a]",
-            "});",
-            "this.base.addChild(box);"
-        ].join('\n')
-    },
-    {
-        title: 'Text',
-        blurb: 'A text label. size is % of screen WIDTH; Text nodes are never clickable.',
-        code: [
-            "const label = new GameNode.Text({",
-            "    textInfo: { text: 'Hello!', x: 50, y: 20, size: 3, align: 'center', color: [255, 255, 255, 255] }",
-            "});",
-            "this.base.addChild(label);",
-            "",
-            "// Update it later (the live field is node.text), then notify:",
-            "label.node.text = Object.assign({}, label.node.text, { text: 'New text' });",
-            "this.base.node.onStateChange();"
-        ].join('\n')
-    },
-    {
-        title: 'Button',
-        blurb: 'A clickable Shape with a Text label on top — the shape carries the onClick.',
-        code: [
-            "const button = new GameNode.Shape({",
-            "    shapeType: Shapes.POLYGON,",
-            "    coordinates2d: ShapeUtils.rectangle(38, 45, 24, 12),",
-            "    fill: [40, 120, 210, 255],",
-            "    onClick: (playerId, x, y) => {",
-            "        // do the thing",
-            "    }",
-            "});",
-            "button.addChild(new GameNode.Text({",
-            "    textInfo: { text: 'START', x: 50, y: 49, size: 2.2, align: 'center', color: [255, 255, 255, 255] }",
-            "}));",
-            "this.base.addChild(button);"
-        ].join('\n')
-    },
-    {
-        title: 'Image asset',
-        blurb: 'Declare the asset in metadata(), then draw it with a GameNode.Asset. (Open any asset and hit "Use in a game" to get this with the real id filled in.)',
-        code: [
-            "// In static metadata()  (also: const { Asset } = require('squish-142');)",
-            "assets: {",
-            "    'myImage': new Asset({ id: 'PASTE-ASSET-ID-HERE', type: 'image' })",
-            "},",
-            "",
-            "// Drawing it:",
-            "const image = new GameNode.Asset({",
-            "    coordinates2d: ShapeUtils.rectangle(30, 30, 40, 40),",
-            "    assetInfo: {",
-            "        'myImage': { pos: { x: 30, y: 30 }, size: { x: 40, y: 40 } }",
-            "    }",
-            "});",
-            "this.base.addChild(image);"
-        ].join('\n')
-    },
-    {
-        title: 'Sound',
-        blurb: 'Audio is an Asset node with zero size — add it to play, remove it to stop.',
-        code: [
-            "// In static metadata():",
-            "assets: {",
-            "    'mySound': new Asset({ id: 'PASTE-ASSET-ID-HERE', type: 'audio' })",
-            "},",
-            "",
-            "// Playing it:",
-            "const sound = new GameNode.Asset({",
-            "    coordinates2d: ShapeUtils.rectangle(0, 0, 0, 0),",
-            "    assetInfo: { 'mySound': { pos: { x: 0, y: 0 }, size: { x: 0, y: 0 }, startTime: 0 } }",
-            "});",
-            "this.base.addChild(sound);",
-            "this.setTimeout(() => this.base.removeChild(sound.id), 1000);"
-        ].join('\n')
-    },
-    {
-        title: 'Glow + fade',
-        blurb: 'Glow via effects.shadow (Shape/Asset only). Fade by animating the color alpha — fill alpha renders all-or-nothing.',
-        code: [
-            "const orb = new GameNode.Shape({",
-            "    shapeType: Shapes.POLYGON,",
-            "    coordinates2d: ShapeUtils.rectangle(45, 45, 10, 10),",
-            "    fill: [0, 255, 255, 255],",
-            "    color: [0, 255, 255, 255],   // fade by animating THIS alpha",
-            "    effects: { shadow: { color: [0, 255, 255, 255], blur: 14 } }",
-            "});",
-            "this.base.addChild(orb);",
-            "",
-            "// In tick(): fade it out (then one onStateChange at the end)",
-            "orb.node.color = [0, 255, 255, Math.round(255 * lifeRemaining / lifeTotal)];",
-            "// Clear a glow with null, never {}:",
-            "orb.node.effects = null;"
-        ].join('\n')
-    },
-    {
-        title: 'Per-player visibility',
-        blurb: 'playerIds: [] (or omitted) = everyone, [id] = only them. Great for private info and "YOU" markers. NOT a hide switch — to hide something, remove it from the tree.',
-        code: [
-            "// Only this player sees their own marker:",
-            "const youMarker = new GameNode.Text({",
-            "    textInfo: { text: 'YOU', x: 50, y: 8, size: 1.5, align: 'center', color: [255, 210, 90, 255] },",
-            "    playerIds: [playerId]",
-            "});",
-            "this.base.addChild(youMarker);",
-            "",
-            "// Visibility is NOT ownership: leave shared things (ships, bullets,",
-            "// enemies) unscoped or other players can't see them.",
-            "",
-            "// To hide a node, take it OUT of the tree (and re-add to show):",
-            "this.base.removeChild(node.id);   // hidden (and free — not serialized)",
-            "this.base.addChild(node);         // visible again"
-        ].join('\n')
-    },
-    {
-        title: 'Layers that never eat clicks',
-        blurb: 'Clicks resolve to the TOPMOST node containing the point, clickable or not. Grouping containers must be zero-size; full-screen tap input needs a catcher above the playfield, below the buttons.',
-        code: [
-            "// Grouping container (holds children, can never swallow a click):",
-            "const layer = new GameNode.Shape({",
-            "    shapeType: Shapes.POLYGON,",
-            "    coordinates2d: ShapeUtils.rectangle(0, 0, 0, 0)",
-            "});",
-            "",
-            "// Tap-anywhere input (invisible, drawn above the playfield):",
-            "const tapCatcher = new GameNode.Shape({",
-            "    shapeType: Shapes.POLYGON,",
-            "    coordinates2d: ShapeUtils.rectangle(0, 0, 100, 100),",
-            "    onClick: (playerId, x, y) => this.handleTap(playerId, x, y)",
-            "});",
-            "// order matters: playfield first, then tapCatcher, then buttons",
-            "this.base.addChildren(playfield, tapCatcher, buttons);"
-        ].join('\n')
-    },
-    {
-        title: 'Game loop',
-        blurb: 'ALWAYS set tickRate in metadata() if you define tick() — without it, tick() runs at a default 60/sec. Do all mutations in tick(), ending with ONE onStateChange, only when something changed.',
-        code: [
-            "// In static metadata():  tickRate: 20,   // required if you define tick()",
-            "",
-            "tick() {",
-            "    this.t = (this.t || 0) + 1;",
-            "    let changed = false;",
-            "",
-            "    // move things, count down timers (durations = seconds * tickRate)...",
-            "    if (this.t >= this.nextSpawnAt) {",
-            "        this.spawnThing();",
-            "        this.nextSpawnAt = this.t + 2 * 20;   // every 2 seconds",
-            "        changed = true;",
-            "    }",
-            "",
-            "    // one notify per tick, only when something actually changed",
-            "    if (changed) this.base.node.onStateChange();",
-            "}"
-        ].join('\n')
-    }
-];
-
 const copySnippet = (text, btn) => {
     const originalLabel = btn.textContent;
     const done = (ok) => {
@@ -3475,51 +1312,6 @@ const copySnippet = (text, btn) => {
     }
 };
 
-let _snippetsRendered = false;
-const renderSnippets = () => {
-    if (_snippetsRendered) return;
-    _snippetsRendered = true;
-    const list = $('snippets-list');
-    SNIPPETS.forEach(snippet => {
-        const item = document.createElement('div');
-        item.style = 'margin-bottom:14px;';
-
-        const header = document.createElement('div');
-        header.style = 'display:flex;justify-content:space-between;align-items:baseline;gap:8px;';
-        const title = document.createElement('div');
-        title.style = 'font-weight:bold;color:var(--text-primary,#eee);';
-        title.textContent = snippet.title;
-        const copyBtn = document.createElement('button');
-        copyBtn.type = 'button';
-        copyBtn.className = 'modal-btn secondary';
-        copyBtn.style = 'padding:2px 10px;font-size:0.8em;';
-        copyBtn.textContent = 'Copy';
-        copyBtn.onclick = () => copySnippet(snippet.code, copyBtn);
-        header.appendChild(title);
-        header.appendChild(copyBtn);
-
-        const blurb = document.createElement('div');
-        blurb.style = 'color:#888;font-size:0.8em;margin:2px 0 4px;';
-        blurb.textContent = snippet.blurb;
-
-        const pre = document.createElement('pre');
-        pre.style = 'background:#11131a;color:#cdd2dc;padding:10px;border-radius:6px;overflow:auto;font:12px/1.5 ui-monospace,monospace;margin:0;';
-        pre.textContent = snippet.code;
-
-        item.appendChild(header);
-        item.appendChild(blurb);
-        item.appendChild(pre);
-        list.appendChild(item);
-    });
-};
-
-// Guarded so a stale cached studio.html (without these elements) can't
-// throw here and kill everything below this point in the script.
-const snippetsBtn = $('snippets-btn');
-if (snippetsBtn) snippetsBtn.onclick = () => { renderSnippets(); showModal('snippets-modal'); };
-const snippetsCloseBtn = $('snippets-close');
-if (snippetsCloseBtn) snippetsCloseBtn.onclick = () => hideModal('snippets-modal');
-
 // Build a paste-ready snippet for a specific asset (used by the asset detail
 // modal's "Use in a game" button). Adapts to the asset's type.
 const buildAssetSnippet = (asset) => {
@@ -3527,7 +1319,7 @@ const buildAssetSnippet = (asset) => {
     const rawName = (asset.name || 'myAsset').replace(/\.[a-z0-9]+$/i, '');
     const key = (rawName.replace(/[^a-zA-Z0-9]+([a-zA-Z0-9])/g, (m, c) => c.toUpperCase()).replace(/^[^a-zA-Z]+/, '') || 'myAsset');
     const declare = [
-        "// 1) In static metadata()  (also: const { Asset } = require('squish-142');)",
+        "// 1) In static metadata()  (also: const { Asset } = require('squish-150');)",
         "assets: {",
         "    '" + key + "': new Asset({ id: '" + asset.id + "', type: '" + (type === 'other' ? 'image' : type) + "' })",
         "},",
@@ -3602,439 +1394,15 @@ const togglePreviewPanel = () => {
 // settings — description, thumbnail, clone, delete.
 // ---------------------------------------------------------------------------
 
-const renderGameBladeTitle = () => {
-    const title = $('game-blade-title');
-    if (!title) return;
-    title.innerHTML = '';
-    if (!currentGame) return;
-    $('blade-game-label').textContent = currentGame.name;
-    if (currentGame.thumbnail) {
-        const img = document.createElement('img');
-        img.src = `${API_URL}/assets/${currentGame.thumbnail}`;
-        img.style = 'width:28px;height:28px;border-radius:4px;object-fit:cover;border:1px solid var(--border);';
-        title.appendChild(img);
-    }
-    const name = document.createElement('span');
-    name.className = 'game-title';
-    name.textContent = currentGame.name;
-    title.appendChild(name);
-    if (currentGame.description) {
-        const desc = document.createElement('span');
-        desc.className = 'game-desc';
-        desc.textContent = currentGame.description;
-        title.appendChild(desc);
-    }
-};
+const renderGameBlade = () => StudioPortable.renderHistory().catch(StudioPortable.error);
 
-const showGameSubview = (which) => {
-    const isSettings = which === 'settings';
-    $('game-versions-view').style.display = isSettings ? 'none' : '';
-    $('settings-panel').classList.toggle('open', isSettings);
-    $('game-tab-versions').classList.toggle('active', !isSettings);
-    $('game-tab-settings').classList.toggle('active', isSettings);
-    if (isSettings) renderSettingsContent($('settings-panel'));
-};
-$('game-tab-versions').onclick = () => showGameSubview('versions');
-$('game-tab-settings').onclick = () => showGameSubview('settings');
-
-const renderGameBlade = () => {
-    renderGameBladeTitle();
-    showGameSubview('versions');
-    renderVersionList();
-};
-
-const settingsSection = (title, hint) => {
-    const sec = document.createElement('div');
-    sec.style = 'max-width:640px;margin:0 auto 28px;';
-    const h = document.createElement('div');
-    h.textContent = title;
-    h.style = 'font-size:1.05em;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:var(--text-primary);margin-bottom:4px;';
-    sec.appendChild(h);
-    if (hint) {
-        const p = document.createElement('div');
-        p.textContent = hint;
-        p.style = 'color:var(--text-muted);font-size:0.82em;margin-bottom:10px;';
-        sec.appendChild(p);
-    }
-    return sec;
-};
-
-const renderSettingsContent = (panel) => {
-    panel.innerHTML = '';
-    if (!currentGame) return;
-
-    // --- Name ---
-    const nameSection = settingsSection('Name', 'Renames the game and its repository. Old clone URLs keep working.');
-    const nameInput = document.createElement('input');
-    nameInput.type = 'text';
-    nameInput.value = currentGame.name || '';
-    nameInput.style = 'width:100%;padding:10px;background:var(--bg-deep);border:1px solid var(--border-light);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.95em;';
-    nameSection.appendChild(nameInput);
-    const nameSave = document.createElement('button');
-    nameSave.className = 'dash-btn publish';
-    nameSave.style.marginTop = '8px';
-    nameSave.textContent = 'Save Name';
-    const submitNameChange = () => {
-        const name = nameInput.value.trim();
-        if (!name) { setStatus('Name cannot be empty'); return; }
-        if (name === currentGame.name) return;
-        nameSave.disabled = true; nameSave.textContent = 'Saving...';
-        api('POST', `/studio/games/${currentGame.id}/rename`, { name })
-            .then((updated) => {
-                currentGame.name = updated.name;
-                currentGame.forgejoRepo = updated.forgejoRepo;
-                renderGameBladeTitle();
-                renderGameList();
-                // The editor header caches the name in the DOM — update in place.
-                document.querySelectorAll('#game-header .game-title').forEach(el => { el.textContent = updated.name; });
-                setStatus('Game renamed');
-            })
-            .catch(() => setStatus('Failed to rename game'))
-            .finally(() => { nameSave.disabled = false; nameSave.textContent = 'Save Name'; });
-    };
-    nameSave.onclick = submitNameChange;
-    nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitNameChange(); });
-    nameSection.appendChild(nameSave);
-    panel.appendChild(nameSection);
-
-    // --- Description ---
-    const descSection = settingsSection('Description', 'A one-line pitch shown in the catalog. Required to publish.');
-    const descArea = document.createElement('textarea');
-    descArea.value = currentGame.description || '';
-    descArea.style = 'width:100%;min-height:64px;padding:10px;background:var(--bg-deep);border:1px solid var(--border-light);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.95em;resize:vertical;';
-    descSection.appendChild(descArea);
-    const descSave = document.createElement('button');
-    descSave.className = 'dash-btn publish';
-    descSave.style.marginTop = '8px';
-    descSave.textContent = 'Save Description';
-    descSave.onclick = () => {
-        const desc = descArea.value.trim();
-        if (!desc) { setStatus('Description cannot be empty'); return; }
-        descSave.disabled = true; descSave.textContent = 'Saving...';
-        api('POST', `/games/${currentGame.id}/update`, { description: desc })
-            .then(() => { currentGame.description = desc; renderGameBladeTitle(); renderGameList(); setStatus('Description updated'); })
-            .catch(() => setStatus('Failed to save description'))
-            .finally(() => { descSave.disabled = false; descSave.textContent = 'Save Description'; });
-    };
-    descSection.appendChild(descSave);
-    panel.appendChild(descSection);
-
-    // --- Thumbnail ---
-    const thumbSection = settingsSection('Thumbnail', 'Pick an image asset to represent the game. Required to publish.');
-    const thumbGrid = document.createElement('div');
-    thumbGrid.className = 'thumb-pick-grid';
-    thumbGrid.style.maxWidth = '520px';
-    thumbSection.appendChild(thumbGrid);
-    const thumbMoreWrap = document.createElement('div');
-    thumbMoreWrap.style = 'margin-top:10px;';
-    const thumbMoreBtn = document.createElement('button');
-    thumbMoreBtn.textContent = 'Load more';
-    thumbMoreBtn.style.display = 'none';
-    thumbMoreWrap.appendChild(thumbMoreBtn);
-    thumbSection.appendChild(thumbMoreWrap);
-    panel.appendChild(thumbSection);
-
-    const THUMB_PAGE = 24;
-    let thumbOffset = 0;
-    let thumbLoading = false;
-    const addThumbItem = (asset) => {
-        const item = document.createElement('div');
-        item.className = 'thumb-pick-item' + (currentGame.thumbnail === asset.id ? ' selected' : '');
-        const img = document.createElement('img');
-        img.src = `${API_URL}/assets/${asset.id}`;
-        img.title = asset.name || asset.id;
-        item.appendChild(img);
-        item.onclick = () => {
-            api('POST', `/studio/games/${currentGame.id}/thumbnail`, { assetId: asset.id }).then(() => {
-                currentGame.thumbnail = asset.id;
-                [...thumbGrid.children].forEach(c => c.classList.remove('selected'));
-                item.classList.add('selected');
-                renderGameBladeTitle();
-                setStatus('Thumbnail updated');
-            }).catch(() => setStatus('Failed to set thumbnail'));
-        };
-        thumbGrid.appendChild(item);
-    };
-    const loadThumbPage = () => {
-        if (thumbLoading) return;
-        thumbLoading = true;
-        thumbMoreBtn.disabled = true;
-        api('GET', `/assets?type=image&limit=${THUMB_PAGE}&offset=${thumbOffset}`).then(data => {
-            const imgs = data.assets || [];
-            if (thumbOffset === 0 && !imgs.length) {
-                thumbGrid.innerHTML = '<div style="color:var(--text-faint);font-size:0.85em;">No image assets yet — add one in the ASSETS workspace.</div>';
-                thumbMoreBtn.style.display = 'none';
-                return;
-            }
-            imgs.forEach(addThumbItem);
-            thumbOffset += imgs.length;
-            thumbMoreBtn.style.display = thumbOffset < (data.count || 0) ? '' : 'none';
-        }).catch(() => {
-            if (thumbOffset === 0) thumbGrid.innerHTML = '<div style="color:var(--accent-red);font-size:0.85em;">Failed to load assets</div>';
-        }).finally(() => { thumbLoading = false; thumbMoreBtn.disabled = false; });
-    };
-    thumbMoreBtn.onclick = loadThumbPage;
-    loadThumbPage();
-
-    // --- Clone & download ---
-    const cloneSection = settingsSection('Clone & Download', 'Work on this game locally with git, or grab a ZIP.');
-    const cloneBody = document.createElement('div');
-    cloneBody.textContent = 'Loading…';
-    cloneBody.style = 'color:var(--text-faint);font-size:0.85em;';
-    cloneSection.appendChild(cloneBody);
-    panel.appendChild(cloneSection);
-    api('GET', `/studio/games/${currentGame.id}/clone`).then(info => {
-        const url = info.authenticatedUrl || info.cloneUrl;
-        cloneBody.style = '';
-        cloneBody.innerHTML = '';
-        const box = document.createElement('div'); box.className = 'clone-url-box';
-        const input = document.createElement('input'); input.readOnly = true; input.value = url; input.onclick = () => input.select();
-        const copyBtn = document.createElement('button'); copyBtn.className = 'copy-btn'; copyBtn.textContent = 'Copy';
-        copyBtn.onclick = () => navigator.clipboard.writeText(url).then(() => { copyBtn.textContent = 'Copied!'; setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500); });
-        box.appendChild(input); box.appendChild(copyBtn); cloneBody.appendChild(box);
-        const cmd = document.createElement('code'); cmd.className = 'clone-cmd'; cmd.textContent = `git clone ${url}`; cloneBody.appendChild(cmd);
-        const hint = document.createElement('div'); hint.className = 'clone-hint'; hint.textContent = 'The clone URL includes your access token — don’t share it. Push to update the game in Studio.'; cloneBody.appendChild(hint);
-        const dl = document.createElement('button'); dl.className = 'download-btn'; dl.textContent = '⤓ Download ZIP';
-        dl.onclick = () => { const a = url.replace(/\.git$/, '') + '/archive/main.zip'; window.open(a.replace(/\/\/[^@]+@/, '//'), '_blank'); };
-        cloneBody.appendChild(dl);
-    }).catch(() => { cloneBody.textContent = 'Failed to load clone info'; cloneBody.style = 'color:var(--accent-red);font-size:0.85em;'; });
-
-    // --- Archive ---
-    const archiveSection = settingsSection('Archive', currentGame.archived
-        ? 'This game is archived — it only shows up under the Archived filter in your game list.'
-        : 'Hides the game from your main game list. Nothing is deleted; you can unarchive any time.');
-    const archiveBtn = document.createElement('button');
-    archiveBtn.className = 'dash-btn';
-    archiveBtn.textContent = currentGame.archived ? 'Unarchive Game' : 'Archive Game';
-    archiveBtn.onclick = () => {
-        const archived = !currentGame.archived;
-        archiveBtn.disabled = true;
-        api('POST', `/studio/games/${currentGame.id}/archive`, { archived })
-            .then(() => {
-                currentGame.archived = archived;
-                loadGames();
-                renderSettingsContent(panel);
-                setStatus(archived ? 'Game archived' : 'Game unarchived');
-            })
-            .catch(() => {
-                archiveBtn.disabled = false;
-                setStatus('Failed to update game');
-            });
-    };
-    archiveSection.appendChild(archiveBtn);
-    panel.appendChild(archiveSection);
-
-    // --- Danger zone ---
-    const dangerSection = settingsSection('Danger Zone', 'Deleting a game removes it and all of its versions permanently.');
-    const delBtn = document.createElement('button');
-    delBtn.className = 'dash-btn danger';
-    delBtn.textContent = 'Delete Game';
-    delBtn.onclick = () => {
-        if (!confirm(`Permanently delete "${currentGame.name}" and all of its versions? This cannot be undone.`)) return;
-        delBtn.disabled = true;
-        delBtn.textContent = 'Deleting...';
-        api('DELETE', `/games/${currentGame.id}`).then(() => {
-            stopPreview();
-            currentGame = null;
-            currentFile = null;
-            openFiles = {};
-            pendingDeletions = [];
-            extraFolders = new Set();
-            viewingVersion = null;
-            editorBladeOpened = false;
-            $('main-content').innerHTML = '';
-            loadGames();
-            setActiveBlade('games');
-        }).catch(() => {
-            delBtn.disabled = false;
-            delBtn.textContent = 'Delete Game';
-            setStatus('Failed to delete game');
-        });
-    };
-    dangerSection.appendChild(delBtn);
-    panel.appendChild(dangerSection);
-};
-
-// Fetch ALL files for preview and return as a { path: content } map.
-// For HEAD, uses in-memory openFiles content (including unsaved edits) where
-// available and fetches the rest from the API. For versions, fetches everything.
-const fetchAllFilesForPreview = () => new Promise((resolve, reject) => {
-    if (!currentGame) { reject('No game selected'); return; }
-
-    const ref = viewingVersion ? viewingVersion.sha : undefined;
-    const allFiles = fileTree.filter(f => f.type === 'blob');
-    if (!allFiles.find(f => f.path === 'index.js')) {
-        reject('No index.js found');
-        return;
-    }
-
-    const files = {};
-
-    // For HEAD, populate from in-memory openFiles (picks up unsaved edits)
-    const filesToFetch = [];
-    allFiles.forEach(f => {
-        if (!viewingVersion && openFiles[f.path]) {
-            files[f.path] = openFiles[f.path].content;
-        } else {
-            filesToFetch.push(f);
-        }
-    });
-
-    // If everything was already in memory, resolve immediately
-    if (filesToFetch.length === 0) {
-        resolve(files);
-        return;
-    }
-
-    let fetched = 0;
-    filesToFetch.forEach(f => {
-        const refParam = ref ? `&ref=${ref}` : '';
-        api('GET', `/studio/games/${currentGame.id}/file?path=${encodeURIComponent(f.path)}${refParam}`)
-            .then(data => {
-                files[f.path] = data.content ? b64ToUtf8(data.content) : '';
-                fetched++;
-                if (fetched === filesToFetch.length) resolve(files);
-            })
-            .catch((err) => {
-                reject('Failed to load file: ' + f.path);
-            });
-    });
-});
-
-const startPreview = () => {
-    const generation = ++previewGeneration;
-    setPreviewStatus('Loading files...');
-    fetchAllFilesForPreview()
-        .then(files => { if (generation === previewGeneration) _doStartLocalPreview(files); })
-        .catch(err => { if (generation === previewGeneration) setPreviewStatus(err || 'Failed to load files'); });
-};
+const startPreview = () => StudioPortable.play().catch(StudioPortable.error);
 
 // Pulls { key, id, type } for every `key: new Asset({ id, type })` declared in
 // the entry source. Regex, not AST — studio games declare assets as literals
 // (the asset picker inserts them that way), and a miss just means that asset
 // won't load in local preview. Duplicate keys resolve last-wins like the
 // runtime object.
-const extractDeclaredAssets = (source) => {
-    const byKey = {};
-    const re = /['"]?([\w][\w-]*)['"]?\s*:\s*new\s+Asset\s*\(\s*\{([^}]*)\}/g;
-    let m;
-    while ((m = re.exec(source))) {
-        const body = m[2];
-        const idMatch = body.match(/['"]?id['"]?\s*:\s*['"]([^'"]+)['"]/);
-        const typeMatch = body.match(/['"]?type['"]?\s*:\s*['"]([^'"]+)['"]/);
-        if (idMatch) {
-            byKey[m[1]] = { key: m[1], id: idMatch[1], type: typeMatch ? typeMatch[1] : 'image' };
-        }
-    }
-    return Object.values(byKey);
-};
-
-const fetchPreviewAssetBundle = (files) => {
-    const declared = extractDeclaredAssets(files['index.js'] || '');
-    if (!declared.length) return Promise.resolve(null);
-
-    setPreviewStatus(`Loading ${declared.length} asset${declared.length === 1 ? '' : 's'}...`);
-    return Promise.all(declared.map(a =>
-        fetch(`${API_URL}/assets/${a.id}`)
-            .then(r => {
-                if (!r.ok) throw new Error(`Asset ${a.key} failed: ${r.status}`);
-                return r.arrayBuffer();
-            })
-            .then(ab => ({ key: a.key, type: a.type, data: new Uint8Array(ab) }))
-    )).then(entries => HomegamesClient.packAssetBundle(entries));
-};
-
-// Local preview: the game runs in this tab via LocalSession — no server
-// session. Sharing adds RTC players to this same running preview.
-const _doStartLocalPreview = (files) => {
-    // Keep the inspector across restarts — it records the new session afresh
-    const wasInspecting = inspectorOn;
-    stopPreview();
-    const generation = previewGeneration;
-
-    const playBtn = $('preview-play-btn');
-    const stopBtn = $('preview-stop-btn');
-    if (playBtn) playBtn.disabled = true;
-
-    fetchPreviewAssetBundle(files).then(assetBundle => {
-        if (generation !== previewGeneration) return;
-        setPreviewStatus('Starting...');
-        startLocalLogCapture();
-
-        previewClient = new HomegamesClient.LocalSession({
-            containerId: 'preview-container',
-            gameKey: `studio:${currentGame.guest ? 'guest:' + currentGame.templateId : currentGame.id}`,
-            versionId: viewingVersion?.sha || 'local-game-version',
-            files,
-            entryPoint: 'index.js',
-            assetBundle,
-            onReady: () => {
-                setPreviewStatus('Running locally — click the code to edit');
-                if (playBtn) { playBtn.textContent = 'Restart'; playBtn.disabled = false; }
-                if (stopBtn) stopBtn.style.display = '';
-                const inspectBtn = $('preview-inspect-btn');
-                if (inspectBtn) inspectBtn.style.display = '';
-                const playerBtn = $('preview-player2-btn');
-                if (playerBtn) playerBtn.style.display = '';
-                if (wasInspecting && !inspectorOn) toggleInspector();
-                showPreviewShareOffer();
-            },
-            onError: (err) => {
-                appendPreviewLog('error', 'Error: ' + ((err && err.message) || err));
-                setPreviewStatus('Error: ' + ((err && err.message) || err));
-                stopLocalLogCapture();
-                resetPreviewButtons();
-            },
-        });
-        previewClient.start();
-    }).catch(err => {
-        if (generation !== previewGeneration) return;
-        setPreviewStatus((err && err.message) || 'Failed to load assets');
-        if (playBtn) playBtn.disabled = false;
-    });
-};
-
-// Share the running preview without restarting its game.
-const showPreviewShareOffer = () => {
-    const shareEl = $('preview-share');
-    if (!shareEl) return;
-    shareEl.innerHTML = '';
-
-    const onlineBtn = document.createElement('button');
-    onlineBtn.textContent = 'Share';
-    onlineBtn.className = 'preview-share-copy';
-    onlineBtn.onclick = () => {
-        if (!userInfo) {
-            openSignupGate('Create a free account to share your preview with friends. Keep this tab open while they play.');
-            return;
-        }
-        if (!previewClient || previewFrozen) return;
-        if (!previewRtcHost) {
-            previewRtcHost = new HomegamesClient.RtcHost(previewClient, {
-                signalingUrl: `${API_URL}/rtc`,
-                joinUrl: new URL('/play.html', window.location.href).href,
-                onStatus: setPreviewStatus,
-            });
-            previewShareDialog = HomegamesClient.createShareDialog({
-                container: $('preview-container'),
-                getLink: () => previewRtcHost.share(),
-                onOpen: () => previewClient?.inputHandler?.detach(),
-                onClose: () => previewClient?.inputHandler?.attach(),
-            });
-        }
-        previewShareDialog.show();
-    };
-    shareEl.appendChild(onlineBtn);
-
-    const fullscreenBtn = document.createElement('button');
-    fullscreenBtn.textContent = 'Full screen';
-    fullscreenBtn.className = 'preview-share-copy';
-    fullscreenBtn.onclick = enterPreviewFullscreen;
-    shareEl.appendChild(fullscreenBtn);
-};
-
-// Fullscreen the running preview — everything stays local to this tab, so a
-// private game never touches a server. Esc exits, as usual.
 const enterPreviewFullscreen = () => {
     const container = $('preview-container');
     if (!container) return;
@@ -4090,6 +1458,7 @@ const appendPreviewLog = (level, message) => {
     line.appendChild(ts);
     line.appendChild(msg);
     logsEl.appendChild(line);
+    while (logsEl.children.length > 1000) logsEl.firstElementChild.remove();
     logsEl.scrollTop = logsEl.scrollHeight;
 };
 
@@ -4130,6 +1499,7 @@ window.addEventListener('pagehide', () => stopPreview());
 
 const stopPreview = () => {
     previewGeneration++;
+    StudioPortable.stopFrame();
     stopPreviewSharing();
     stopLocalLogCapture();
 
@@ -4159,6 +1529,7 @@ const freezePreview = () => {
     setPreviewStatus('Stopped — inspecting the recording. Hit Run to play again.');
     const playBtn = $('preview-play-btn');
     if (playBtn) { playBtn.textContent = 'Run'; playBtn.disabled = false; }
+    if (currentGame?.portable && $('preview-toggle-btn')) $('preview-toggle-btn').textContent = 'Play';
     const stopBtn = $('preview-stop-btn');
     if (stopBtn) stopBtn.style.display = 'none';
     const playerBtn = $('preview-player2-btn');
@@ -4179,6 +1550,7 @@ const resetPreviewButtons = () => {
     const playBtn = $('preview-play-btn');
     const stopBtn = $('preview-stop-btn');
     if (playBtn) { playBtn.textContent = 'Run'; playBtn.disabled = false; }
+    if (currentGame?.portable && $('preview-toggle-btn')) $('preview-toggle-btn').textContent = 'Play';
     if (stopBtn) stopBtn.style.display = 'none';
     const inspectBtn = $('preview-inspect-btn');
     if (inspectBtn) inspectBtn.style.display = 'none';
@@ -4582,7 +1954,7 @@ const toggleInspectorPick = () => {
 
 let secondPlayerId = null;
 
-const toggleSecondPlayer = () => {
+const toggleSecondPlayer = async () => {
     if (!previewClient || previewMode !== 'local' || !previewClient.addPlayer) return;
     const btn = $('preview-player2-btn');
     const container = $('preview-container-2');
@@ -4590,14 +1962,19 @@ const toggleSecondPlayer = () => {
         previewClient.removePlayer(secondPlayerId);
         secondPlayerId = null;
         if (container) container.style.display = 'none';
-        if (btn) { btn.textContent = '+ Player'; btn.classList.remove('active'); }
+        if (btn) { btn.textContent = '+ Player'; btn.classList.remove('active'); btn.disabled = false; }
         window.dispatchEvent(new Event('resize')); // primary view reclaims the space
         return;
     }
-    if (container) container.style.display = '';
+    if (container && !previewClient.embedded) container.style.display = '';
     // Both containers must be laid out before the canvases are sized
     window.dispatchEvent(new Event('resize'));
-    secondPlayerId = previewClient.addPlayer('preview-container-2');
+    const client = previewClient;
+    if (btn) btn.disabled = true;
+    try { const id = await client.addPlayer('preview-container-2'); if (client === previewClient) secondPlayerId = id; }
+    catch (error) { if (client === previewClient) { setPreviewStatus(error.message); secondPlayerId = null; } }
+    finally { if (btn) btn.disabled = false; }
+    if (client !== previewClient) return;
     if (secondPlayerId === null) {
         if (container) container.style.display = 'none';
         window.dispatchEvent(new Event('resize'));
@@ -4612,7 +1989,7 @@ const resetSecondPlayer = () => {
     const container = $('preview-container-2');
     if (container) container.style.display = 'none';
     const btn = $('preview-player2-btn');
-    if (btn) { btn.textContent = '+ Player'; btn.classList.remove('active'); }
+    if (btn) { btn.textContent = '+ Player'; btn.classList.remove('active'); btn.disabled = false; }
 };
 
 const updatePreview = () => {
@@ -4649,77 +2026,9 @@ let assetTypeFilter = '';
 let assetSearchTimer = null;
 let playingAudioEl = null;
 
-const isAssetOwnedByUser = (asset) => !!(userInfo && asset && asset.developerId === userInfo.userId);
+const updateAssetModalChrome = () => { $("asset-modal-tabs").style.display = "none"; $("asset-modal-drop-zone").classList.remove("hidden"); };
 
-const updateAssetModalChrome = () => {
-    const isMine = assetModalTab === 'mine';
-    document.querySelectorAll('.asset-modal-tab').forEach((btn) => {
-        btn.classList.toggle('active', btn.dataset.tab === assetModalTab);
-    });
-    // Creation tools show on "mine", and for guests on the catalog tab too —
-    // anyone can draw, record, and play; saving is gated at each tool.
-    const showTools = isMine || !userInfo;
-    const drawBtn = $('asset-modal-draw-btn');
-    const recordBtn = $('asset-modal-record-btn');
-    const keyboardBtn = $('asset-modal-keyboard-btn');
-    if (drawBtn) drawBtn.style.display = showTools ? '' : 'none';
-    if (recordBtn) recordBtn.style.display = showTools ? '' : 'none';
-    if (keyboardBtn) keyboardBtn.style.display = showTools ? '' : 'none';
-    const typeFilter = $('asset-modal-type-filter');
-    if (typeFilter) typeFilter.style.display = isMine ? 'none' : '';
-    const dropZone = $('asset-modal-drop-zone');
-    if (dropZone) {
-        if (isMine) { dropZone.classList.remove('hidden'); } else { dropZone.classList.add('hidden'); }
-    }
-    const uploadNotice = $('asset-upload-notice');
-    if (uploadNotice) uploadNotice.classList.toggle('hidden', !isMine);
-    const nsfwToggle = $('asset-modal-nsfw-toggle');
-    if (nsfwToggle) nsfwToggle.style.display = isMine ? 'none' : '';
-    const searchBox = $('asset-modal-search');
-    if (searchBox) {
-        searchBox.placeholder = isMine
-            ? 'Search my assets...'
-            : 'Search public assets...';
-    }
-};
-
-const setAssetModalTab = (tab) => {
-    if (assetModalTab === tab) return;
-    assetModalTab = tab;
-    assetSearchQuery = '';
-    assetTypeFilter = '';
-    const searchBox = $('asset-modal-search');
-    const typeFilter = $('asset-modal-type-filter');
-    if (searchBox) searchBox.value = '';
-    if (typeFilter) typeFilter.value = '';
-    updateAssetModalChrome();
-    loadAssetModal(true);
-};
-
-const apiUpload = (file, description) => new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', `${API_URL}/asset`, true);
-    if (userInfo) xhr.setRequestHeader('Authorization', `Bearer ${userInfo.token}`);
-    const form = new FormData();
-    form.append('file', file);
-    if (description) form.append('description', description);
-    xhr.onreadystatechange = () => {
-        if (xhr.readyState === XMLHttpRequest.DONE) {
-            if (xhr.status >= 200 && xhr.status < 300) {
-                try { resolve(JSON.parse(xhr.response)); }
-                catch (e) { resolve(xhr.response); }
-            } else {
-                let err;
-                try { err = JSON.parse(xhr.response); } catch (e) { err = null; }
-                if (!err || typeof err !== 'object') err = { error: xhr.response };
-                err.status = xhr.status;
-                showError(apiErrorMessage(err));
-                reject(err);
-            }
-        }
-    };
-    xhr.send(form);
-});
+const addProjectAsset = file => StudioPortable.addAsset(file);
 
 const bindAssetModalSearch = () => {
     const searchBox = $('asset-modal-search');
@@ -4749,10 +2058,13 @@ const bindAssetModalSearch = () => {
     }
 };
 
-const openAssetModal = () => {
-    // Guests can browse the catalog and use the creation tools — only saving
-    // an asset is account-gated (at each tool's save action).
-    if (!userInfo) assetModalTab = 'public';
+let assetModalOpener;
+const openAssetModal = (options = {}) => {
+    if (!StudioPortable.storageReady) { showError('Browser storage is not ready. Reload Studio to try again.'); return; }
+    // The shared asset library works even before a game is opened.
+    if (StudioPortable.assetCommitting) return;
+    StudioPortable.resetAssetView(options);
+    assetModalOpener = document.activeElement;
     assetModalOpen = true;
     assetSearchQuery = '';
     assetTypeFilter = '';
@@ -4765,52 +2077,22 @@ const openAssetModal = () => {
     updateAssetModalChrome();
     bindAssetModalSearch();
     initAssetModalEvents();
-    initAssetDetailModal();
     showModal('asset-modal');
     loadAssetModal(true);
+    searchBox?.focus();
 };
 
 const closeAssetModal = () => {
+    if (!assetModalOpen || StudioPortable.assetCommitting) return;
     assetModalOpen = false;
+    StudioPortable.clearAssetPreviews();
+    StudioPortable.resetAssetView();
     hideModal('asset-modal');
     if (playingAudioEl) { playingAudioEl.pause(); playingAudioEl = null; }
+    if (assetModalOpener?.isConnected) assetModalOpener.focus();
 };
 
-const loadAssetModal = (reset) => {
-    if (reset) { assetPage = 0; assetList = []; }
-    const offset = assetPage * ASSET_PAGE_SIZE;
-    const queryParam = assetSearchQuery ? `&query=${encodeURIComponent(assetSearchQuery)}` : '';
-    const typeParam = assetTypeFilter ? `&type=${encodeURIComponent(assetTypeFilter)}` : '';
-    const isPublic = assetModalTab === 'public';
-    // Guests have no "my assets" — render the sign-in empty state, no request.
-    if (!userInfo && !isPublic) {
-        assetList = [];
-        assetTotal = 0;
-        renderAssetGrid();
-        return;
-    }
-    const nsfwCb = $('asset-modal-nsfw-cb');
-    const nsfwParam = (isPublic && nsfwCb && nsfwCb.checked) ? '&includeNsfw=true' : '';
-    const endpoint = isPublic
-        ? `/catalog/assets?limit=${ASSET_PAGE_SIZE}&offset=${offset}${queryParam}${typeParam}${nsfwParam}`
-        : `/assets?limit=${ASSET_PAGE_SIZE}&offset=${offset}${queryParam}`;
-
-    // Public catalog doesn't require auth — use raw fetch when not logged in
-    const req = (!userInfo && isPublic)
-        ? fetch(`${API_URL}${endpoint}`).then(r => r.json())
-        : api('GET', endpoint);
-
-    req.then(data => {
-            const newAssets = data.assets || [];
-            assetTotal = data.count || 0;
-            if (reset) { assetList = newAssets; } else { assetList = assetList.concat(newAssets); }
-            renderAssetGrid();
-        })
-        .catch(err => {
-            console.error('Failed to load assets', err);
-            setStatus('Failed to load assets');
-        });
-};
+const loadAssetModal = (reset = false) => StudioPortable.assets(reset).catch(StudioPortable.error);
 
 const loadAssets = (reset) => loadAssetModal(reset);
 
@@ -4821,461 +2103,6 @@ const getAssetType = (asset) => {
     if (t.startsWith('audio')) return 'audio';
     if (t.startsWith('font')) return 'font';
     return 'other';
-};
-
-let assetDetailCurrent = null;
-
-const formatAssetSize = (bytes) => {
-    if (!bytes && bytes !== 0) return '—';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
-const updateAssetDetailPublishUi = () => {
-    const publishBtn = $('asset-detail-publish');
-    const statusEl = $('asset-detail-public-status');
-    if (!assetDetailCurrent || !publishBtn || !statusEl) return;
-    const isPublic = !!assetDetailCurrent.public;
-    publishBtn.textContent = isPublic ? 'Unpublish from catalog' : 'Publish to catalog';
-    statusEl.textContent = isPublic
-        ? 'Listed in the public asset catalog.'
-        : 'Not listed in the public asset catalog.';
-    statusEl.style.color = isPublic ? 'var(--accent-green)' : 'var(--text-dim)';
-};
-
-const openAssetDetailModal = (asset) => {
-    assetDetailCurrent = { ...asset };
-    const title = $('asset-detail-title');
-    const preview = $('asset-detail-preview');
-    const meta = $('asset-detail-meta');
-    const descInput = $('asset-detail-desc');
-    const errEl = $('asset-detail-error');
-    if (!preview || !meta || !descInput) return;
-
-    if (title) {
-        title.textContent = asset.name || 'Asset';
-        if (asset.nsfw) {
-            const badge = document.createElement('span');
-            badge.className = 'nsfw-badge';
-            badge.textContent = 'NSFW';
-            title.appendChild(badge);
-        }
-    }
-    descInput.value = asset.description || '';
-    if (errEl) errEl.textContent = '';
-
-    preview.innerHTML = '';
-    const type = getAssetType(asset);
-    const assetUrl = `${API_URL}/assets/${asset.id}`;
-
-    if (type === 'image') {
-        const img = document.createElement('img');
-        img.src = assetUrl;
-        img.alt = asset.name || '';
-        preview.appendChild(img);
-    } else if (type === 'audio') {
-        const audio = document.createElement('audio');
-        audio.controls = true;
-        audio.src = assetUrl;
-        audio.style = 'width:100%;';
-        preview.appendChild(audio);
-    } else {
-        const label = document.createElement('div');
-        label.style = 'padding:24px;color:var(--text-dim);';
-        label.textContent = type === 'font' ? 'Font file' : 'File preview unavailable';
-        preview.appendChild(label);
-    }
-
-    const createdStr = asset.created ? new Date(asset.created).toLocaleString() : '—';
-    meta.innerHTML = `
-        <div><strong>Uploader:</strong> ${asset.developerId || '—'}</div>
-        <div><strong>ID:</strong> ${asset.id}</div>
-        <div><strong>Type:</strong> ${type}</div>
-        <div><strong>Size:</strong> ${formatAssetSize(asset.size)}</div>
-        <div><strong>Uploaded:</strong> ${createdStr}</div>
-    `;
-
-    // Report — goes to the support-message queue the admin panel reads.
-    const reportLink = document.createElement('div');
-    reportLink.textContent = 'Report this asset';
-    reportLink.style = 'margin-top:10px;color:var(--text-faint);font-size:0.8em;text-decoration:underline;cursor:pointer;';
-    reportLink.onclick = () => {
-        const reason = prompt("What's wrong with this asset? For copyright complaints, tell us who owns the content.");
-        if (!reason || !reason.trim()) return;
-        api('POST', '/contact', {
-            message: `[REPORT] Asset ${asset.id} "${asset.name || ''}" uploaded by ${asset.developerId || 'unknown'}: ${reason.trim()}`,
-        }, { silent: true })
-            .then(() => setStatus('Report sent — thanks.'))
-            .catch(() => setStatus('Failed to send report'));
-    };
-    meta.appendChild(reportLink);
-
-    setAssetDetailEditable(isAssetOwnedByUser(asset));
-    renderAssetDetailTags();
-    updateAssetDetailPublishUi();
-    showModal('asset-detail-modal');
-};
-
-const closeAssetDetailModal = () => {
-    assetDetailCurrent = null;
-    hideModal('asset-detail-modal');
-};
-
-const syncAssetDetailInList = (assetId, updates) => {
-    const idx = assetList.findIndex((a) => a.id === assetId);
-    if (idx >= 0) {
-        assetList[idx] = { ...assetList[idx], ...updates };
-    }
-    if (assetDetailCurrent && assetDetailCurrent.id === assetId) {
-        assetDetailCurrent = { ...assetDetailCurrent, ...updates };
-        setAssetDetailEditable(isAssetOwnedByUser(assetDetailCurrent));
-    }
-};
-
-const setAssetDetailEditable = (editable) => {
-    const descInput = $('asset-detail-desc');
-    const saveBtn = $('asset-detail-save');
-    const publishBtn = $('asset-detail-publish');
-    const deleteBtn = $('asset-detail-delete');
-    if (descInput) descInput.disabled = !editable;
-    if (saveBtn) saveBtn.style.display = editable ? '' : 'none';
-    if (publishBtn) publishBtn.style.display = editable ? '' : 'none';
-    if (deleteBtn) deleteBtn.style.display = editable ? '' : 'none';
-};
-
-const renderAssetDetailTags = () => {
-    const container = $('asset-detail-tags');
-    if (!container) return;
-    container.innerHTML = '';
-
-    const editable = isAssetOwnedByUser(assetDetailCurrent);
-    const tags = (assetDetailCurrent && assetDetailCurrent.tags) || [];
-
-    tags.forEach(tag => {
-        const el = document.createElement('span');
-        el.className = 'asset-detail-tag';
-        el.textContent = tag;
-        if (editable) {
-            const removeBtn = document.createElement('span');
-            removeBtn.className = 'tag-remove';
-            removeBtn.textContent = '✕';
-            removeBtn.onclick = () => {
-                const newTags = tags.filter(t => t !== tag);
-                api('POST', `/assets/${assetDetailCurrent.id}/tags`, { tags: newTags })
-                    .then(() => {
-                        assetDetailCurrent.tags = newTags;
-                        syncAssetDetailInList(assetDetailCurrent.id, { tags: newTags });
-                        renderAssetDetailTags();
-                        renderAssetGrid();
-                    });
-            };
-            el.appendChild(removeBtn);
-        }
-        container.appendChild(el);
-    });
-
-    if (editable) {
-        const addBtn = document.createElement('span');
-        addBtn.className = 'asset-detail-tag-add';
-        addBtn.textContent = '+ Add tag';
-        addBtn.onclick = () => {
-            const tag = prompt('Tag name:');
-            if (tag && tag.trim()) {
-                const newTags = [...tags, tag.trim().toLowerCase()];
-                api('POST', `/assets/${assetDetailCurrent.id}/tags`, { tags: newTags })
-                    .then(() => {
-                        assetDetailCurrent.tags = newTags;
-                        syncAssetDetailInList(assetDetailCurrent.id, { tags: newTags });
-                        renderAssetDetailTags();
-                        renderAssetGrid();
-                    });
-            }
-        };
-        container.appendChild(addBtn);
-    }
-
-    if (!editable && tags.length === 0) {
-        const none = document.createElement('span');
-        none.style = 'color:var(--text-faint);font-size:0.8em;';
-        none.textContent = 'No tags';
-        container.appendChild(none);
-    }
-};
-
-const initAssetDetailModal = () => {
-    const modal = $('asset-detail-modal');
-    if (!modal || modal.dataset.bound) return;
-    modal.dataset.bound = '1';
-
-    $('asset-detail-close').onclick = closeAssetDetailModal;
-    $('asset-detail-dismiss').onclick = closeAssetDetailModal;
-    modal.onclick = (e) => {
-        if (e.target === modal) closeAssetDetailModal();
-    };
-
-    $('asset-detail-open').onclick = () => {
-        if (!assetDetailCurrent) return;
-        window.open(`${API_URL}/assets/${assetDetailCurrent.id}`, '_blank');
-    };
-
-    $('asset-detail-copy').onclick = () => {
-        if (!assetDetailCurrent) return;
-        navigator.clipboard.writeText(assetDetailCurrent.id).then(() => {
-            setStatus('Asset ID copied');
-        });
-    };
-
-    const useBtn = $('asset-detail-use');
-    if (useBtn) useBtn.onclick = () => {
-        if (!assetDetailCurrent) return;
-        try {
-            const snippet = buildAssetSnippet(assetDetailCurrent);
-            copySnippet(snippet, useBtn);
-            setStatus('Snippet copied — paste it into your game');
-        } catch (e) {
-            setStatus('Failed to build snippet: ' + (e && e.message ? e.message : e));
-        }
-    };
-
-    $('asset-detail-save').onclick = () => {
-        if (!assetDetailCurrent) return;
-        const errEl = $('asset-detail-error');
-        const description = $('asset-detail-desc').value.trim();
-        if (errEl) errEl.textContent = '';
-        api('POST', `/assets/${assetDetailCurrent.id}/meta`, { description })
-            .then((result) => {
-                syncAssetDetailInList(assetDetailCurrent.id, { description: result.description ?? description });
-                renderAssetGrid();
-                setStatus('Description saved');
-            })
-            .catch((err) => {
-                if (errEl) errEl.textContent = (err && err.error) ? err.error : 'Failed to save';
-            });
-    };
-
-    $('asset-detail-publish').onclick = () => {
-        if (!assetDetailCurrent) return;
-        const errEl = $('asset-detail-error');
-        const publishBtn = $('asset-detail-publish');
-        const nextPublic = !assetDetailCurrent.public;
-        if (errEl) errEl.textContent = '';
-        publishBtn.disabled = true;
-        api('POST', `/assets/${assetDetailCurrent.id}/meta`, { public: nextPublic })
-            .then(() => {
-                syncAssetDetailInList(assetDetailCurrent.id, { public: nextPublic });
-                updateAssetDetailPublishUi();
-                renderAssetGrid();
-                setStatus(nextPublic ? 'Asset published to catalog' : 'Asset removed from catalog');
-            })
-            .catch((err) => {
-                if (errEl) errEl.textContent = (err && err.error) ? err.error : 'Failed to update';
-            })
-            .finally(() => { publishBtn.disabled = false; });
-    };
-
-    $('asset-detail-delete').onclick = () => {
-        if (!assetDetailCurrent) return;
-        const name = assetDetailCurrent.name || assetDetailCurrent.id;
-        if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
-        const errEl = $('asset-detail-error');
-        const deleteBtn = $('asset-detail-delete');
-        if (errEl) errEl.textContent = '';
-        deleteBtn.disabled = true;
-        api('DELETE', `/assets/${assetDetailCurrent.id}`)
-            .then(() => {
-                closeAssetDetailModal();
-                loadAssets(true);
-                setStatus('Asset deleted');
-            })
-            .catch((err) => {
-                if (errEl) errEl.textContent = (err && err.error) ? err.error : 'Failed to delete';
-            })
-            .finally(() => { deleteBtn.disabled = false; });
-    };
-};
-
-let pendingDeleteAsset = null;
-
-const confirmDeleteAsset = (asset) => {
-    pendingDeleteAsset = asset;
-    const textEl = $('asset-delete-confirm-text');
-    const errEl = $('asset-delete-confirm-error');
-    const okBtn = $('asset-delete-confirm-ok');
-    if (textEl) textEl.textContent = `Permanently delete "${asset.name || asset.id}"?`;
-    if (errEl) errEl.textContent = '';
-    if (okBtn) okBtn.disabled = false;
-    showModal('asset-delete-confirm-modal');
-};
-
-const cancelDeleteAsset = () => {
-    pendingDeleteAsset = null;
-    hideModal('asset-delete-confirm-modal');
-};
-
-const executeDeleteAsset = () => {
-    if (!pendingDeleteAsset) return;
-    const asset = pendingDeleteAsset;
-    const errEl = $('asset-delete-confirm-error');
-    const okBtn = $('asset-delete-confirm-ok');
-    if (okBtn) okBtn.disabled = true;
-    if (errEl) errEl.textContent = '';
-    api('DELETE', `/assets/${asset.id}`)
-        .then(() => {
-            pendingDeleteAsset = null;
-            hideModal('asset-delete-confirm-modal');
-            loadAssets(true);
-            setStatus('Asset deleted');
-        })
-        .catch((err) => {
-            if (errEl) errEl.textContent = (err && err.error) ? err.error : 'Failed to delete';
-            if (okBtn) okBtn.disabled = false;
-        });
-};
-
-// Wire up confirm-delete modal buttons
-$('asset-delete-confirm-cancel').onclick = cancelDeleteAsset;
-$('asset-delete-confirm-ok').onclick = executeDeleteAsset;
-$('asset-delete-confirm-modal').onclick = (e) => { if (e.target === $('asset-delete-confirm-modal')) cancelDeleteAsset(); };
-
-const renderAssetGrid = () => {
-    const grid = $('asset-modal-grid');
-    const loadMoreContainer = $('asset-modal-load-more');
-    if (!grid) return;
-    grid.innerHTML = '';
-    if (loadMoreContainer) loadMoreContainer.innerHTML = '';
-
-    const isMineTab = assetModalTab === 'mine';
-
-    if (assetList.length === 0) {
-        const empty = document.createElement('div');
-        empty.className = 'asset-modal-empty';
-        empty.textContent = isMineTab
-            ? (userInfo
-                ? 'No assets yet. Upload files, draw, or record audio.'
-                : 'Sign in to save and manage your own assets. You can still draw, record, and play the keyboard.')
-            : 'No public assets found.';
-        grid.appendChild(empty);
-        return;
-    }
-
-    assetList.forEach(asset => {
-        const card = document.createElement('div');
-        card.className = 'asset-modal-card';
-        card.onclick = () => openAssetDetailModal(asset);
-
-        const type = getAssetType(asset);
-
-        // Preview
-        const preview = document.createElement('div');
-        preview.className = 'asset-modal-card-preview';
-        if (type === 'image') {
-            const img = document.createElement('img');
-            img.src = `${API_URL}/assets/${asset.id}`;
-            img.alt = asset.name || '';
-            img.onerror = () => { img.style.display = 'none'; };
-            preview.appendChild(img);
-        } else {
-            const badge = document.createElement('div');
-            badge.className = 'type-badge';
-            badge.textContent = type === 'audio' ? 'AUD' : type === 'font' ? 'Aa' : 'IMG';
-            preview.appendChild(badge);
-        }
-        if (asset.public) {
-            const pubBadge = document.createElement('span');
-            pubBadge.className = 'public-badge';
-            pubBadge.textContent = 'public';
-            preview.appendChild(pubBadge);
-        }
-        if (isAssetOwnedByUser(asset)) {
-            const delBtn = document.createElement('button');
-            delBtn.className = 'asset-modal-card-delete';
-            delBtn.textContent = '✕';
-            delBtn.title = 'Delete asset';
-            delBtn.onclick = (e) => {
-                e.stopPropagation();
-                confirmDeleteAsset(asset);
-            };
-            preview.appendChild(delBtn);
-        }
-        card.appendChild(preview);
-
-        // Body
-        const body = document.createElement('div');
-        body.className = 'asset-modal-card-body';
-
-        const nameEl = document.createElement('div');
-        nameEl.className = 'asset-modal-card-name';
-        nameEl.textContent = asset.name || asset.id;
-        nameEl.title = asset.id;
-        body.appendChild(nameEl);
-
-        if (!isMineTab && asset.developerId) {
-            const author = document.createElement('div');
-            author.className = 'asset-modal-card-author';
-            author.textContent = asset.developerId;
-            body.appendChild(author);
-        }
-
-        if (asset.description) {
-            const desc = document.createElement('div');
-            desc.className = 'asset-modal-card-desc';
-            desc.textContent = asset.description;
-            body.appendChild(desc);
-        }
-
-        const existingTags = asset.tags || [];
-        if (existingTags.length > 0) {
-            const tagsRow = document.createElement('div');
-            tagsRow.className = 'asset-modal-card-tags';
-            existingTags.forEach(tag => {
-                const tagEl = document.createElement('span');
-                tagEl.className = 'asset-tag';
-                tagEl.textContent = tag;
-                tagsRow.appendChild(tagEl);
-            });
-            body.appendChild(tagsRow);
-        }
-
-        card.appendChild(body);
-
-        // Footer
-        const footer = document.createElement('div');
-        footer.className = 'asset-modal-card-footer';
-
-        const typeBadge = document.createElement('span');
-        typeBadge.className = 'asset-modal-card-type ' + type;
-        typeBadge.textContent = type;
-        footer.appendChild(typeBadge);
-
-        const actions = document.createElement('div');
-        actions.className = 'asset-modal-card-actions';
-
-        const copyBtn = document.createElement('button');
-        copyBtn.type = 'button';
-        copyBtn.textContent = 'Copy ID';
-        copyBtn.onclick = (e) => {
-            e.stopPropagation();
-            navigator.clipboard.writeText(asset.id).then(() => {
-                copyBtn.textContent = 'Copied!';
-                setTimeout(() => { copyBtn.textContent = 'Copy ID'; }, 1500);
-            });
-        };
-        actions.appendChild(copyBtn);
-
-        footer.appendChild(actions);
-        card.appendChild(footer);
-
-        grid.appendChild(card);
-    });
-
-    // Load more button
-    if (loadMoreContainer && assetList.length < assetTotal) {
-        const loadMoreBtn = document.createElement('button');
-        loadMoreBtn.textContent = 'Load more';
-        loadMoreBtn.onclick = () => { assetPage++; loadAssetModal(false); };
-        loadMoreContainer.appendChild(loadMoreBtn);
-    }
 };
 
 let assetModalEventsInitialized = false;
@@ -5290,15 +2117,14 @@ const initAssetModalEvents = () => {
     // Click overlay to close
     const modal = $('asset-modal');
     if (modal) modal.onclick = (e) => { if (e.target === modal) closeAssetModal(); };
-
-    // Tabs
-    const tabs = $('asset-modal-tabs');
-    if (tabs) {
-        tabs.onclick = (e) => {
-            const btn = e.target.closest('.asset-modal-tab');
-            if (btn && btn.dataset.tab) setAssetModalTab(btn.dataset.tab);
-        };
-    }
+    modal?.addEventListener('keydown', e => {
+        if (e.key !== 'Tab') return;
+        const controls = [...modal.querySelectorAll('button,input,select,[tabindex="0"]')]
+            .filter(el => !el.disabled && !el.closest('[inert]') && el.getClientRects().length);
+        const first = controls[0], last = controls[controls.length - 1];
+        if (e.shiftKey && e.target === first) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && e.target === last) { e.preventDefault(); first?.focus(); }
+    });
 
     // Creation row: Upload / Draw / Record (Keyboard wired separately).
     const uploadBtn = $('asset-modal-upload-btn');
@@ -5314,7 +2140,7 @@ const initAssetModalEvents = () => {
         dropZone.onclick = () => {
             const inp = document.createElement('input');
             inp.type = 'file';
-            inp.accept = 'image/*,audio/*,font/*';
+            inp.accept = 'image/*,video/*,audio/*,font/*,.ttf,.otf,.woff,.woff2';
             inp.multiple = true;
             inp.onchange = () => { handleAssetFiles(inp.files); };
             inp.click();
@@ -5331,15 +2157,15 @@ const initAssetModalEvents = () => {
 
 const handleAssetFiles = (files) => {
     if (!files || files.length === 0) return;
-    if (!userInfo) { openSignupGate('Create a free account to upload assets for your games.'); return; }
-    setStatus('Uploading asset...');
+    if (!StudioPortable.storageReady) { showError('Browser storage is unavailable. Download your work instead.'); return; }
+    setStatus('Saving to My Assets…');
     const uploadNext = (i) => {
         if (i >= files.length) {
-            setStatus('Upload complete');
+            setStatus('Saved in My Assets · use Add assets in the game editor');
             loadAssets(true);
             return;
         }
-        apiUpload(files[i], files[i].name)
+        addProjectAsset(files[i], files[i].name)
             .then(() => uploadNext(i + 1))
             .catch(err => {
                 let msg = 'Upload failed';
@@ -5348,7 +2174,7 @@ const handleAssetFiles = (files) => {
                     if (parsed && parsed.error) msg = parsed.error;
                 } catch (e) {}
                 console.error('Upload failed', err);
-                setStatus(msg);
+                StudioPortable.error(err);
             });
     };
     uploadNext(0);
@@ -5676,8 +2502,8 @@ const drawPointerUp = () => {
 
 const saveDrawing = () => {
     if (!drawGrid) return;
-    // The drawing stays on the canvas behind the gate — sign up, then save.
-    if (!userInfo) { openSignupGate('Create a free account to save your drawing as an asset.'); return; }
+    // Drawings become reusable originals in My Assets.
+    if (!StudioPortable.storageReady) { showError('Browser storage is unavailable. Download your work instead.'); return; }
     const name = $('draw-name').value.trim() || ('drawing-' + Date.now());
 
     // The offscreen buffer is already the clean grid-resolution image.
@@ -5685,7 +2511,7 @@ const saveDrawing = () => {
         if (!blob) { setStatus('Failed to export image'); return; }
         const file = new File([blob], name + '.png', { type: 'image/png' });
         setStatus('Saving drawing...');
-        apiUpload(file, name)
+        addProjectAsset(file, name)
             .then(() => {
                 setStatus('Drawing saved');
                 closeDrawOverlay();
@@ -5693,7 +2519,7 @@ const saveDrawing = () => {
             })
             .catch(err => {
                 console.error('Failed to save drawing', err);
-                setStatus('Failed to save drawing');
+                StudioPortable.error(err);
             });
     }, 'image/png');
 };
@@ -5932,12 +2758,12 @@ const showRecordingPreview = () => {
 const saveRecording = () => {
     if (!recBlob) return;
     // The take survives behind the gate — sign up, then save.
-    if (!userInfo) { openSignupGate('Create a free account to save your recording as an asset.'); return; }
+    if (!StudioPortable.storageReady) { showError('Browser storage is unavailable. Download your work instead.'); return; }
     const name = $('rec-name').value.trim() || ('recording-' + Date.now());
     const file = new File([recBlob], name + audioRecExt(recBlob.type), { type: recBlob.type || 'audio/webm' });
     setStatus('Saving recording...');
     $('rec-save').disabled = true;
-    apiUpload(file, name)
+    addProjectAsset(file, name)
         .then(() => {
             setStatus('Recording saved');
             closeRecordOverlay();
@@ -5945,7 +2771,7 @@ const saveRecording = () => {
         })
         .catch(err => {
             console.error('Failed to save recording', err);
-            setStatus('Failed to save recording');
+            StudioPortable.error(err);
             $('rec-save').disabled = false;
         });
 };
@@ -6457,19 +3283,14 @@ const toggleAssetPicker = () => {
     const picker = $('kbd-asset-picker');
     picker.style.display = '';
     picker.innerHTML = '<div class="kbd-asset-picker-note">Loading…</div>';
-    // Guests browse the public catalog; signed-in users get their own assets.
-    const req = userInfo
-        ? api('GET', '/assets?limit=100&offset=0')
-        : fetch(`${API_URL}/catalog/assets?limit=100&offset=0&type=audio`).then((r) => r.json());
+    const req = StudioPortable.audioAssets().then(assets => ({assets}));
     req
         .then((data) => {
             if (!assetPickerOpen) return;
             const audios = (data.assets || []).filter((a) => getAssetType(a) === 'audio');
             picker.innerHTML = '';
             if (!audios.length) {
-                picker.innerHTML = userInfo
-                    ? '<div class="kbd-asset-picker-note">No audio assets yet — record one with the microphone first.</div>'
-                    : '<div class="kbd-asset-picker-note">No public audio assets found.</div>';
+                picker.innerHTML = '<div class="kbd-asset-picker-note">No audio assets yet — record one with the microphone first.</div>';
                 return;
             }
             audios.forEach((asset) => {
@@ -6490,8 +3311,7 @@ const addLayerFromAsset = (asset, btn) => {
     ensureAudioCtx();
     btn.disabled = true;
     setStatus('Loading asset...');
-    fetch(`${API_URL}/assets/${asset.id}`, userInfo ? { headers: { Authorization: `Bearer ${userInfo.token}` } } : undefined)
-        .then((r) => { if (!r.ok) throw new Error('http ' + r.status); return r.blob(); })
+    StudioPortable.assetBlob(asset)
         .then((blob) => blob.arrayBuffer()
             .then((ab) => audioCtx.decodeAudioData(ab))
             .then((buffer) => {
@@ -6516,13 +3336,13 @@ const addLayerFromAsset = (asset, btn) => {
 };
 
 const saveLayer = (layer, btn) => {
-    // Layers live in memory across the gate — sign up, then save.
-    if (!userInfo) { openSignupGate('Create a free account to save your layers as assets.'); return; }
+    // Saving keeps this recording in the browser's shared asset library.
+    if (!StudioPortable.storageReady) { showError('Browser storage is unavailable. Download your work instead.'); return; }
     const name = (layer.name || '').trim() || ('layer-' + layer.id);
     const file = new File([layer.blob], name + audioRecExt(layer.blob.type), { type: layer.blob.type || 'audio/webm' });
     setStatus('Saving layer...');
     btn.disabled = true;
-    apiUpload(file, name)
+    addProjectAsset(file, name)
         .then(() => {
             layer.saved = true;
             setStatus('Layer saved');
@@ -6531,7 +3351,7 @@ const saveLayer = (layer, btn) => {
         })
         .catch((err) => {
             console.error('Failed to save layer', err);
-            setStatus('Failed to save layer');
+            StudioPortable.error(err);
             btn.disabled = false;
         });
 };
@@ -6580,7 +3400,7 @@ const mixLayersToWav = () => {
 };
 
 const saveSong = () => {
-    if (!userInfo) { openSignupGate('Create a free account to save your song as an asset.'); return; }
+    if (!StudioPortable.storageReady) { showError('Browser storage is unavailable. Download your work instead.'); return; }
     const name = $('kbd-name').value.trim() || ('song-' + Date.now());
     setStatus('Saving song...');
     $('kbd-save').disabled = true;
@@ -6588,7 +3408,7 @@ const saveSong = () => {
         .then((blob) => {
             if (!blob) return Promise.reject(new Error('no unmuted layers'));
             const file = new File([blob], name + '.wav', { type: 'audio/wav' });
-            return apiUpload(file, name);
+            return addProjectAsset(file, name);
         })
         .then(() => {
             setStatus('Song saved');
@@ -6597,7 +3417,7 @@ const saveSong = () => {
         })
         .catch((err) => {
             console.error('Failed to save song', err);
-            setStatus('Failed to save song');
+            StudioPortable.error(err);
             $('kbd-save').disabled = false;
         });
 };
@@ -6701,8 +3521,8 @@ document.addEventListener('keyup', onSynthKeyUp);
     const currentPage = () => {
         if (panelVisible('preview-panel')) return 'preview';
         if (panelVisible('file-tree')) return 'files';
-        if ($('blade-games').classList.contains('expanded')) return 'games';
-        if ($('blade-game').classList.contains('expanded')) return 'versions';
+        if ($('studio-games').open) return 'games';
+        if (panelVisible('portable-history')) return 'history';
         return 'code';
     };
 
@@ -6710,7 +3530,7 @@ document.addEventListener('keyup', onSynthKeyUp);
         menu.classList.remove('open');
         menuBtn.classList.remove('open');
     };
-    const hidePanels = () => ['file-tree', 'preview-panel'].forEach(id => {
+    const hidePanels = () => ['portable-history', 'file-tree', 'preview-panel'].forEach(id => {
         const el = $(id);
         if (el) el.classList.remove('mobile-visible');
     });
@@ -6734,8 +3554,9 @@ document.addEventListener('keyup', onSynthKeyUp);
         hidePanels();
         if (page === 'games') {
             setActiveBlade('games');
-        } else if (page === 'versions') {
-            setActiveBlade('game');
+        } else if (page === 'history') {
+            setActiveBlade('editor');
+            $('portable-history')?.classList.add('mobile-visible');
         } else if (page === 'code') {
             setActiveBlade('editor');
         } else if (page === 'files') {
@@ -6761,10 +3582,8 @@ document.addEventListener('keyup', onSynthKeyUp);
             }
             return null;
         }
-        if (page === 'versions') return { label: 'Open Editor', run: openEditorAtHead };
+        if (page === 'history') return { label: 'Back to Code', run: () => goto('code') };
         if (page === 'code') {
-            const saveBtn = $('save-btn');
-            if (saveBtn && !saveBtn.disabled) return { label: 'Save Version', run: () => saveBtn.click() };
             if (viewingVersion) return { label: 'Restore Version', run: () => restoreVersion(viewingVersion) };
             return { label: 'Play', run: () => goto('preview') };
         }
@@ -6776,13 +3595,20 @@ document.addEventListener('keyup', onSynthKeyUp);
     };
 
     const pageAvailable = (page) => {
-        if (page === 'games' || page === 'assets') return true;
-        if (page === 'versions') return !!currentGame && !currentGame.guest;
+        // if (page === 'games' || page === 'assets') return true;
+        if (page === 'games') return true;
+        if (page === 'assets') return StudioPortable.storageReady;
+        // if (page === 'versions') return !!currentGame && !currentGame.guest;
+        if (page === 'history') return !!currentGame && editorBladeOpened;
         return !!currentGame && editorBladeOpened; // code / files / preview
     };
 
     syncMobileBar = () => {
         const page = currentPage();
+        const editorActive = !!currentGame && editorBladeOpened;
+        bar.hidden = !editorActive;
+        document.body.classList.toggle('studio-editor-active', editorActive);
+        if (!editorActive) closeMenu();
         tiles.forEach(t => {
             t.classList.toggle('active', t.dataset.page === page);
             t.disabled = !pageAvailable(t.dataset.page);
@@ -6811,9 +3637,24 @@ document.addEventListener('keyup', onSynthKeyUp);
 })();
 
 // ---------------------------------------------------------------------------
-// Boot — everyone lands in the anonymous studio; the header Sign in button
-// (or a gated action like saving) opens the auth overlay.
+// Boot — browser-local projects, with no account or content API connection.
 // ---------------------------------------------------------------------------
 
-enterGuestStudio();
-if (linkedGameId) openAuthOverlay('Sign in to open your game from ChatGPT.', 'login');
+const revealStudio = () => {
+    $('studio-app').inert = false;
+    $('studio-app').removeAttribute('aria-busy');
+    document.body.classList.remove('studio-loading');
+    $('studio-loading').hidden = true;
+    const target = document.querySelector('dialog[open] [autofocus]')
+        || $('editor-textarea') || $('studio-games-open');
+    target?.focus({ preventScroll: true });
+};
+StudioPortable.boot().then(ready => {
+    // A shell update or player redirect navigates away; keep it covered.
+    if (ready !== false) revealStudio();
+}).catch(error => {
+    revealStudio();
+    StudioPortable.error(error);
+});
+// if (linkedGameId) openAuthOverlay('Sign in to open your game from ChatGPT.', 'login');
+if (new URLSearchParams(location.search).has('game')) showError('This is an older hosted-game link. Import a game ZIP or choose a local project to continue.');

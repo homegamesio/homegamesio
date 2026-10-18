@@ -1,0 +1,92 @@
+{
+  "formatVersion": 1,
+  "templates": [
+    {
+      "id": "pocket-chime",
+      "label": "Pocket Chime",
+      "description": "A small game with a bundled image and sound. Click to play a chime.",
+      "revision": "d298f78bdb6aefe944047ab0b062efa2ce89fd190ffa6ff20031be8e8ecbf558",
+      "archive": "pocket-chime.d298f78bdb6aefe9.zip"
+    },
+    {
+      "id": "blank",
+      "label": "Blank",
+      "description": "An empty game with a minimal starting point.",
+      "legacySourceSha256": "ab60b6b7f56e72c3c66bfb083e8936654af33be06cac19cb19307404e8b53307",
+      "revision": "66eeb4ec790737c5b8864f1974bdb80f01ca259155aa60c4608eab0255f5254e",
+      "archive": "blank.66eeb4ec790737c5.zip"
+    },
+    {
+      "id": "click",
+      "label": "Click",
+      "description": "Click anywhere to drop colored squares. Shapes, colors, and clicks.",
+      "legacySourceSha256": "5cb467b6499b70851d163a89499a872d9fcb9d333355848448cf2a96ccf146f4",
+      "revision": "99653c0683ea2966766f71e9d3afbf702248ec329cc1b4de1670d4046532dc7b",
+      "archive": "click.99653c0683ea2966.zip"
+    },
+    {
+      "id": "keyboard",
+      "label": "Keyboard",
+      "description": "Move a square with arrow keys or WASD. Input plus a tick loop.",
+      "legacySourceSha256": "777cf861499f6c2e06044c4a4623ce877842e937566a45672076b17252bde5de",
+      "revision": "7717fc7ea906135e50d4f63b24e64b9323c079178c4051b4679f0e31a18c8227",
+      "archive": "keyboard.7717fc7ea906135e.zip"
+    },
+    {
+      "id": "multiplayer",
+      "label": "Multiplayer",
+      "description": "Track players, give each a color, and show a live roster.",
+      "legacySourceSha256": "813e12cebf5dee1c9efffc5f98cd503c653a015e4b3879cec6be547faa3c0ea2",
+      "revision": "ac8c4e4088c34713286cd91e93fa5fba35a8e1d7525a9cfbcc9c19498d68ef6b",
+      "archive": "multiplayer.ac8c4e4088c34713.zip"
+    },
+    {
+      "id": "text-input",
+      "label": "Text Input",
+      "description": "Type into a box and show the text on screen.",
+      "legacySourceSha256": "2c7579345ff26e78dde3dcd3e48325252ffb1a546072410ebed341fa2769a8ad",
+      "revision": "8832614089014d445730b99cbcefba22f703e3319e8ebb8e7dc4dab4d78d8675",
+      "archive": "text-input.8832614089014d44.zip"
+    },
+    {
+      "id": "image",
+      "label": "Image Upload",
+      "description": "Upload an image from your device and display it.",
+      "legacySourceSha256": "a24dfcebf250d25ff63e3b31e988edc57da5e1969d5cc37cdabfbb627da52a44",
+      "revision": "c8a312985c3489d0fe137480be3aaf935c46bf07c68622cfe28cd85e61caa47f",
+      "archive": "image.c8a312985c3489d0.zip"
+    },
+    {
+      "id": "animation",
+      "label": "Animation",
+      "description": "A bouncing, color-cycling square driven by a tick loop.",
+      "legacySourceSha256": "04c6f8d41c02ca5dac4a7be145ae06c79928c79b3cac5fd6c3889d4894fe2b62",
+      "revision": "4d6c91187da4d372b02079f058afb2e54c7fe329a0cc8005de4b5921d63d57ae",
+      "archive": "animation.4d6c91187da4d372.zip"
+    },
+    {
+      "id": "scroll",
+      "label": "Scrolling World",
+      "description": "Pan a camera around a world larger than the screen.",
+      "legacySourceSha256": "4eeb8c6cd9ffc7c39a492a9941b863e0339c67fbb2850aec1037b04141293b46",
+      "revision": "417dc1ede75f1287b57ad56c44679a56f712814799d80c0b47b3cb68f3d541fa",
+      "archive": "scroll.417dc1ede75f1287.zip"
+    },
+    {
+      "id": "buttons",
+      "label": "Buttons",
+      "description": "Clickable buttons with labels, and showing/hiding via playerIds.",
+      "legacySourceSha256": "8b7fb52f24dbe5416b7c56e33df250258f2393a1576c952baf8dc0929ab9bd76",
+      "revision": "4688f25635ea96b9150c870b09812f480d1dc54328d3459f90b73d437b135dfb",
+      "archive": "buttons.4688f25635ea96b9.zip"
+    },
+    {
+      "id": "glow",
+      "label": "Glow & Fade",
+      "description": "Neon glow with effects.shadow, and fading via color alpha.",
+      "legacySourceSha256": "efe8217e830d4b8d245c95a08bf1c30f9d4250e36c20850d6a60e03601114722",
+      "revision": "6fdcb679d3ffb878c7b84cec38f54c1e7045a0f3bad2508ea495b4f3733a0691",
+      "archive": "glow.6fdcb679d3ffb878.zip"
+    }
+  ]
+}

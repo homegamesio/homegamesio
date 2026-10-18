@@ -1,0 +1,492 @@
+/* Studio's interface: one palette and control system around the code editor. */
+:root {
+    --bg-primary:#151b26;--bg-secondary:#1d2532;--bg-input:#151b26;--bg-deep:#101620;
+    --bg-hover:#283343;--bg-active:#25372f;--border:#303c4e;--border-light:#45546a;
+    --border-subtle:#303c4e;--border-faint:#283343;--text-primary:#ecf0f5;
+    --text-secondary:#bac4d3;--text-muted:#99a7ba;--text-dim:#99a7ba;--text-faint:#99a7ba;
+    --accent-green:#b1e380;--accent-green-hover:#c3ef9a;--accent-blue:#99c8ef;
+    --accent-red:#f59393;--accent-yellow:#e6cc84;--logo-color:#ecf0f5;
+    --badge-head-text:#172419;--scrollbar-track:#151b26;--scrollbar-thumb:#45546a;
+}
+body.light {
+    --bg-primary:#f4f6f8;--bg-secondary:#ffffff;--bg-input:#ffffff;--bg-deep:#eef1f5;
+    --bg-hover:#e8edf3;--bg-active:#e7f1dd;--border:#d5dce5;--border-light:#a4b1c1;
+    --border-subtle:#d5dce5;--border-faint:#e2e7ed;--text-primary:#202a37;
+    --text-secondary:#48576a;--text-muted:#59697c;--text-dim:#59697c;--text-faint:#59697c;
+    --accent-green:#407327;--accent-green-hover:#335f1e;--accent-blue:#286494;
+    --accent-red:#b5343d;--accent-yellow:#7d651c;--logo-color:#202a37;--badge-head-text:#ffffff;
+    --scrollbar-track:#f4f6f8;--scrollbar-thumb:#a4b1c1;
+}
+body {font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,select,textarea,summary {font-family:inherit}
+button,summary,a,input,select,textarea { -webkit-tap-highlight-color:transparent }
+button:focus-visible,summary:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible {outline:2px solid var(--accent-blue);outline-offset:3px}
+button:disabled {opacity:.45;cursor:default}
+[hidden] {display:none!important}
+.dash-btn,.mode-btn,.asset-create-btn,.studio-settings-button,.studio-workspace-nav button,.studio-menu>summary {
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;
+    padding:7px 12px;border:1px solid var(--border-light);border-radius:6px;
+    background:var(--bg-secondary);color:var(--text-primary);
+    font-family:inherit;font-size:13px;font-weight:500;line-height:1.4;letter-spacing:0;text-transform:none;
+    text-decoration:none;box-shadow:none;cursor:pointer;white-space:nowrap;
+}
+.dash-btn:hover:not(:disabled),.mode-btn:hover:not(:disabled),.asset-create-btn:hover:not(:disabled),.studio-settings-button:hover,.studio-menu>summary:hover {background:var(--bg-hover);color:var(--text-primary)}
+.dash-btn.publish,#preview-toggle-btn {background:var(--accent-green);color:var(--badge-head-text);border-color:var(--accent-green);font-weight:600}
+.dash-btn.publish:hover:not(:disabled),#preview-toggle-btn:hover {background:var(--accent-green-hover);color:var(--badge-head-text)}
+.game-dashboard {display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.studio-text-button {display:inline-block;background:transparent;border:0;border-radius:4px;padding:4px 0;font:inherit;font-size:12px;color:var(--text-secondary);cursor:pointer;text-decoration:underline;text-underline-offset:3px;margin-right:16px}
+.studio-text-button:hover {color:var(--text-primary)}
+#studio-header {display:flex;justify-content:flex-start;gap:28px;padding:0 24px;height:64px;min-height:64px;flex-wrap:nowrap;position:relative;z-index:40}
+#studio-header .logo {font:20px amateur,monospace;gap:9px}
+#studio-header .logo span {font:500 12px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:.04em;border-left:1px solid var(--border-light);padding-left:10px;margin-left:3px;color:var(--text-secondary)}
+#studio-header .studio-header-tools {display:flex;align-items:center;gap:6px;margin-left:auto}
+#studio-header .mode-btn,.studio-settings-button,.studio-menu>summary {background:transparent;border-color:transparent}
+.studio-settings-button {color:var(--text-muted);font-size:12px;min-width:44px}
+.studio-workspace-nav {display:flex;align-items:center;gap:4px}
+.studio-workspace-nav button {background:transparent;border-color:transparent;color:var(--text-secondary)}
+.studio-workspace-nav button:hover {background:var(--bg-hover)}
+.studio-workspace-nav button[aria-expanded=true] {background:var(--bg-active);color:var(--accent-green)}
+.blade.strip,.blade-strip {display:none!important}
+.studio-menu {position:relative;flex-shrink:0}
+.studio-menu>summary {list-style:none;user-select:none}
+.studio-menu>summary::-webkit-details-marker {display:none}
+.studio-menu>summary::after {content:'⌄';color:var(--text-muted);margin-left:4px}
+.studio-menu[open]>summary {background:var(--bg-hover);border-color:var(--border)}
+.studio-menu-panel {position:absolute;z-index:80;right:0;top:calc(100% + 5px);width:270px;max-width:calc(100vw - 24px);padding:6px;background:var(--bg-secondary);border:1px solid var(--border-light);border-radius:8px;box-shadow:0 12px 32px #0004}
+.studio-menu-panel>button,.studio-menu-panel>a {display:block;min-height:40px;width:100%;padding:10px;border:0;border-radius:4px;background:transparent;color:var(--text-primary);font:500 13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0;text-transform:none;text-align:left;white-space:normal;text-decoration:none;cursor:pointer;box-shadow:none}
+.studio-menu-panel>button:hover:not(:disabled),.studio-menu-panel>a:hover {background:var(--bg-hover)}
+.studio-menu-panel small {display:block;margin-top:4px;color:var(--text-muted);font-size:12px;font-weight:400;line-height:1.5}
+.studio-menu-panel .studio-menu-secondary {border-top:1px solid var(--border);margin-top:5px;border-radius:0;color:var(--text-secondary)}
+#studio-header #examples-open {display:block;padding:10px;font-size:13px}
+#blade-games .blade-content {padding:42px 32px}
+#games-pane {width:min(1120px,100%)}
+#games-pane-header {display:none}
+.studio-library-heading {display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:12px}
+.studio-library-heading h1 {font-size:28px;font-weight:600;letter-spacing:-.6px;line-height:1.3}
+#portable-library p {font-size:13px;line-height:1.65}
+#portable-library .studio-library-heading p {margin:6px 0 0;font-size:14px}
+#portable-library .studio-library-heading .game-dashboard {margin:0;flex-shrink:0}
+#portable-library #studio-offline-status {font-size:12px;color:var(--text-muted);margin:0 0 28px}
+.studio-library-columns {display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:36px;align-items:start}
+.portable-search-label {margin:0 0 16px;font-size:12px;color:var(--text-secondary);font-weight:500}
+#portable-search {font:400 14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin-top:8px;background:var(--bg-secondary);border-color:var(--border);padding:10px 12px}
+.portable-project {padding:16px 18px;gap:5px;font-size:15px;font-weight:500;border-radius:8px;overflow-wrap:anywhere}
+.portable-project small {font-size:12px;font-weight:400;color:var(--text-muted)}
+#portable-project-list:empty:after {display:block;padding:32px 24px;border:1px dashed var(--border-light);border-radius:8px;content:'No games yet. Make something new or import a game.';font-size:14px}
+#portable-project-list[data-filtered=true]:empty:after {content:'No games match your search.'}
+#portable-library .studio-local-note {font-size:12px;margin-top:20px;color:var(--text-muted)}
+.studio-backup-card,.studio-learn-card {padding:22px;border:1px solid var(--border);border-radius:10px;background:var(--bg-secondary);margin:0 0 18px}
+.studio-backup-card h2,.studio-learn-card h2 {font-size:16px;font-weight:600;letter-spacing:0;margin:0}
+.studio-backup-actions {flex-direction:column;gap:10px;margin:18px 0 0}
+.studio-backup-actions .dash-btn {width:100%;min-height:48px;font-size:14px;padding:12px}
+.studio-learn-card .dash-btn {width:100%;white-space:normal}
+#portable-library .studio-learn-hint {font-size:12px;color:var(--text-muted);margin-bottom:0}
+#portable-template-picker {padding:20px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px}
+#portable-template-picker .game-dashboard {justify-content:space-between;margin:0 0 16px}
+#portable-template-picker h2 {font-size:16px;font-weight:600}
+.portable-template {background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;padding:16px;font-size:14px}
+.portable-template:hover {border-color:var(--accent-green)}
+.portable-template small {font-size:12px}
+#game-header {padding:12px 20px;gap:16px;overflow:visible;z-index:20}
+#game-header>div:first-child {min-width:0}
+#portable-name {background:transparent;font-size:16px;font-weight:600;max-width:320px;border-color:transparent;padding:6px 8px;margin-left:-8px}
+#portable-name:hover,#portable-name:focus {background:var(--bg-primary);border-color:var(--border-light)}
+#version-badge {font:11px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;border-radius:4px;background:var(--bg-hover);color:var(--text-secondary);padding:3px 7px}
+#studio-export-menu>summary {border-color:var(--border-light)}
+#file-tree {width:210px;background:var(--bg-primary)}
+#file-tree-header {min-height:44px;padding:6px 12px;overflow:visible}
+#file-tree-header>span {font-size:11px;letter-spacing:.06em;color:var(--text-secondary)}
+#portable-file-actions {padding:0;border:0;display:block}
+#studio-file-menu>summary {min-height:30px;padding:4px 7px;font-size:11px}
+#studio-file-menu .studio-menu-panel {right:0;width:180px}
+#studio-file-menu #new-file-btn {font-size:13px;color:var(--text-primary)}
+.file-item {padding:7px 12px;font-size:12px}
+.file-item.active {background:var(--bg-active)}
+#editor-tab-bar {height:44px;padding:0}
+.editor-tab {height:44px;display:flex;align-items:center;padding:0 16px;font-size:12px}
+.editor-tab {padding:0 4px 0 10px;gap:4px;flex-shrink:0}
+.editor-tab-select,.editor-tab-close {border:0;background:transparent;color:inherit;cursor:pointer;box-shadow:none;font:inherit}
+.editor-tab-select {height:100%;padding:0 5px}
+.editor-tab-close {width:28px;height:28px;padding:0;border-radius:4px;font-size:19px;color:var(--text-muted)}
+.editor-tab-close:hover {background:var(--bg-hover);color:var(--text-primary)}
+.editor-tab button:focus-visible {outline:2px solid var(--accent-blue);outline-offset:-2px}
+.editor-tab.dirty::after {content:none}
+.editor-tab.dirty .editor-tab-select::after {content:' ●';color:var(--accent-yellow)}
+@media(max-width:768px){.editor-tab-close{width:36px;height:36px}}
+#preview-panel.open {width:40%;min-width:320px}
+#preview-header {min-height:44px;padding:5px 12px;overflow:visible;position:relative;z-index:10}
+#preview-header>span {font-size:12px;text-transform:none;letter-spacing:0;color:var(--text-secondary)}
+#preview-controls button {min-height:30px;border:1px solid var(--border-light);border-radius:5px;background:var(--bg-secondary);color:var(--text-primary);padding:5px 10px;font:500 12px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#preview-controls .studio-menu-panel button {width:100%;border:0;border-radius:4px;background:transparent;padding:10px;text-align:left;font-size:13px}
+#preview-controls .studio-menu-panel button:hover:not(:disabled) {background:var(--bg-hover)}
+#studio-preview-menu>summary {min-height:30px;font-size:12px;padding:5px 10px}
+#preview-play-btn {display:none}
+#bottom-bar {height:34px;padding:0 16px}
+#status-msg,#preview-status {font-size:12px;color:var(--text-muted)}
+#save-btn {padding:4px 10px;font-size:12px}
+#asset-preview-dialog {font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.storage-hint {font-size:13px}
+.storage-header h2 {font-size:20px;font-weight:600}
+#studio-settings .studio-backup-actions {flex-direction:row}
+.modal-box {max-width:calc(100vw - 24px)}
+.modal-box h2,.asset-modal-header h2 {font-size:18px;font-weight:600}
+.asset-modal-box {max-width:1200px;height:90dvh;background:var(--bg-primary)}
+.asset-modal-header {background:var(--bg-secondary);padding:14px 20px}
+.asset-create-btn,.asset-modal-action-btn {min-height:36px;padding:7px 12px;background:var(--bg-secondary);border:1px solid var(--border-light);border-radius:6px;color:var(--text-primary);font-size:13px;box-shadow:none;text-transform:none;letter-spacing:0}
+.asset-modal-tab,.asset-modal-type-filter {min-height:34px;font-size:12px;color:var(--text-secondary)}
+.asset-modal-tab.active,.asset-modal-tab[aria-pressed=true] {background:var(--bg-active);color:var(--accent-green);border-color:var(--accent-green);font-weight:500}
+.asset-modal-search {font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:34px}
+.asset-browser-options {font-size:12px}
+.asset-modal-drop-zone {padding:10px;font-size:12px;margin-top:10px;border-width:1px;color:var(--text-muted)}
+.asset-modal-card {box-shadow:none}
+.asset-modal-card-name {font-size:14px}
+.asset-added-date,.asset-modal-card-desc {font-size:12px}
+.asset-modal-card-actions button {font-size:12px;min-height:32px;padding:5px 9px;box-shadow:none;text-transform:none;letter-spacing:0}
+.asset-modal-card-type {font-size:11px}
+.asset-modal-grid[data-view=list] .asset-modal-card-body {gap:3px}
+#asset-preview-title {font-size:18px;font-weight:600}
+#asset-preview-details,#asset-preview-position {font-size:12px}
+.asset-preview-footer .dash-btn {font-size:13px}
+#studio-examples {border-radius:10px;background:var(--bg-primary)}
+#examples-nav button[aria-pressed=true] {background:var(--bg-active);color:var(--accent-green);border-color:var(--accent-green)}
+.example-task {border-color:var(--accent-green)}
+#example-challenge {color:var(--accent-green)}
+#example-controls input[type=range] {accent-color:var(--accent-green)}
+#studio-examples button:focus-visible,#studio-examples summary:focus-visible,#studio-examples select:focus-visible,#studio-examples input:focus-visible {outline-color:var(--accent-blue)}
+@media (max-width:1050px) {
+    #studio-header {padding:0 16px;gap:16px}
+    .studio-library-columns {gap:24px;grid-template-columns:minmax(0,1fr) 290px}
+    #preview-panel.open {min-width:300px}
+    #file-tree {width:175px}
+    #file-tree-header {padding-inline:8px}
+}
+@media (max-width:768px) {
+    #studio-header {display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;grid-template-rows:32px 36px;gap:6px 4px;height:94px;min-height:94px;padding:8px 12px;align-content:center}
+    #studio-header .logo {grid-column:1 / 4;grid-row:1;font-size:18px;justify-self:start}
+    #studio-header .logo img {width:25px;height:25px}
+    #studio-header .logo span {font-size:11px}
+    #studio-header .studio-header-tools {display:contents;margin:0}
+    #studio-header .studio-workspace-nav {grid-column:1;grid-row:2;gap:0}
+    #studio-header .studio-workspace-nav button {min-height:32px;padding:6px;font-size:12px}
+    #studio-header #header-asset-btn {grid-column:2;grid-row:2}
+    #studio-header #studio-learn-menu {grid-column:4;grid-row:2}
+    #studio-header .mode-btn,#studio-header #studio-learn-menu>summary {padding:6px;min-height:32px;font-size:12px}
+    #studio-header .studio-settings-button {grid-column:4;grid-row:1;font-size:12px;padding:6px;min-height:30px}
+    #file-tree,#preview-panel {top:94px}
+    #preview-panel.open {min-width:0}
+    #preview-play-btn {display:inline-block}
+    #preview-controls .studio-menu-panel {width:250px}
+    #blade-games .blade-content {padding:24px 16px}
+    .studio-library-heading {align-items:flex-start;flex-direction:column;gap:18px}
+    .studio-library-heading h1 {font-size:25px}
+    .studio-library-columns {grid-template-columns:1fr;gap:24px}
+    .studio-backup-card,.studio-learn-card {padding:20px}
+    #portable-library #studio-offline-status {margin:16px 0 24px}
+    #game-header {padding:10px 12px;gap:8px}
+    #portable-name {font-size:15px;max-width:210px}
+    #game-header>.game-dashboard {margin-left:auto}
+    #game-header .dash-btn,#studio-export-menu>summary {font-size:12px;min-height:32px;padding:6px 10px}
+    #preview-toggle-btn {display:none}
+    #portable-file-actions {margin-left:auto}
+    #file-tree-header {padding:8px 16px}
+    #studio-file-menu .studio-menu-panel {width:200px}
+    #mobile-bar {background:var(--bg-secondary);border-color:var(--border);padding:8px 12px;gap:8px}
+    #mobile-action-btn,#mobile-menu-btn {background:var(--bg-secondary);border:1px solid var(--border-light);border-radius:6px;box-shadow:none;font:500 13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0;text-transform:none;min-height:36px;color:var(--text-primary)}
+    #mobile-action-btn {background:var(--accent-green);color:var(--badge-head-text);border-color:var(--accent-green)}
+    #mobile-menu-btn:active,#mobile-action-btn:active {transform:none;box-shadow:none}
+    #mobile-menu {background:var(--bg-primary);border-color:var(--border);top:94px}
+    .mmenu-tile {box-shadow:none;border-width:1px;border-radius:8px;background:var(--bg-secondary);font:500 14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-transform:none;letter-spacing:0}
+    .mmenu-sub {font-size:12px}
+    .asset-modal-box {width:calc(100vw - 16px);height:calc(100dvh - 16px)}
+    .asset-modal-header {padding:10px 12px;gap:8px;flex-wrap:wrap}
+    .asset-modal-header-actions {gap:6px;flex-wrap:wrap}
+    .asset-modal-header-actions button {font-size:12px;padding:6px 9px}
+    .asset-modal-toolbar {padding:8px 10px}
+    .asset-modal-grid {padding:10px}
+    .asset-modal-grid[data-view=list] .asset-modal-card-actions {gap:5px}
+    .asset-modal-drop-zone {margin:8px 10px 0;padding:8px}
+    #studio-settings .studio-backup-actions {flex-direction:column}
+}
+@media (prefers-reduced-motion:reduce) {*,*::before,*::after {transition:none!important;animation:none!important}}
+
+.studio-player-name {display:flex;align-items:flex-end;gap:6px;padding:10px;border-top:1px solid var(--border);margin-top:6px;font-size:12px}
+.studio-player-name label {flex:1;min-width:0;color:var(--text-secondary)}
+.studio-player-name input {display:block;width:100%;min-width:0;margin-top:6px;padding:6px 8px;font:inherit;color:var(--text-primary);background:var(--bg-deep);border:1px solid var(--border-light);border-radius:4px}
+#preview-controls .studio-player-name button {padding:6px 8px}
+
+#preview-logs:empty {display:none}
+#preview-logs {flex:0 1 140px;font-size:12px}
+#preview-logs:not(:empty)::before {content:'Console';display:block;padding:6px 10px;font:500 12px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text-muted);border-bottom:1px solid var(--border)}
+.asset-modal-card-preview img {width:100%;height:100%;object-fit:contain}
+#portable-media video {max-width:100%;max-height:75%}
+
+@media (max-width:768px) {
+    body:not(.studio-editor-active) #studio-body {margin-bottom:0}
+    #mobile-menu {top:auto;max-height:calc(100dvh - 150px)}
+    #mobile-menu-grid {grid-template-columns:repeat(3,minmax(0,1fr));padding:12px;gap:8px}
+    .mmenu-tile {min-height:92px;padding:12px 8px}
+    .mmenu-tile .mmenu-sub {font-size:11px}
+    .asset-modal-drop-zone {display:none}
+}
+@media (max-width:360px) {
+    #studio-header {padding-inline:8px;column-gap:0}
+    #studio-header .studio-workspace-nav button,#studio-header .mode-btn,#studio-header #studio-learn-menu>summary {font-size:11px;padding-inline:4px}
+}
+
+.studio-player-name {flex-wrap:wrap}
+.studio-player-name [role=status] {flex:1 1 100%;font-size:12px;color:var(--text-secondary);overflow-wrap:anywhere}
+.studio-player-name [role=status]:empty {display:none}
+
+/* Homegames' four-color buttons: the same palette and lettering as the homepage. */
+:root {--hg-green:#A0EB5D;--hg-blue:#94D2E5;--hg-yellow:#FFF78E;--hg-coral:#F1706F;--hg-ink:#1a1a2e}
+.dash-btn,.mode-btn,.asset-create-btn,.studio-menu>summary {
+    min-height:40px;border-radius:8px;font-family:amateur,sans-serif;font-size:17px;font-weight:bold;
+    padding:9px 15px;transition:background .15s,box-shadow .15s,transform .15s;
+}
+#studio-header {border-bottom:0;box-shadow:0 1px 0 var(--border)}
+#studio-header::after {content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--hg-green) 0 25%,var(--hg-blue) 25% 50%,var(--hg-yellow) 50% 75%,var(--hg-coral) 75%)}
+#studio-header .mode-btn,#studio-header #studio-learn-menu>summary {min-height:40px;padding:8px 14px;font:700 17px/1.4 amateur,sans-serif;border:1px solid transparent;color:var(--hg-ink)}
+#studio-header #header-asset-btn {background:var(--hg-blue)}
+#studio-header #studio-settings-open {background:transparent;border-color:var(--border);color:var(--text-secondary)}
+#studio-header #studio-learn-menu>summary {background:var(--hg-coral)}
+#studio-header #studio-learn-menu>summary::after {color:var(--hg-ink)}
+#studio-header .studio-header-tools {gap:10px}
+#studio-header .studio-workspace-nav button {font-family:amateur,sans-serif;font-size:17px;min-height:40px}
+.studio-workspace-nav button[aria-expanded=true] {background:var(--hg-green);color:var(--hg-ink);border-color:var(--hg-green);font-weight:bold}
+.studio-library-heading h1 {font-family:amateur,sans-serif;font-size:38px;letter-spacing:0;font-weight:bold}
+#portable-new,#preview-toggle-btn,#mobile-action-btn {background:var(--hg-green);color:var(--hg-ink);border-color:var(--hg-green)}
+#portable-import,#studio-export-menu>summary {background:var(--hg-blue);color:var(--hg-ink);border-color:var(--hg-blue)}
+#studio-export-menu>summary::after {color:var(--hg-ink)}
+#portable-new,#portable-import {min-height:52px;font-size:21px;padding:12px 24px;box-shadow:0 3px 0 #0003}
+#portable-library .studio-library-heading {margin-bottom:16px}
+.studio-backup-card {border-top:4px solid var(--hg-blue)}
+.studio-learn-card {border-top:4px solid var(--hg-coral)}
+.studio-backup-card h2,.studio-learn-card h2 {font:700 23px/1.3 amateur,sans-serif}
+.studio-backup-actions .dash-btn {min-height:56px;padding:12px 16px;font:700 19px/1.4 amateur,sans-serif;box-shadow:0 3px 0 #0003}
+.studio-backup-actions [data-studio-backup] {background:var(--hg-blue)!important;border-color:var(--hg-blue)!important;color:var(--hg-ink)!important}
+.studio-backup-actions [data-studio-restore] {background:var(--hg-yellow);border-color:var(--hg-yellow);color:var(--hg-ink)}
+#portable-examples {background:var(--hg-coral);border-color:var(--hg-coral);color:var(--hg-ink);font-size:19px;min-height:52px;box-shadow:0 3px 0 #0003}
+.portable-project {border-left:4px solid var(--hg-blue);font-family:amateur,sans-serif;font-size:23px;gap:8px}
+.portable-project:nth-child(3n+2) {border-left-color:var(--hg-yellow)}
+.portable-project:nth-child(3n) {border-left-color:var(--hg-coral)}
+.portable-project small {font:400 12px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.portable-project {display:flex;flex-direction:row;align-items:center;gap:18px;text-align:left;min-height:112px}
+.studio-game-thumbnail {width:96px;height:76px;flex:none;position:relative;display:grid;place-items:center;overflow:hidden;border-radius:6px;background:var(--bg-deep);color:var(--hg-blue);font:700 28px/1 amateur,sans-serif}
+.studio-game-thumbnail img {position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.studio-game-label {display:flex;flex-direction:column;gap:8px;min-width:0}
+.portable-project:nth-child(3n+2) .studio-game-thumbnail {color:var(--hg-yellow)}
+.portable-project:nth-child(3n) .studio-game-thumbnail {color:var(--hg-coral)}
+@media(max-width:600px){.portable-project{padding:12px;gap:12px;min-height:96px}.studio-game-thumbnail{width:76px;height:64px}.studio-game-label{font-size:21px}}
+#portable-name {font-family:amateur,sans-serif;font-size:23px}
+#game-header .dash-btn,#studio-export-menu>summary {min-height:42px;font-size:18px;padding:9px 18px;box-shadow:0 2px 0 #0003}
+#studio-file-menu>summary {background:var(--hg-yellow);color:var(--hg-ink);font-size:14px;padding:5px 8px;border-color:var(--hg-yellow)}
+#studio-file-menu>summary::after {color:var(--hg-ink)}
+#preview-controls>button,#studio-preview-menu>summary {font-family:amateur,sans-serif;font-size:16px;min-height:36px;padding:6px 11px;border-radius:7px}
+#preview-controls #preview-inspect-btn {background:var(--hg-blue);border-color:var(--hg-blue);color:var(--hg-ink)}
+#preview-controls #preview-player2-btn {background:var(--hg-yellow);border-color:var(--hg-yellow);color:var(--hg-ink)}
+#preview-controls #preview-stop-btn {background:var(--hg-coral);border-color:var(--hg-coral);color:var(--hg-ink)}
+#preview-controls #preview-play-btn {background:var(--hg-green);border-color:var(--hg-green);color:var(--hg-ink)}
+#preview-controls>button.active {box-shadow:inset 0 0 0 2px var(--hg-ink)}
+#studio-preview-menu>summary {border-color:var(--border-light)}
+#asset-modal-upload-btn {background:var(--hg-blue);border-color:var(--hg-blue);color:var(--hg-ink)}
+#asset-modal-draw-btn {background:var(--hg-yellow);border-color:var(--hg-yellow);color:var(--hg-ink)}
+#asset-modal-record-btn {background:var(--hg-coral);border-color:var(--hg-coral);color:var(--hg-ink)}
+#asset-modal-keyboard-btn {background:var(--hg-green);border-color:var(--hg-green);color:var(--hg-ink)}
+.asset-modal-header h2 {font:700 26px/1.3 amateur,sans-serif}
+.asset-modal-tab.active,.asset-modal-tab[aria-pressed=true] {background:var(--hg-blue);border-color:var(--hg-blue);color:var(--hg-ink)}
+.asset-preview-footer .dash-btn {font-family:amateur,sans-serif;font-size:17px}
+#asset-preview-prev,#asset-preview-next {background:var(--hg-blue);border-color:var(--hg-blue);color:var(--hg-ink)}
+#asset-preview-size {background:var(--hg-yellow);border-color:var(--hg-yellow);color:var(--hg-ink)}
+#asset-preview-download {background:var(--hg-green);border-color:var(--hg-green);color:var(--hg-ink)}
+#examples-nav button[aria-pressed=true] {background:var(--hg-yellow);border-color:var(--hg-yellow);color:var(--hg-ink)}
+#example-copy {background:var(--hg-green);border-color:var(--hg-green);color:var(--hg-ink)}
+#studio-header .mode-btn:hover:not(:disabled),#studio-header #studio-learn-menu>summary:hover,
+#portable-new:hover:not(:disabled),#portable-import:hover:not(:disabled),#portable-examples:hover:not(:disabled),
+#preview-toggle-btn:hover,#studio-export-menu>summary:hover,.studio-backup-actions button:hover:not(:disabled),
+.asset-modal-header .asset-create-btn:hover {filter:brightness(.96);transform:translateY(-1px)}
+#portable-new:hover:not(:disabled),#preview-toggle-btn:hover {background:var(--hg-green);color:var(--hg-ink)}
+@media(max-width:1050px) {#studio-header {gap:14px}#studio-header .studio-header-tools {gap:6px}#studio-header .mode-btn,#studio-header #studio-learn-menu>summary {padding-inline:10px}}
+@media(max-width:768px) {
+    #studio-header {column-gap:4px}
+    #studio-header .mode-btn,#studio-header #studio-learn-menu>summary {font-size:14px;min-height:34px;padding:6px}
+    #studio-header .studio-workspace-nav button {font-size:14px;min-height:34px;padding:6px}
+    .studio-library-heading h1 {font-size:32px}
+    #portable-new,#portable-import {min-height:48px;padding:10px 20px;font-size:20px}
+    #game-header .dash-btn,#studio-export-menu>summary {min-height:38px;padding:7px 14px;font-size:17px}
+    #portable-name {font-size:22px}
+    #preview-controls>button,#studio-preview-menu>summary {min-height:36px;padding:6px 9px;font-size:15px}
+    #mobile-action-btn,#mobile-menu-btn {font-family:amateur,sans-serif;font-size:18px}
+    #mobile-action-btn {background:var(--hg-green);border-color:var(--hg-green);color:var(--hg-ink)}
+    #asset-modal .asset-create-btn {font-size:15px;padding:6px 10px;min-height:36px}
+    .studio-backup-actions .dash-btn {font-size:19px;min-height:56px}
+}
+@media(max-width:360px) {#studio-header .studio-workspace-nav button,#studio-header .mode-btn,#studio-header #studio-learn-menu>summary {font-size:12px;padding-inline:4px}}
+.studio-backup-actions [data-studio-restore]:hover:not(:disabled) {background:var(--hg-yellow);color:var(--hg-ink)}
+#portable-add-assets {background:var(--hg-yellow);border-color:var(--hg-yellow);color:var(--hg-ink)}
+#asset-picker-hint {margin:0;padding:12px 20px 0;font-size:13px;color:var(--text-secondary);overflow-wrap:anywhere}
+#asset-picker-footer {display:flex;align-items:center;gap:12px;flex-shrink:0;padding:14px 20px;border-top:1px solid var(--border);background:var(--bg-secondary)}
+#asset-picker-footer[hidden],#asset-picker-hint[hidden] {display:none}
+#asset-picker-count {margin-right:auto;font-size:13px;color:var(--text-secondary)}
+#asset-picker-confirm {background:var(--hg-green);border-color:var(--hg-green);color:var(--hg-ink)}
+#asset-picker-confirm:disabled {opacity:.5;cursor:default}
+.asset-select {display:flex;align-items:center;gap:9px;padding:8px 12px;min-height:40px;border:1px solid var(--border-light);border-radius:6px;cursor:pointer;font-size:14px}
+.asset-select input {width:20px;height:20px;margin:0;accent-color:var(--hg-green);cursor:pointer}
+.asset-select:has(input:focus-visible) {outline:2px solid var(--hg-blue);outline-offset:2px}
+.portable-asset.selected {border-color:var(--hg-green);box-shadow:inset 0 0 0 1px var(--hg-green)}
+.portable-asset.selected .asset-select {color:var(--text-primary);border-color:var(--hg-green)}
+@media(max-width:600px) {
+    .asset-modal-header {position:relative}
+    #asset-modal-title {padding-right:42px}
+    #asset-modal-close {position:absolute;right:12px;top:12px}
+    #asset-picker-footer {padding:12px 10px;gap:8px;flex-wrap:wrap}
+    #asset-picker-footer .dash-btn {font-size:16px;padding:8px 12px}
+    #asset-picker-count {flex:1 1 100%}
+    #asset-picker-cancel {flex:1}
+    #asset-picker-confirm {flex:2}
+    #asset-picker-hint {padding:10px 12px 0}
+}
+@media(max-width:768px) {#studio-header .studio-workspace-nav button {font-size:12px;padding-inline:4px}}
+@media(max-width:360px) {#studio-header .studio-workspace-nav button {font-size:11px}}
+
+/* Saved versions belong beside the files being edited. */
+#portable-history {width:180px;flex-shrink:0;min-height:0;overflow-y:auto;border-right:1px solid var(--border);background:var(--bg-secondary)}
+#portable-history h2 {position:sticky;top:0;z-index:1;display:flex;align-items:center;min-height:44px;margin:0;padding:6px 12px;box-sizing:border-box;background:var(--bg-secondary);border-bottom:1px solid var(--border);font:600 12px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#portable-history-list {padding:6px}
+.studio-history-entry {display:flex;flex-direction:column;gap:5px;width:100%;min-height:52px;padding:10px;margin:0 0 4px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--text-primary);text-align:left;cursor:pointer;font:12px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow-wrap:anywhere}
+.studio-history-entry:hover {background:var(--bg-hover)}
+.studio-history-entry[aria-current=true] {background:var(--bg-active);border-color:var(--border-light)}
+.studio-history-entry small {font-size:11px;color:var(--text-muted)}
+.studio-history-entry:focus-visible {outline:2px solid var(--accent-blue);outline-offset:-2px}
+.studio-history-empty {font-size:12px;line-height:1.5;padding:8px;color:var(--text-muted)}
+#game-header #save-btn {min-height:38px;padding:7px 18px;font:700 18px/1.2 amateur,sans-serif;background:var(--hg-green);color:var(--hg-ink)}
+#game-header #save-btn:disabled {background:var(--bg-hover);color:var(--text-muted);opacity:.75}
+@media(max-width:1050px) {#portable-history {width:150px}}
+@media(max-width:768px) {
+    #portable-history {display:none;position:fixed;top:94px;left:0;right:0;bottom:56px;width:100%;z-index:30}
+    #portable-history.mobile-visible {display:block}
+    .studio-history-entry {min-height:64px;font-size:14px}
+    .studio-history-entry small {font-size:12px}
+}
+
+#studio-save-controls {display:flex;align-items:center;gap:8px;min-width:0}
+#studio-save-controls[hidden] {display:none}
+#commit-msg {width:210px;min-width:0;min-height:38px;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border-light);border-radius:6px;background:var(--bg-input);color:var(--text-primary);font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#commit-msg::placeholder {color:var(--text-muted)}
+#commit-msg:focus-visible {outline:2px solid var(--accent-blue);outline-offset:2px}
+@media(max-width:768px) {
+    #game-header>.game-dashboard {width:100%}
+    #studio-save-controls {width:100%}
+    #commit-msg {flex:1;width:0;font-size:16px}
+}
+
+/* The workspace is the main view; Games and Settings are focused overlays. */
+.studio-dialog {margin:auto;padding:0;width:min(760px,calc(100vw - 32px));max-height:calc(100dvh - 40px);border:1px solid var(--border-light);border-radius:12px;background:var(--bg-primary);color:var(--text-primary);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 24px 80px #0006;overflow:auto}
+.studio-dialog::backdrop {background:rgba(5,8,20,.65)}
+.studio-dialog .storage-header {padding:16px 22px}
+.studio-dialog .storage-header h2 {font:700 28px/1.2 amateur,sans-serif}
+.studio-dialog .storage-header button {min-width:36px}
+#studio-games #games-pane {box-sizing:border-box;width:100%}
+#studio-games #portable-library {padding:0}
+.studio-game-picker-tools {display:flex;align-items:center;gap:8px;margin-bottom:20px}
+#studio-games #portable-search {flex:1;min-width:80px;margin:0;width:0;height:44px}
+#studio-games #portable-new,#studio-games #portable-import {min-height:44px;padding:8px 14px;font-size:18px;box-shadow:none}
+#studio-games .portable-project {min-height:88px;padding:12px 16px}
+#studio-games .studio-game-thumbnail {width:72px;height:56px}
+#studio-games .portable-project[aria-current=true] {border-color:var(--hg-green);background:var(--bg-active)}
+#studio-games .portable-project[aria-current=true]::after {content:'Open';margin-left:auto;flex-shrink:0;white-space:nowrap;color:var(--accent-green);font:500 12px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#studio-games-error {color:var(--accent-red)}
+#studio-games-error:empty,#workspace-backup-status:empty,#storage-feedback:empty {display:none}
+#studio-settings {width:min(660px,calc(100vw - 32px))}
+.studio-settings-theme {display:flex;align-items:center;justify-content:space-between;gap:16px}
+.studio-settings-theme label,.studio-settings-section>h3 {font-size:16px;font-weight:600}
+#studio-theme {min-width:120px;min-height:40px;padding:8px 12px;border:1px solid var(--border-light);border-radius:6px;color:var(--text-primary);background:var(--bg-secondary);font:inherit}
+.studio-settings-section {margin-top:24px;padding-top:24px;border-top:1px solid var(--border)}
+#studio-settings .studio-backup-actions {gap:10px;margin:16px 0 0}
+#studio-settings .studio-backup-actions .dash-btn {min-height:44px;padding:10px 12px;font-size:18px;box-shadow:none}
+#studio-settings #storage-usage {font-size:13px;color:var(--text-secondary)}
+#studio-settings #portable-storage-status {font-size:12px;color:var(--text-muted)}
+#storage-details {margin-top:16px}
+#storage-details>summary {cursor:pointer;padding:8px 0;font-weight:500}
+#storage-details>.storage-actions {margin-top:12px}
+#studio-offline-status {margin-top:24px;font-size:12px;color:var(--text-muted)}
+.studio-empty-workspace {display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center}
+.studio-empty-workspace h1 {font:700 32px/1.3 amateur,sans-serif;margin:0}
+.studio-empty-workspace button {background:var(--hg-green);color:var(--hg-ink);font:700 18px/1.4 amateur,sans-serif;padding:10px 20px}
+#studio-header #studio-games-open {background:var(--hg-green);border-color:var(--hg-green);color:var(--hg-ink);padding-inline:14px}
+@media(max-width:768px) {
+    #studio-header .studio-workspace-nav {grid-column:1;justify-self:start}
+    #studio-header .studio-workspace-nav button {font-size:16px}
+    #studio-header #header-asset-btn {grid-column:2}
+    #studio-header #studio-learn-menu {grid-column:3 / 5}
+    #studio-header #studio-settings-open {grid-column:4;grid-row:1;min-height:32px;font-size:12px}
+}
+@media(max-width:600px) {
+    .studio-dialog {width:calc(100vw - 20px);max-height:calc(100dvh - 24px)}
+    .studio-dialog .storage-header {padding:12px 16px}
+    #studio-settings {width:calc(100vw - 20px)}
+    .studio-game-picker-tools {flex-wrap:wrap}
+    #studio-games #portable-search {width:100%;flex-basis:100%}
+    #studio-games #portable-new,#studio-games #portable-import {flex:1}
+    #studio-games #portable-template-picker {padding:12px}
+    #studio-games #portable-template-list {grid-template-columns:1fr}
+    #studio-games .portable-project {padding:10px;gap:12px}
+    #studio-games .studio-game-thumbnail {width:56px;height:48px}
+    #studio-settings .studio-backup-actions {flex-direction:column}
+    #studio-settings .studio-backup-actions .dash-btn {font-size:18px}
+}
+
+/* Learn presents one useful topic at a time, with a searchable index. */
+#studio-header .studio-workspace-nav {gap:8px}
+.studio-learn-dialog {width:min(1120px,calc(100vw - 32px));height:min(880px,calc(100dvh - 40px));max-width:none;overflow:hidden}
+.studio-learn-dialog[open] {display:flex;flex-direction:column}
+.studio-learn-dialog .storage-header {flex-shrink:0}
+.learn-intro {padding:12px 22px;margin:0;color:var(--text-secondary);border-bottom:1px solid var(--border);font-size:13px}
+.learn-browser {display:grid;grid-template-columns:240px minmax(0,1fr);flex:1;min-height:0}
+.learn-sidebar {display:flex;flex-direction:column;min-height:0;min-width:0;padding:14px 10px;background:var(--bg-secondary);border-right:1px solid var(--border)}
+.learn-sidebar input {width:100%;min-height:40px;flex-shrink:0;padding:8px 10px;border:1px solid var(--border-light);border-radius:6px;background:var(--bg-input);color:var(--text-primary);font:inherit;font-size:13px}
+.learn-topics {overflow:auto;min-height:0;padding:8px 2px}
+.learn-topics h3 {font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin:16px 8px 6px}
+.learn-topics button {display:block;width:100%;padding:9px 10px;border:1px solid transparent;border-radius:5px;background:transparent;color:var(--text-secondary);font:inherit;font-size:13px;text-align:left;cursor:pointer;white-space:normal}
+.learn-topics button:hover {background:var(--bg-hover);color:var(--text-primary)}
+.learn-topics button[aria-pressed=true] {background:var(--bg-active);color:var(--accent-green);border-color:var(--border-light)}
+.learn-content {min-width:0;min-height:0;overflow:auto;padding:24px;line-height:1.65;overflow-wrap:anywhere}
+.learn-content>h3 {font-size:21px;line-height:1.3;margin:22px 0 12px}
+.learn-content>h3:first-child {margin-top:0}
+.learn-content p,.learn-content ul,.learn-content ol {margin:12px 0}
+.learn-content ul,.learn-content ol {padding-left:24px}
+.learn-content li {margin:6px 0}
+.learn-content a {color:var(--accent-blue)}
+.learn-content code {font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
+.learn-content :not(pre)>code {background:var(--bg-hover);border-radius:3px;padding:2px 4px}
+.learn-content pre {overflow:auto;background:var(--bg-deep);color:var(--text-primary);border:1px solid var(--border);border-radius:7px;padding:14px;white-space:pre;overflow-wrap:normal;margin:12px 0}
+.learn-content .learn-note {padding:10px 14px;background:var(--bg-secondary);border-left:3px solid var(--accent-blue);color:var(--text-secondary);font-size:13px}
+.learn-code-block {margin:24px 0}
+.learn-code-block header {display:flex;justify-content:space-between;align-items:center;gap:12px}
+.learn-code-block h4 {font-size:13px;font-weight:600;margin:0}
+.learn-code-block pre {margin-top:8px}
+.learn-code-block .dash-btn {min-height:32px;font-size:12px}
+.learn-table {overflow:auto;margin:16px 0}
+.learn-table table {border-collapse:collapse;font-size:13px;width:100%}
+.learn-table td,.learn-table th {padding:8px 10px;border:1px solid var(--border);text-align:left;vertical-align:top;min-width:120px}
+.learn-table th {background:var(--bg-secondary)}
+.learn-empty {padding:12px;color:var(--text-muted);font-size:13px}
+.learn-footer {display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;flex-shrink:0;padding:12px 20px;border-top:1px solid var(--border)}
+@media(max-width:768px) {
+    #studio-header .studio-workspace-nav {grid-column:1 / 4;gap:8px}
+    #studio-header #studio-learn-menu {grid-column:4}
+    #studio-header .studio-workspace-nav button {min-height:34px;font-size:15px;padding:6px 12px}
+}
+@media(max-width:700px) {
+    .studio-learn-dialog {width:calc(100vw - 16px);height:calc(100dvh - 24px);max-height:calc(100dvh - 24px)}
+    .learn-browser {grid-template-columns:1fr;grid-template-rows:170px minmax(0,1fr)}
+    .learn-sidebar {padding:10px;border-right:0;border-bottom:1px solid var(--border)}
+    .learn-sidebar input {font-size:16px}
+    .learn-topics {display:grid;grid-template-columns:1fr 1fr;align-content:start;gap:4px}
+    .learn-topics h3,.learn-topics .learn-empty {grid-column:1/-1}
+    .learn-topics h3 {display:none}
+    .learn-topics button {font-size:12px;padding:7px 8px}
+    .learn-content {padding:16px}
+    .learn-intro {padding:10px 16px;font-size:12px}
+    .learn-footer {padding:10px;gap:6px}
+    .learn-footer .dash-btn {font-size:12px;padding:6px 8px;flex:1}
+}

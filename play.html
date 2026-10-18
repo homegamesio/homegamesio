@@ -1,100 +1,11 @@
-<!DOCTYPE HTML>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Homegames — Play</title>
-        <style>
-            * { box-sizing: border-box; margin: 0; padding: 0; }
-            body { background: #000; height: 100vh; overflow: hidden; }
-            #game-container { width: 100vw; height: 100vh; height: 100dvh; }
-            #status { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(420px, 85vw); color: #b7bfb5; text-align: center; font: 16px/1.6 system-ui, sans-serif; }
-        </style>
-    </head>
-    <body>
-        <div id="game-container"></div>
-        <div id="status">Connecting...</div>
-    </body>
-    <script src="/homegames-client.js"></script>
-    <script>
-        const API_URL = window.API_URL || 'https://api.homegames.io:443';
-
-        const params = new URLSearchParams(window.location.search);
-        const localGameId = params.get('localGame');
-        const localRef = params.get('ref');
-        const statusEl = document.getElementById('status');
-        const invitation = HomegamesClient.readInvitation();
-        const browseUrl = localGameId ? `/game.html?id=${encodeURIComponent(localGameId)}` : '/catalog.html';
-        let guestClient;
-        const pageFrame = HomegamesClient.createSessionFrame('game-container',
-            invitation ? 'Shared game' : 'Homegames', browseUrl, invitation ? {
-                getLink: () => guestClient.getShareLink(),
-                hintText: 'Scan to join this session. The host needs to keep their game open.',
-                onOpen: () => guestClient.inputHandler?.detach(),
-                onClose: () => { if (guestClient.rendering) guestClient.inputHandler?.attach(); },
-            } : null,
-            { status: invitation ? 'Connecting to host…' : 'Loading game…' });
-
-        const showStatus = (text) => {
-            statusEl.style.display = '';
-            statusEl.textContent = text;
-        };
-
-        // Play hosts one game in this browser. Published multiplayer games
-        // register on readiness, with privacy chosen before registration.
-        const startLocal = () => {
-            showStatus('Loading game...');
-
-            const manifestUrl = `${API_URL}/games/${encodeURIComponent(localGameId)}/local-manifest?ref=${encodeURIComponent(localRef)}`;
-            const client = new HomegamesClient({
-                    containerId: 'game-container',
-                    localHome: browseUrl,
-                    loadLocalGame: async (_, options) => {
-                        const game = await HomegamesClient.loadLocalGame({ manifestUrl,
-                            gameKey: `catalog:${localGameId}`, versionId: localRef }, options);
-                        document.title = `${game.name} — Homegames`;
-                        pageFrame.dispose();
-                        return game;
-                    },
-                    share: game => ({
-                        signalingUrl: `${API_URL}/rtc`,
-                        joinUrl: new URL('/play.html', window.location.href).href,
-                        autoStart: game.multiplayer,
-                        room: game.multiplayer ? { gameId: localGameId, versionId: localRef } : null,
-                        visibility: game.multiplayer && params.get('private') !== '1' ? 'public' : 'private',
-                    }),
-                    onReady: () => { statusEl.style.display = 'none'; },
-                    onError: (err) => {
-                        console.error(err);
-                        showStatus('Error: ' + ((err && err.message) || err));
-                    },
-            });
-            window.addEventListener('pagehide', () => client.stop());
-            client.startLocalGame({});
-        };
-
-        if (invitation) {
-            const client = guestClient = new HomegamesClient({
-                containerId: pageFrame.containerId,
-                transport: HomegamesClient.createRtcTransport({ ...invitation,
-                    joinUrl: new URL('/play.html', window.location.href).href }),
-                onReady: () => { pageFrame.setStatus('Connected to host'); statusEl.style.display = 'none'; },
-                onError: err => { pageFrame.setStatus('Unable to join'); showStatus(err.message || 'Unable to join this game'); },
-                onClose: () => {
-                    if (statusEl.style.display === 'none') {
-                        pageFrame.setStatus('Session ended');
-                        showStatus('The host disconnected. Reopen the invitation to join again.');
-                    }
-                },
-            });
-            client.start();
-            window.addEventListener('pagehide', () => client.stop());
-        } else if (localGameId && localRef) {
-            startLocal();
-        } else {
-            pageFrame.setStatus('Choose a game to play');
-            showStatus('This game link has ended. Browse the game library to find something to play.');
-        }
-        window.addEventListener('pagehide', () => pageFrame.dispose());
-    </script>
-</html>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Homegames — Play</title><style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:#101820;color:#f7fafc;font:14px system-ui}body{display:flex;flex-direction:column}
+header{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:10px 14px}a{color:#a0eb5d}button{font:inherit;cursor:pointer;padding:6px 10px}
+#game-container{flex:1;min-height:0;position:relative}iframe{width:100%;height:100%;border:0}#status{padding:8px 14px}#save-tools{display:flex;gap:8px;flex-wrap:wrap}[hidden]{display:none!important}
+</style></head><body>
+<noscript><style>#status{display:none}</style><p>Playing needs JavaScript. You can still <a href="/catalog.html">browse games and download game packs</a>.</p></noscript>
+<div id="status" role="status">Loading game…</div><div id="game-container"></div>
+<script src="/site-config.js"></script><script src="/bundle.js"></script><script src="/homegames-client.js"></script><script src="/play.js"></script>
+</body></html>

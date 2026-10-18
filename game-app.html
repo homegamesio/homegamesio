@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Play · Homegames</title><meta name="theme-color" content="#101820">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Homegame">
+<meta name="robots" content="noindex"><meta name="referrer" content="no-referrer">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="stylesheet" href="/game-app.css">
+<script defer src="/site-config.js"></script><script defer src="/homegames-client.js"></script>
+<script defer src="/game-app-storage.js"></script><script defer src="/game-install.js"></script><script defer src="/studio-project-store.js"></script><script defer src="/studio-update.js"></script><script defer src="/game-app.js"></script>
+</head><body>
+<div id="game-toolbar"></div>
+<p id="edit-status" role="alert" hidden></p>
+<p id="loading" role="status">Loading game…</p>
+<button id="retry" hidden>Try again</button>
+<main id="setup" hidden>
+    <h1 id="heading">Keep a game of your own</h1>
+    <p id="description">Receive a game directly from another player, or open a saved Homegames HTML bundle.</p>
+    <p id="status" role="status">Opening…</p><progress id="progress" value="0" max="1" hidden aria-label="Game download"></progress>
+    <div class="actions"><button id="receive" disabled hidden>Receive game</button><button id="cancel" hidden>Cancel</button><button id="play" hidden>Play</button><button id="download" hidden>Download game HTML</button><button id="zip" hidden>Download project ZIP</button></div>
+    <details id="open-help"><summary>Open a saved game or invitation</summary>
+        <p>A saved HTML bundle includes the game, its images, sounds and player. On a computer, you can also open that file directly in your browser.</p>
+        <label class="file">Open game HTML or ZIP <input id="game-file" type="file" accept=".html,.htm,.zip,.homegame,text/html,application/zip"></label>
+        <form id="invitation-form"><label for="invitation">Game invitation</label><div class="actions"><input id="invitation" type="url" required placeholder="Paste invitation link"><button>Connect</button></div></form>
+    </details>
+    <p class="note">Copies stay on this device. Download the HTML to keep a file you can back up and share. Games aren’t uploaded to Homegames.</p>
+</main>
+<dialog id="install-help" aria-labelledby="install-title">
+    <div class="install-identity"><img id="install-icon" src="/apple-touch-icon.png" width="64" height="64" alt=""><div><p id="install-name"></p><p class="note">Your game, on your device</p></div></div>
+    <h2 id="install-title">Download app</h2>
+    <ol id="install-steps"></ol>
+    <p id="install-source"></p>
+    <p id="install-message" role="status" hidden></p>
+    <div class="actions"><button id="install" hidden>Install this game</button><button id="install-copy-link" hidden>Copy game link</button></div>
+    <div class="install-file"><button id="install-file">Download game file (HTML)</button><p class="note">A complete offline copy you can back up, share, or open in a desktop browser.</p></div>
+    <p class="note" id="install-progress">To bring your existing progress into the app, use More → Download save here, then More → Load save in the app.</p>
+    <button id="install-done">Back to game</button>
+</dialog>
+<div id="load-progress" hidden><label>Load progress <input id="save-file" type="file" accept=".json,application/json"></label><button id="load-done">Back to game</button></div>
+<section id="player" hidden aria-label="Game"></section>
+<noscript>Playing needs JavaScript. You can still <a href="/catalog.html">browse games and download game packs</a>.</noscript>
+</body></html>

@@ -3,60 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Discover community-made Homegames. Find a game, explore its source, play in your browser, or join an open room.">
+    <meta name="description" content="Play the built-in Homegames collection. Run games in your browser, invite friends, or download editable game packs.">
     <title>Browse games — Homegames</title>
     <link rel="stylesheet" href="/app.css">
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="manifest" href="/site.webmanifest">
 </head>
-<body class="discovery-page">
-    <a class="skip-link" href="#content">Skip to games</a>
-    <div id="page-container">
-        <header id="header">
-            <nav class="discovery-nav" aria-label="Main navigation">
-                <a class="discovery-brand" href="/" aria-label="Homegames home"><img src="https://d3lgoy70hwd3pc.cloudfront.net/homegames_logo_small.png" alt="Homegames"></a>
-                <div class="discovery-links">
-                    <a href="/catalog.html" aria-current="page">Browse games</a>
-                    <a href="/studio.html">Create a game</a>
-                    <a href="/self-hosting.html">Self-host</a>
+<body>
+    <!-- site-header -->
+    <main id="content">
+        <div class="discovery-shell">
+            <section class="browse-intro" aria-labelledby="browse-heading">
+                <p class="discovery-eyebrow">The Homegames library</p>
+                <h1 id="browse-heading">Find something to play.</h1>
+                <p>Every game runs in your browser. Play on your own, or invite friends with a link.</p>
+            </section>
+            <form hidden id="catalog-search" class="catalog-tools" role="search">
+                <label class="catalog-search-label" for="search-box">Search games</label>
+                <div class="catalog-search-row">
+                    <input type="search" id="search-box" placeholder="Name, description, or creator" autocomplete="off" aria-controls="catalog">
                 </div>
-            </nav>
-        </header>
-        <main id="content">
-            <div class="discovery-shell">
-                <section class="browse-intro" aria-labelledby="browse-heading">
-                    <p class="discovery-eyebrow">The Homegames library</p>
-                    <h1 id="browse-heading">Find something to play.</h1>
-                    <p>Games made by the community, yours to explore. Play in your browser, bring others into a room, or download a game to keep.</p>
-                </section>
-                <section class="browse-rooms" id="active-sessions" hidden aria-labelledby="rooms-heading">
-                    <div class="discovery-section-heading"><h2 id="rooms-heading">Open rooms</h2><span>Hosted by players</span></div>
-                    <p class="discovery-note">Jump into a game that’s already running in someone’s browser.</p>
-                    <div id="active-sessions-list"></div>
-                </section>
-                <form id="catalog-search" class="catalog-tools" role="search">
-                    <label class="catalog-search-label" for="search-box">Search games</label>
-                    <div class="catalog-search-row">
-                        <input type="search" id="search-box" placeholder="Search by name, description, or creator" autocomplete="off">
-                        <button class="discovery-button primary" type="submit">Search</button>
-                    </div>
-                    <div class="catalog-filters">
-                        <label><input type="checkbox" id="featured-filter"> Featured only</label>
-                        <label><input type="checkbox" id="nsfw-filter"> Include NSFW</label>
-                        <button type="button" id="catalog-reset" class="text-button" hidden>Clear filters</button>
-                    </div>
-                </form>
-                <p id="catalog-status" tabindex="-1" class="discovery-note" role="status" aria-live="polite">Finding games…</p>
-                <div id="catalog" class="game-grid" aria-busy="true"></div>
-                <nav id="catalog-pagination" class="catalog-pagination" aria-label="Game pages"></nav>
-                <aside class="browse-how">
-                    <h2>A game runs wherever you are.</h2>
-                    <p>Start a multiplayer room and your browser hosts it. Make it public or invite people with a link. Keep the game tab open while they play.</p>
-                    <a href="/how_it_works.html">How Homegames works →</a>
-                </aside>
-            </div>
-        </main>
-    </div>
+            </form>
+            <p id="catalog-status" tabindex="-1" class="discovery-note" role="status" aria-live="polite"><!-- game-count --></p>
+            <div id="catalog" class="game-grid"><!-- built-in-games --></div>
+            <aside class="browse-how">
+                <h2>A game runs wherever you are.</h2>
+                <p>Start a multiplayer room and your browser hosts it. Invite people with a link. Keep the game tab open while they play.</p>
+                <a href="/how_it_works.html">How Homegames works →</a>
+            </aside>
+        </div>
+    </main>
+    <!-- site-footer -->
     <script src="/bundle.js"></script>
     <script>
         initCatalog();

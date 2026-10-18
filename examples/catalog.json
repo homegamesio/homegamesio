@@ -1,0 +1,98 @@
+[
+  {
+    "id": "square",
+    "title": "Make a shape",
+    "description": "Every game starts with something you can see. This one is just a shape on a canvas.",
+    "hint": "Look at the shape in the preview. There is nothing to click yet \u2014 you control it with the settings below.",
+    "challenge": "Can you make a small mint triangle?",
+    "control": "size",
+    "defaults": {
+      "size": 24
+    },
+    "guide": "drawing"
+  },
+  {
+    "id": "click",
+    "title": "Make it clickable",
+    "description": "Give the shape a job: every tap adds to a score. A game remembers what you do.",
+    "hint": "Click or tap the square three times. Watch the number underneath it.",
+    "challenge": "Make each click worth 5, then reach 20 points.",
+    "control": "points",
+    "defaults": {
+      "size": 24
+    },
+    "guide": "changing"
+  },
+  {
+    "id": "move",
+    "title": "Move it around",
+    "description": "Movement is a small change in position. The arrow buttons and keyboard do the same thing.",
+    "hint": "Use the arrow buttons in the game to reach the outline. On a keyboard, click the game first, then use the arrow keys or WASD.",
+    "challenge": "Try a bigger step. Is it easier or harder to reach the goal?",
+    "control": "speed",
+    "defaults": {
+      "size": 12
+    },
+    "guide": "input"
+  },
+  {
+    "id": "drag",
+    "title": "Drag and drop",
+    "description": "A drag has a beginning, a movement, and an end. The square follows your mouse or finger until you let go.",
+    "hint": "Grab the square, drag it into the outline, and release it.",
+    "challenge": "Turn on the grid and notice how the square snaps into place.",
+    "control": "grid",
+    "defaults": {
+      "size": 18
+    },
+    "guide": "input"
+  },
+  {
+    "id": "sound",
+    "title": "Give it a sound",
+    "description": "Sound makes an action feel different. These sounds are files included with the game.",
+    "hint": "Click or tap the square to hear it. Your first tap also enables sound in the browser.",
+    "challenge": "Swap Chime for Pop. Which would you use for collecting a coin?",
+    "control": "sound",
+    "defaults": {
+      "size": 24
+    },
+    "guide": "assets"
+  },
+  {
+    "id": "together",
+    "title": "Play together",
+    "description": "Now the same game has more than one player. Everyone sees the score, and the game knows their names.",
+    "hint": "Use Invite above the game and open the invitation in another tab. Take turns tapping the square. Keep this example open; changing its controls restarts the session.",
+    "challenge": "Change your player name from the game menu. Watch the names update for both players.",
+    "control": "players",
+    "defaults": {
+      "size": 24
+    },
+    "guide": "players"
+  },
+  {
+    "id": "animation",
+    "title": "Make it move",
+    "description": "A tick loop advances the game even when nobody clicks. Speed is measured in game units per second.",
+    "hint": "Watch the square bounce off both edges.",
+    "challenge": "Double the speed. The scene still updates 30 times per second.",
+    "control": "animation",
+    "guide": "game-loop",
+    "defaults": {
+      "speed": 24
+    }
+  },
+  {
+    "id": "round",
+    "title": "Win and restart",
+    "description": "A round needs a goal, an ending, and a way to play again. These are changes to game state.",
+    "hint": "Tap the square until you win, then tap again to restart.",
+    "challenge": "Change the goal. Check that holding the square still counts as one tap.",
+    "control": "goal",
+    "guide": "recipes",
+    "defaults": {
+      "goal": 5
+    }
+  }
+]
