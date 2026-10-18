@@ -1,0 +1,19 @@
+{
+  "gamesDirs": ["../homegames-core/src/games"],
+  "featuredGames": [
+    "lemonade-tycoon",
+    "hot-potato",
+    "aquarium",
+    "vegas-trail",
+    "hangman",
+    "swish",
+    "moonbounce",
+    "facet",
+    "tumble-tower",
+    "fleetfall",
+    "weed-smoke-willie",
+    "house-band"
+  ],
+  "signalingUrl": "wss://api.homegames.io/rtc",
+  "projectImportOrigins": ["https://mcp.homegames.io"]
+}
