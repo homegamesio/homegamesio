@@ -1,4 +1,4 @@
-const { Game, GameNode, Shapes, ShapeUtils, Asset } = require('squish-150');
+const { Game, GameNode, Shapes, ShapeUtils, Asset } = require('squish-151');
 
 // @example-settings:start
 // Try changing these values.

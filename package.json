@@ -25,8 +25,8 @@
   "dependencies": {
     "dompurify": "3.4.17",
     "fflate": "0.8.3",
-    "homegames-client": "0.2.1",
-    "homegames-common": "1.7.3"
+    "homegames-client": "0.2.4",
+    "homegames-common": "1.7.7"
   },
   "overrides": {
     "homepad": "0.2.1",

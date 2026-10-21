@@ -1,3 +1,5 @@
+> Historical audit from October 11–17, 2026. Findings below record the code at that time and are not current release instructions. For current behavior, use the [website README](../README.md) and [shared architecture reference](../../homegames-common/docs/ARCHITECTURE.md).
+
 # Documentation and static website audit — October 12, 2026
 
 > Later checkpoint: the [October 14 plan audit](../../homegames-core/docs/local-ownership-audit.md) supersedes this report's release-readiness statements, runtime list and remaining-route claims. It includes newly executed checks and unresolved isolation, workspace recovery and play/copy permission requirements. Historical test results below retain their original scope.

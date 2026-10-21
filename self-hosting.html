@@ -107,9 +107,10 @@
                 on Windows/Linux, close the launch window or press Ctrl+C. Closing the browser alone
                 does not stop the server. On a headless source install, use
                 <code>node index.js --no-open</code> to suppress the browser launch.</p>
-            <p>The bundle enables child-process sessions when Docker is unavailable. These run game code
-                with the host user's permissions rather than Docker isolation. If Docker and the runner
-                image are available, the session manager still prefers Docker.</p>
+            <p><strong>Run games without Docker</strong> defaults to Off. To allow server sessions without
+                Docker, enable it in Server settings on the host computer. Those games run on your machine
+                outside of a sandbox. Docker remains preferred when running. Browser-hosted Play does not
+                require Docker or this setting.</p>
             <div id="old-builds" style="display:none">
                 <h3>Previous versions</h3>
                 <ul id="old-builds-list"></ul>
@@ -122,28 +123,27 @@
                 <li>For source installs: Git, Node.js, and npm. The bundle builder currently uses Node 24;
                     use that major version when reproducing its environment. The source repos do not
                     declare one consistent minimum Node version.</li>
-                <li>For isolated shared sessions: a running Docker daemon and a built
-                    <code>homegames-runner</code> image. Browser-hosted play, including RTC guests, does not need Docker.</li>
+                <li>For isolated server sessions: a running Docker daemon using Linux containers.
+                    Homegames builds its runner automatically on first use; that first build needs internet
+                    access to download the Node base image. Browser-hosted play, including RTC guests, does not need Docker.</li>
                 <li>Internet for source dependency installation, optional link discovery, certificate requests,
                     or public RTC signaling. New bundles include built-in game media and local RTC
                     signaling; browsing installed games and playing on the LAN need no internet.</li>
             </ul>
 
             <h2 id="quick-start">Run from source</h2>
-            <p>Clone the server and launcher into one parent directory. The server installs the
+            <p>Clone Core. The server installs the
                 published client, shared library, Homepad and Squish packages from npm:</p>
 <pre><code>mkdir homegames-server
 cd homegames-server
 git clone https://github.com/homegamesio/homegames-core
-git clone https://github.com/homegamesio/homegames
 
 cd homegames-core
-npm ci
-cd ../homegames
 npm ci</code></pre>
-            <p>Stop if either install fails. The published client includes its built browser bundle;
-                no separate client build is needed. Both browser and server run games written for
-                Squish 1.5.0 (<code>squish-150</code>).</p>
+            <p>Stop if installation fails. The published client includes its built browser bundle;
+                no separate client build is needed. The current Core dependencies support
+                Squish 1.5.1 (<code>squish-151</code>) and existing 1.5.0 projects (<code>squish-150</code>).
+                Downloaded server releases retain their bundled runtime.</p>
             <p>Create <code>homegames-core/config.json</code> with an explicit starting configuration.
                 This avoids inheriting older library defaults:</p>
 <pre><code>{
@@ -159,13 +159,14 @@ npm ci</code></pre>
     "TESTS_ENABLED": false,
     "SAVE_FILES_ENABLED": true
 }</code></pre>
-            <p>For Docker sessions, build the runner from <code>homegames-core/docker</code> with
-                <code>./build-image.sh</code>. If you choose to run without Docker, set
-                <code>FORK_SESSIONS_ENABLED</code> to <code>true</code> or turn on
-                <strong>Allow fork for child sessions</strong> in dashboard settings. This permits
-                unisolated game execution; it does not force Docker off.</p>
-<pre><code># From the homegames launcher directory:
-node index.js</code></pre>
+            <p>Docker sessions prepare their runner automatically from the installed runtime. To prepare it
+                in advance from <code>homegames-core</code>, run <code>node docker/prepare-context.js</code>.
+                If you choose to run without Docker, turn on <strong>Run games without Docker</strong>
+                in Server settings, or set <code>FORK_SESSIONS_ENABLED</code> to <code>true</code>.
+                This permits game code to run on your machine outside of a sandbox.</p>
+<pre><code># From the homegames-core directory:
+npm start</code></pre>
+            <p>This starts Core directly. Stop and restart the process after changing server settings that require a restart. The optional Homegames launcher supervises Core; its dependency pins must match the server release.</p>
             <p>Open <code>http://localhost:7001</code>. An existing application-data config or environment
                 variable may override the values above; the server logs report the values in use.</p>
 
@@ -187,8 +188,8 @@ node index.js</code></pre>
             <ol>
                 <li>Choose <strong>Enable homegames.link</strong>. The server creates a private TLS key and
                     signing request locally. Only the signing request goes to the Homegames API.</li>
-                <li>Wait for <strong>Certificate ready</strong>. Issuance depends on the API, background
-                    worker, DNS, and certificate authority; it may take several minutes.</li>
+                <li>Wait for <strong>Certificate ready</strong>. Issuance depends on the API's certificate
+                    runner, DNS, and certificate authority; it may take several minutes.</li>
                 <li>Choose <strong>Restart to enable homegames.link</strong>. The launcher restarts core
                     and opens the link service. This disconnects existing players.</li>
             </ol>
@@ -198,9 +199,16 @@ node index.js</code></pre>
             <p>Certificates are stored in <code>hg-certs</code> under application data. The manager checks
                 for renewal daily and attempts renewal within 14 days of expiry. Initial HTTPS activation
                 requires restart; an already-running TLS server can reload a renewed certificate.</p>
+            <p>If your public IP changes, Homegames prepares a certificate for the new network and asks
+                you to restart when it is ready. Certificate retries retain their request and private key.
+                If Settings reports that operator review is needed, keep the existing certificate files
+                and contact Homegames rather than deleting them to start over.</p>
+            <p>This release supports one HTTPS server computer per public network. A second computer
+                shows a conflict instead of changing the first server's address. Stop the first server
+                before retrying discovery on the replacement computer.</p>
 
             <h2 id="lan-only">Local development and offline use</h2>
-            <p>To run core directly after installing dependencies and building the client:</p>
+            <p>To run core directly after installing its dependencies:</p>
 <pre><code>cd homegames-core
 npm start</code></pre>
             <p>Use the configured <code>HOME_PORT</code>. Direct execution has no launcher to honor the
@@ -221,8 +229,9 @@ npm start</code></pre>
             <p>To add a portable ZIP, open the dashboard on the host computer at its localhost address
                 and choose <strong>Import ZIP</strong>. The server validates it before saving a separate
                 revision under application data. Imports and saves survive replacing the bundle.
-                You can also place an unpacked game folder under <code>homegames-core/src/games</code>
-                and restart. Imported source executes when you play the game.</p>
+                In a source checkout, you can also place an unpacked game folder under
+                <code>homegames-core/src/games</code> and restart. Use Import ZIP with a downloaded Mac app
+                so its signed files stay intact. Imported source executes when you play the game.</p>
 
             <h2 id="config">Configuration and ports</h2>
             <p>Values resolve in this order: environment variable, user application-data
@@ -236,7 +245,7 @@ npm start</code></pre>
                 <tr><td><code>GAME_SERVER_PORT_RANGE_MIN</code><br><code>GAME_SERVER_PORT_RANGE_MAX</code></td><td>7002–7099</td><td>Inclusive port pool for shared game sessions</td></tr>
                 <tr><td><code>LINK_ENABLED</code></td><td>false</td><td>Register with homegames.link</td></tr>
                 <tr><td><code>HTTPS_ENABLED</code></td><td>false</td><td>Request/use a certificate for secure serving</td></tr>
-                <tr><td><code>FORK_SESSIONS_ENABLED</code></td><td>true</td><td>Allow child processes when Docker is unavailable; default without an override is false</td></tr>
+                <tr><td><code>FORK_SESSIONS_ENABLED</code></td><td>false</td><td>Host opt-in for running server games without a sandbox when Docker is unavailable</td></tr>
                 <tr><td><code>SAVE_FILES_ENABLED</code></td><td>true</td><td>Persist saves from games that implement saving</td></tr>
                 <tr><td><code>DASHBOARD_PAGE_SIZE</code></td><td>6</td><td>Games per dashboard page; settings offers 3, 6, or 9</td></tr>
                 <tr><td><code>TESTS_ENABLED</code></td><td>false</td><td>Show diagnostic/test games in the dashboard</td></tr>
@@ -251,8 +260,9 @@ npm start</code></pre>
                 <code>8300–8400</code>, and enables both discovery and HTTPS. Use the explicit configuration
                 above for a predictable first run; do not assume a port or TLS mode from a code comment.</p>
             <p>Use JSON booleans, such as <code>"LINK_ENABLED": false</code>, not the string
-                <code>"false"</code>. Port, page-size, and HTTPS changes need a restart. The fork setting
-                is checked for each new session and can take effect immediately.</p>
+                <code>"false"</code>. Port, page-size, and HTTPS changes need a restart.
+                <strong>Run games without Docker</strong> takes effect for new sessions immediately.
+                Environment-controlled ports appear read-only in Settings.</p>
 
             <h3 id="storage">Storage, backups, and upgrades</h3>
             <table>
@@ -278,10 +288,9 @@ npm start</code></pre>
                 games instead use RTC between host and guests, with signaling and ICE/STUN/TURN as
                 configured. Use your configured ports if different; loading the dashboard does not verify
                 every game transport.</p>
-            <p>Homenames is a management service. The implementation listens without a loopback-only bind,
-                so “local API” does not mean the port is automatically private. Keep it restricted to
-                trusted callers. Some management actions require an internal secret, but session creation
-                is not a general authenticated administration interface.</p>
+            <p>Server settings, game installation and starting server-side game code are available only
+                from the host computer. LAN guests can browse and play. Keep the Homenames management
+                port on your local network; it is not intended for public internet access.</p>
             <p>LAN play needs no internet-facing port forwarding. homegames.link uses an outbound
                 connection and redirects browsers to the LAN address. Guest Wi-Fi, access-point isolation,
                 VPN routing, and networks that share a public IP without sharing LAN connectivity can
@@ -302,11 +311,11 @@ npm start</code></pre>
                 <tr><td>Certificate ready but setup page remains</td><td>Choose the restart button in
                     settings. If running core directly, restart it manually. Check logs for DNS or
                     certificate failures and use the assigned hostname for TLS.</td></tr>
-                <tr><td>Dashboard works; Node/WebSocket game will not start</td><td>Check Docker is running and
-                    <code>homegames-runner</code> is built, or enable the fork option. If Docker started
-                    after core, restart core: a failed Docker check can stay cached. Check session logs
-                    for unsupported Squish versions, missing assets, and port conflicts.</td></tr>
-                <tr><td>Browser Invite will not connect</td><td>Keep the host tab awake; check signaling, a
+                <tr><td>Dashboard works; Node/WebSocket game will not start</td><td>Start Docker and retry;
+                    Homegames checks it again without a restart. Allow the first runner build to finish.
+                    Alternatively, the host can enable <strong>Run games without Docker</strong>.
+                    Check session logs for build errors, missing assets and port conflicts.</td></tr>
+                <tr><td>Browser invitation will not connect</td><td>Keep the host tab awake; check signaling, a
                     compatible guest player and ICE/TURN reachability. Manual pairing bypasses signaling,
                     but cannot guarantee a connection through every firewall.</td></tr>
                 <tr><td>Node game starts on server, fails on phone</td><td>Allow the configured child-port
@@ -314,8 +323,9 @@ npm start</code></pre>
                 <tr><td>Installed game fails without internet</td><td>Its source may be installed while an
                     asset is still missing from the cache. Load it online first; games depending on online
                     services cannot become fully offline merely by installing source.</td></tr>
-                <tr><td>Game edits do not appear in Docker</td><td>Rebuild the runner image after changing
-                    code or dependencies baked into it, then start a new session.</td></tr>
+                <tr><td>Game edits do not appear in Docker</td><td>Stop the game and start a new session.
+                    After changing the Core runtime or dependencies, restart Homegames; it prepares a
+                    new image for those files. Existing running sessions keep their original runtime.</td></tr>
                 <tr><td>Progress vanished</td><td>Check that the game implements saving, whether it ran in
                     the browser or on the server, and which version was played. Restarting a session alone
                     does not guarantee a save exists or is compatible.</td></tr>

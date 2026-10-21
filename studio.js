@@ -1319,7 +1319,7 @@ const buildAssetSnippet = (asset) => {
     const rawName = (asset.name || 'myAsset').replace(/\.[a-z0-9]+$/i, '');
     const key = (rawName.replace(/[^a-zA-Z0-9]+([a-zA-Z0-9])/g, (m, c) => c.toUpperCase()).replace(/^[^a-zA-Z]+/, '') || 'myAsset');
     const declare = [
-        "// 1) In static metadata()  (also: const { Asset } = require('squish-150');)",
+        "// 1) In static metadata()  (also: const { Asset } = require('squish-151');)",
         "assets: {",
         "    '" + key + "': new Asset({ id: '" + asset.id + "', type: '" + (type === 'other' ? 'image' : type) + "' })",
         "},",

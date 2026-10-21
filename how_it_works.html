@@ -79,9 +79,9 @@
             <table>
                 <tr><th>Action</th><th>Where the game runs</th><th>Multiplayer</th></tr>
                 <tr><td><strong>Play</strong></td><td>Your browser tab, after downloading its game pack</td>
-                    <td>Use Invite for a private link or QR code; there is no public room list.</td></tr>
+                    <td>Open the Homegames menu for a private invitation link or QR code; there is no public room list.</td></tr>
                 <tr><td><strong>Join</strong></td><td>The host's browser</td><td>You join that same game over a direct connection.</td></tr>
-                <tr><td><strong>Download game pack</strong></td><td>A ZIP with editable source, manifest, assets and license notices</td>
+                <tr><td><strong>Download game pack</strong></td><td>A ZIP with editable source, assets, an integrity inventory and license notices</td>
                     <td>Import the pack in Studio to edit, play or export a standalone HTML player.</td></tr>
                 <tr><td><strong>Self-host Homegames</strong></td><td>A dashboard on your home server; Play runs games in your browser</td>
                     <td>Household sessions appear on that dashboard. Host with WebSocket is available as a separate option.</td></tr>
@@ -98,12 +98,12 @@
             <ol>
                 <li>Open a game from <a href="/catalog.html">Browse games</a>.</li>
                 <li>Press <strong>Play</strong> to start the game in your browser.</li>
-                <li>Press <strong>Invite</strong> in the bar above the game. Friends can scan the QR code or open the invitation link.</li>
+                <li>Open the <strong>Homegames menu</strong> above the game. Friends can scan the QR code or open the invitation link.</li>
             </ol>
             <p>Keep the host tab open and awake. Closing it ends the game for everyone. Returning Home from a guest
                 leaves only that guest; returning Home from the host ends its session.</p>
             <p>Invitations are private links. Anyone with the invitation can join while the host remains available, inside or outside the house. There are no public rooms.</p>
-            <p>Invite in a Studio preview adds players without restarting the preview. Previews and downloaded
+            <p>The Homegames menu in a Studio preview invites players without restarting it. Previews and downloaded
                 games are unlisted. Invitations last only while the host is available; games cannot be pinned or moved between hosts.</p>
             <p>Automatic invitations currently disconnect peers if their signaling connection ends, even
                 though gameplay goes directly between browsers. Manual pairing is a separate path without that signaling
@@ -155,15 +155,16 @@
                 renders to a canvas. Images, sounds, and fonts arrive in separate asset bundles. Hosted
                 input travels back as JSON messages tagged with the connection's player ID.</p>
             <p>A game chooses its Squish version through its import, for example
-                <code>require('squish-150')</code>; don't repeat it in metadata. Both the server and the
-                browser must support that version. The current website, Studio and server all run
-                Squish 1.5.0 (<code>squish-150</code>).</p>
+                <code>require('squish-151')</code>; don't repeat it in metadata. Both the server and the
+                browser must support that version. The current runtime packages support
+                Squish 1.5.1 (<code>squish-151</code>) and existing 1.5.0 projects (<code>squish-150</code>).
+                Server downloads and exported HTML retain the versions bundled with them.</p>
 
             <h2 id="sessions">Where games run</h2>
             <h3>Local sessions</h3>
             <p>The browser loads the game's CommonJS files, creates the game instance, runs its Squish
                 serializer, and renders the result in the same tab. No game server is needed for this loop.
-                Studio runs this inside a sandboxed frame and supports real guests through Invite.</p>
+                Studio runs this inside a sandboxed frame and supports guests through the Homegames menu.</p>
             <p>Write to the shared game API rather than browser globals or Node built-ins. Local and
                 hosted execution have different environments: local platform services are empty, while
                 hosted games receive the services the server provides. A game that works in a local preview
@@ -209,8 +210,8 @@
             <p>Export ZIP contains the selected project files and an integrity inventory. Download HTML
                 contains a playable copy and runtime. Both include authored media; neither includes full
                 source history or current game progress. Send files to give someone their own copy,
-                use <strong>Share a copy</strong> to send it straight to their browser, or use
-                <strong>Invite</strong> to bring them into your current game.</p>
+                use <strong>Share with friends</strong> in the Homegames menu to send it to their browser,
+                or share the session invitation to bring them into your current game.</p>
             <p>Portable validation checks structure, imports, runtime compatibility and media. Studio and
                 downloaded HTML run game code in a sandboxed frame that can't reach Studio's storage. That
                 is not a CPU limit or a guarantee of code quality. Test controls, rules, saves and multiple players.</p>

@@ -63,7 +63,7 @@
     "id": "together",
     "title": "Play together",
     "description": "Now the same game has more than one player. Everyone sees the score, and the game knows their names.",
-    "hint": "Use Invite above the game and open the invitation in another tab. Take turns tapping the square. Keep this example open; changing its controls restarts the session.",
+    "hint": "Open the Homegames menu above the game and open its invitation link in another tab. Take turns tapping the square. Keep this example open; changing its controls restarts the session.",
     "challenge": "Change your player name from the game menu. Watch the names update for both players.",
     "control": "players",
     "defaults": {

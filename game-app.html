@@ -31,10 +31,10 @@
     <p id="install-message" role="status" hidden></p>
     <div class="actions"><button id="install" hidden>Install this game</button><button id="install-copy-link" hidden>Copy game link</button></div>
     <div class="install-file"><button id="install-file">Download game file (HTML)</button><p class="note">A complete offline copy you can back up, share, or open in a desktop browser.</p></div>
-    <p class="note" id="install-progress">To bring your existing progress into the app, use More → Download save here, then More → Load save in the app.</p>
+    <p class="note" id="install-progress">To bring your existing progress into the app, open the Homegames menu → Download save here, then Homegames menu → Load save in the app.</p>
     <button id="install-done">Back to game</button>
 </dialog>
-<div id="load-progress" hidden><label>Load progress <input id="save-file" type="file" accept=".json,application/json"></label><button id="load-done">Back to game</button></div>
+<dialog id="load-progress" aria-labelledby="load-title"><h2 id="load-title">Load progress</h2><label>Choose a save file <input id="save-file" type="file" accept=".json,application/json"></label><p id="load-status" role="alert" hidden></p><button id="load-done">Back to game</button></dialog>
 <section id="player" hidden aria-label="Game"></section>
 <noscript>Playing needs JavaScript. You can still <a href="/catalog.html">browse games and download game packs</a>.</noscript>
 </body></html>

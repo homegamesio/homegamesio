@@ -20,7 +20,7 @@
             <a href="#start-here">Start here</a>
             <a href="#studio-workflow">Studio workflow</a>
             <a href="#game-contract">Files &amp; metadata</a>
-            <a href="#big-picture">The big picture</a>
+            <a href="#big-picture">Game structure</a>
             <a href="#first-game">Your first game</a>
             <div class="toc-group">Core concepts</div>
             <a href="#drawing">Drawing things</a>
@@ -46,7 +46,7 @@
             <a href="#start-here">Start here</a>
             <a href="#studio-workflow">Studio workflow</a>
             <a href="#game-contract">Files &amp; metadata</a>
-            <a href="#big-picture">The big picture</a>
+            <a href="#big-picture">Game structure</a>
             <a href="#first-game">Your first game</a>
             <div class="toc-group">Core concepts</div>
             <a href="#drawing">Drawing things</a>
@@ -85,7 +85,7 @@
                 <li>Hit <strong>Play</strong>.</li>
                 <li>Change something, hit Play again, then choose Save to keep it.</li>
             </ol>
-            <p>This tutorial uses <code>squish-150</code>. The runtime version comes from that import; do not repeat it in metadata.
+            <p>This tutorial uses <code>squish-151</code>. The runtime version comes from that import; do not repeat it in metadata.
                 Every Squish import in the project must use the same supported alias. The rest of this page explains the code and how to ship it.</p>
 
             <h2 id="studio-workflow">A reliable Studio workflow</h2>
@@ -102,7 +102,7 @@
                     snapshot into the editor; Save keeps the restored version. Unsaved changes require confirmation.</li>
                 <li><strong>Share or keep a copy.</strong> Export &amp; share offers a playable HTML file, a
                     source ZIP, or Share an editable copy, which sends the game straight to another person.
-                    To play together, press Invite in the preview. The host tab must stay open for guests.</li>
+                    To play together, open the Homegames menu in the preview. The host tab must stay open for guests.</li>
             </ol>
             <p><strong>Settings</strong> holds light/dark appearance, full Studio backups, and browser storage.
                 Download backup includes your games, unfinished working copy, history, assets, play progress and
@@ -142,7 +142,7 @@
                 alias and your own relative JavaScript modules; arbitrary npm/Node modules and remote
                 imports are unsupported.</p>
 <pre><code>// index.js
-const { Game, GameNode, Colors, Shapes, ShapeUtils } = require('squish-150');
+const { Game, GameNode, Colors, Shapes, ShapeUtils } = require('squish-151');
 const { clamp } = require('./rules');
 
 // rules.js (a separate file)
@@ -169,14 +169,14 @@ module.exports.clamp = (value, min, max) =&gt; Math.max(min, Math.min(max, value
                 All values, including tickRate and maxPlayers, must be literal; do not reference constants,
                 call helpers or spread other objects there. Asset declarations use the literal form above.
                 Source is inspected without executing it. Do not declare <code>services</code> or repeat
-                <code>squishVersion</code>; the runtime comes from <code>require('squish-150')</code>.
-                The browser and the server both run Squish 1.5.0 (<code>squish-150</code>).</p>
+                <code>squishVersion</code>; the runtime comes from <code>require('squish-151')</code>.
+                Current runtime packages support Squish 1.5.1 (<code>squish-151</code>)
+                and existing 1.5.0 projects (<code>squish-150</code>). Older downloads retain their bundled runtime.</p>
 
-            <h2 id="big-picture">The big picture</h2>
+            <h2 id="big-picture">Game structure</h2>
             <p>
-                Five things to know before the code makes sense. (For the platform-level view — what runs
-                where and how multiplayer sessions and sharing work under the hood — see
-                <a href="/how_it_works.html">how Homegames works</a>.)
+                The runtime manages the game instance, rendering and player connections. See
+                <a href="/how_it_works.html">how Homegames works</a> for the platform overview.
             </p>
 
             <h3>1. Your code runs inside the Homegames runtime</h3>
@@ -187,8 +187,8 @@ module.exports.clamp = (value, min, max) =&gt; Math.max(min, Math.min(max, value
                 In either mode:
             </p>
             <ul>
-                <li>You never draw anything. No canvas, no CSS, no HTML. You describe what exists (a red square here, some text there) and the platform renders it.</li>
-                <li>You never write networking. If four people join a hosted session, they're all in your one game instance.</li>
+                <li>Build the scene from shapes, text and assets. The client renders those nodes to a canvas.</li>
+                <li>The runtime handles networking. Players in a shared session interact with the same game instance.</li>
                 <li>Do not depend on <code>window</code>, <code>document</code>, <code>location</code>, or <code>alert</code>.
                     They are absent in Node.js games. Studio runs portable games inside a sandboxed frame;
                     use the game API and injected save/media helpers rather than accessing editor storage or DOM.</li>
@@ -209,14 +209,14 @@ module.exports.clamp = (value, min, max) =&gt; Math.max(min, Math.min(max, value
                 later draw on top of nodes added earlier.
             </p>
 
-            <h3>4. When you change something, you have to say so</h3>
+            <h3>4. Notify scene changes</h3>
             <p>
                 The platform doesn't watch your variables. After changing node properties, call
-                <code>this.base.node.onStateChange()</code> once to push the new state to players. Forgetting
-                this is the most common bug: the code runs but the screen never updates.
+                <code>this.base.node.onStateChange()</code> once to push the new state to players. Without a notification,
+                node-property changes do not reach the renderer.
             </p>
 
-            <h3>5. Players are just numbers</h3>
+            <h3>5. Player IDs identify input and views</h3>
             <p>
                 When someone joins, your game gets their <code>playerId</code>. Every tap and key press comes
                 with the acting player's id. You decide what the ids mean — whose ship is whose, whose turn it
@@ -229,7 +229,7 @@ module.exports.clamp = (value, min, max) =&gt; Math.max(min, Math.min(max, value
                 A complete working game: a target you press to score points. Every game has this structure —
                 <code>metadata</code>, constructor, <code>getLayers</code>.
             </p>
-<pre><code>const { Game, GameNode, Colors, Shapes, ShapeUtils } = require('squish-150');
+<pre><code>const { Game, GameNode, Colors, Shapes, ShapeUtils } = require('squish-151');
 const { COLORS } = Colors;
 
 class TapGame extends Game {
@@ -250,7 +250,6 @@ class TapGame extends Game {
     constructor() {
         super();                     // always call super() first
         this.score = 0;
-        this.heldPlayers = new Set(); // avoid counting repeats while held
 
         // The root of everything: a full-screen background.
         this.base = new GameNode.Shape({
@@ -265,14 +264,12 @@ class TapGame extends Game {
                         size: 4, align: 'center', color: COLORS.WHITE }
         });
 
-        // A tappable target. Held presses can repeat onClick.
+        // A tappable target. onClick fires once per press.
         this.target = new GameNode.Shape({
             shapeType: Shapes.POLYGON,
             coordinates2d: ShapeUtils.rectangle(40, 40, 20, 20),
             fill: COLORS.CANDY_RED,
             onClick: (playerId, x, y) => {
-                if (this.heldPlayers.has(playerId)) return;
-                this.heldPlayers.add(playerId);
                 this.score++;
                 // To change text, replace the whole text object...
                 this.scoreText.node.text = { text: `Score: ${this.score}`,
@@ -283,14 +280,6 @@ class TapGame extends Game {
         });
 
         this.base.addChildren(this.scoreText, this.target);
-    }
-
-    handleMouseUp(playerId) {
-        this.heldPlayers.delete(playerId);
-    }
-
-    handlePlayerDisconnect(playerId) {
-        this.heldPlayers.delete(playerId);
     }
 
     // Tells the platform what to render. A single layer is enough here.
@@ -330,7 +319,7 @@ ShapeUtils.triangle(x1, y1, x2, y2, x3, y3) // any three points</code></pre>
     color: COLORS.WHITE,              // outline color; its alpha also controls opacity
     border: 4,                        // outline width — a NUMBER. Setting border
                                       // requires setting color too.
-    effects: {                        // a glow! great for neon looks
+    effects: {                        // optional shadow
         shadow: { color: [0, 255, 255, 255], blur: 12 }
     },
     onClick: (playerId, x, y) => { /* tapped! */ }
@@ -404,7 +393,7 @@ this.base.removeChild(node.id);      // take one off (by id!)
 this.base.clearChildren();           // remove everything under this node</code></pre>
 
             <div class="callout tip">
-                <p><strong>Cost:</strong> a dirty flush serializes the host tree, then builds a filtered view for each recipient. RTC sends full per-player snapshots, skips identical frames and can coalesce queued updates. Notify once per batch or tick when something changed; detach obsolete nodes and keep visible scenes small.</p>
+                <p><strong>Cost:</strong> a dirty flush serializes the host tree, then builds a filtered view for each recipient. RTC sends full per-player snapshots, skips identical frames and can coalesce queued updates. Notify once per batch or tick when something changed; detach obsolete nodes and measure host work, frame bytes and client paint time separately.</p>
             </div>
 
             <p><strong>Budget for the slowest player.</strong> A host uploads a separate view to each guest;
@@ -419,13 +408,13 @@ this.base.clearChildren();           // remove everything under this node</code>
                 Player-handling code is the same for single-player and multiplayer games. What differs is one
                 metadata declaration:
             </p>
-<pre><code>// Solo: no invitation is offered. Share a copy still works.
+<pre><code>// Solo: no session invitation is offered. Copy sharing still works.
 static metadata() {
     return { gameId: 'b419d54d-c746-4b92-bced-eeb8c106a8a8',
              name: 'My Game', maxPlayers: 1, aspectRatio: { x: 16, y: 9 } };
 }
 
-// Multiplayer: the browser hosts; Invite joins this running game.
+// Multiplayer: the browser hosts; a session invitation joins this game.
 // maxPlayers counts the host as well as guests.
 static metadata() {
     return { gameId: '303a9cb7-9a24-48fc-bc34-d2ac7aef941b',
@@ -495,8 +484,9 @@ handlePlayerDisconnect(playerId) {
             <h3>Taps and clicks</h3>
             <p>
                 Put <code>onClick: (playerId, x, y) =&gt; { ... }</code> on any Shape or Asset. It fires for
-                mouse presses and taps alike, and can repeat while held. For a one-shot action, latch
-                the press and reset it in <code>handleMouseUp(playerId)</code>, as in the first game.
+                mouse presses and taps alike, once per press. While held, movement calls
+                <code>onDrag(playerId, x, y)</code>; release calls <code>offClick</code> and
+                <code>handleMouseUp</code>. For repeated actions, track held state and advance it in <code>tick()</code>.
                 Make tap targets generous enough to use on phones.
             </p>
             <div class="callout">
@@ -524,7 +514,7 @@ handleKeyUp(playerId, key) {
                 <a href="/authoring-guide.md" target="_blank" rel="noopener">full reference</a>.
             </p>
             <div class="callout tip">
-                <p><strong>Phones don't have keyboards.</strong> If keys are your only controls, phone players can't play. Either design tap-first, or add on-screen buttons alongside the key handlers.</p>
+                <p><strong>Support touch input.</strong> Add on-screen controls for phone players when the game uses keyboard input.</p>
             </div>
 
             <h3>Dragging and controllers</h3>
@@ -775,7 +765,7 @@ this.base.node.onStateChange();</code></pre>
                 Portable images, audio and video live in your project. Declare their project-relative paths
                 in metadata, then place them with an Asset node:
             </p>
-<pre><code>const { Asset } = require('squish-150');
+<pre><code>const { Asset } = require('squish-151');
 
 // in metadata():
 assets: {
@@ -890,7 +880,7 @@ recordBest(score) {
                 <li><strong>Shape doesn't appear:</strong> often a made-up color name. <code>COLORS.CHOCOLATE</code> isn't an error, it's <code>undefined</code>, and the shape renders with no fill. Use a real palette name or an explicit <code>[r,g,b,a]</code>.</li>
                 <li><strong>Circles are ovals:</strong> the grid stretches to your aspect ratio. Use <code>{ x: 1, y: 1 }</code> for geometric games.</li>
                 <li><strong>"Off-screen" spawn visible at the edge:</strong> negative coordinates pin to 0. Spawn at the edge moving inward, or off the right/bottom.</li>
-                <li><strong>Client renders slowly:</strong> too many glowing nodes. The glow effect is expensive — use it on a few focal objects.</li>
+                <li><strong>Client renders slowly:</strong> measure canvas work, especially shadows, text and large images. Node count alone does not explain rendering cost.</li>
                 <li><strong>Single player instantly wins:</strong> a last-one-standing check firing with one person in the session.</li>
             </ul>
 
@@ -900,7 +890,7 @@ recordBest(score) {
                 include secret game state in a public label or assume a hidden button cannot be requested.</p>
 
             <h2 id="testing">Test and share</h2>
-            <p>Play runs the selected portable project in an isolated preview. With maxPlayers above 1, use Invite to join the same
+            <p>Play runs the selected portable project in an isolated preview. With maxPlayers above 1, use the Homegames menu to invite players to the same
                 live game from another browser/device; no sign-in is needed.</p>
             <ul>
                 <li>Test alone, with a real second player, and after a player leaves and returns.</li>
@@ -921,7 +911,7 @@ recordBest(score) {
                 manifest. Send this file to someone who wants their own project.
                 <strong>Download game HTML</strong> produces a playable copy with the runtime and media embedded.
                 <strong>Share an editable copy</strong> sends the game files straight to another person's browser;
-                <strong>Invite</strong> in the preview brings players into the running multiplayer game.</p>
+                The session invitation in the preview brings players into the running multiplayer game.</p>
             <p>Play/export checks format, safe paths, runtime agreement, literal metadata, imports,
                 recognizable media and size limits. It doesn't play your game for you or guarantee
                 every branch of your game works. Drafts and snapshots may save successfully while export
@@ -938,11 +928,11 @@ recordBest(score) {
                 <tr><td>Not saved / conflict</td><td>Keep unsaved work, save a copy or reload the saved
                     version; check quota and the other open project tabs.</td></tr>
             </table>
-            <p>The games on this website are chosen when the site is built. Studio saves your projects in this browser; Download source ZIP makes a portable pack that others can import and edit. Edit this game on a game page saves an editable copy of that game. Your edits and exports don't change the website. Invite brings players into the current browser-hosted multiplayer game.</p>
+            <p>The games on this website are chosen when the site is built. Studio saves your projects in this browser; Download source ZIP makes a portable pack that others can import and edit. Edit this game on a game page saves an editable copy of that game. Your edits and exports don't change the website. A session invitation brings players into the current browser-hosted multiplayer game.</p>
             <p>Homegames code and templates use the <a href="/license.txt">MIT License</a>.
                 Preserve copyright and license files when sharing them. Imported projects and third-party
                 code/media retain their own terms; exporting does not relicense them. New builds use
-                Squish 1.5.0 (<code>squish-150</code>). Snapshot history and runtime progress are separate
+                Squish 1.5.1 (<code>squish-151</code>). Snapshot history and runtime progress are separate
                 from ZIP/HTML exports; back them up deliberately.</p>
 
             <h2 id="further">Going further</h2>

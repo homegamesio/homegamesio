@@ -1,4 +1,4 @@
-const { Game, GameNode, Shapes, ShapeUtils } = require('squish-150');
+const { Game, GameNode, Shapes, ShapeUtils } = require('squish-151');
 
 // @example-settings:start
 const SQUARE_SIZE = 12;

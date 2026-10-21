@@ -2,7 +2,7 @@
 // All game-specific responses are created here on the recipient's device.
 // The static host never receives these files or manifests.
 window.GameAppStorage = (() => {
-    const COPIES = 'homegames-game-copies-v1', MANIFESTS = 'homegames-game-manifests-v1', ICONS = 'homegames-game-icons-v1';
+    const COPIES = 'homegames-game-copies-v1', RUNTIMES = 'homegames-game-runtimes-v1', MANIFESTS = 'homegames-game-manifests-v1', ICONS = 'homegames-game-icons-v1';
     let catalog;
     const defaultIcons = () => [192, 512].map(size => ({ src: `/android-chrome-${size}x${size}.png`, sizes: `${size}x${size}`, type: 'image/png' }));
     async function branding(project) {
@@ -82,18 +82,38 @@ window.GameAppStorage = (() => {
     }
     const readiness = prepare().then(() => ({ ok: true }), error => ({ ok: false, error }));
     async function ready() { const result = await readiness; if (!result.ok) throw result.error; }
-    async function keep(value, html, installationId) {
+    const runtimeKey = url => '/game-app-runtime?' + new URLSearchParams({ player: url });
+    async function keep(value, archive, installationId, runtimeSource) {
         await ready();
-        await (await caches.open(COPIES)).put('/game-app-bundle?' + identity(value), new Response(html, {
-            headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Homegames-Installation': installationId,
+        if (!(archive instanceof Uint8Array) || archive.length > HomegamesClient.PortableProject.limits.archiveBytes) throw new Error('Invalid game archive');
+        if (typeof runtimeSource !== 'string' || !runtimeSource.includes('PortableProject')) throw new Error('Missing offline player');
+        const key = '/game-app-bundle?' + identity(value), runtimes = await caches.open(RUNTIMES);
+        const runtime = runtimeKey(HomegamesSiteConfig.runtimeUrl);
+        // Store one player per version, shared by all games. Keep it outside
+        // shell caches so an interrupted upgrade can still open an older ZIP.
+        // Commit the game last: a quota failure must preserve its old copy.
+        if (!await runtimes.match(runtime)) await runtimes.put(runtime, new Response(runtimeSource, {
+            headers: { 'Content-Type': 'text/javascript; charset=utf-8' }
+        }));
+        await (await caches.open(COPIES)).put(key, new Response(archive, {
+            headers: { 'Content-Type': 'application/zip', 'X-Homegames-Installation': installationId,
                 'X-Homegames-Player': HomegamesSiteConfig.runtimeUrl }
         }));
         navigator.storage?.persist?.().catch(() => {});
     }
     async function read(value) {
         const response = await (await caches.open(COPIES)).match('/game-app-bundle?' + identity(value));
-        return response ? { html: await response.text(), installationId: response.headers.get('X-Homegames-Installation'),
-            runtimeUrl: response.headers.get('X-Homegames-Player') } : null;
+        if (!response) return null;
+        // Older installed copies are complete v1 HTML wrappers. Read them as
+        // data until the caller can migrate successfully without losing saves.
+        const content = response.headers.get('Content-Type') === 'application/zip'
+            ? { archive: new Uint8Array(await response.arrayBuffer()) } : { html: await response.text() };
+        return { ...content, installationId: response.headers.get('X-Homegames-Installation'),
+            runtimeUrl: response.headers.get('X-Homegames-Player') };
+    }
+    async function readRuntime(url) {
+        const response = await (await caches.open(RUNTIMES)).match(runtimeKey(url));
+        return response ? response.text() : null;
     }
     async function manifest(value, invitation, builtin) {
         await ready();
@@ -110,5 +130,5 @@ window.GameAppStorage = (() => {
         const link = document.createElement('link'); link.rel = 'manifest'; link.href = url; document.head.append(link);
         return manifest;
     }
-    return { ready, keep, read, manifest, launchPath, branding };
+    return { ready, keep, read, readRuntime, manifest, launchPath, branding };
 })();
